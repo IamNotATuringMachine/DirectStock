@@ -91,6 +91,18 @@ const navItems: NavItem[] = [
     roles: ["admin", "lagerleiter", "lagermitarbeiter"],
   },
   {
+    to: "/inter-warehouse-transfer",
+    label: "Inter-Warehouse",
+    shortLabel: "IW",
+    roles: ["admin", "lagerleiter", "lagermitarbeiter"],
+  },
+  {
+    to: "/shipping",
+    label: "Shipping",
+    shortLabel: "SH",
+    roles: ["admin", "lagerleiter", "versand"],
+  },
+  {
     to: "/scanner",
     label: "Scanner",
     shortLabel: "SC",

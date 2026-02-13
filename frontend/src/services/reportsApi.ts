@@ -1,5 +1,6 @@
 import { api } from "./api";
 import type {
+  DemandForecastResponse,
   ReportAbcResponse,
   ReportInboundOutboundResponse,
   ReportInventoryAccuracyResponse,
@@ -9,6 +10,7 @@ import type {
   ReportPurchaseRecommendationResponse,
   ReportReturnsResponse,
   ReportStockResponse,
+  TrendResponse,
 } from "../types";
 
 type DateRange = {
@@ -122,6 +124,45 @@ export async function fetchReportPurchaseRecommendations(params: {
   return response.data;
 }
 
+export async function fetchReportTrends(params: DateRange & { productId?: number; warehouseId?: number }): Promise<TrendResponse> {
+  const response = await api.get<TrendResponse>("/reports/trends", {
+    params: {
+      product_id: params.productId,
+      warehouse_id: params.warehouseId,
+      ...toRangeParams(params),
+    },
+  });
+  return response.data;
+}
+
+export async function fetchDemandForecast(params: {
+  runId?: number;
+  productId?: number;
+  warehouseId?: number;
+  page?: number;
+  pageSize?: number;
+}): Promise<DemandForecastResponse> {
+  const response = await api.get<DemandForecastResponse>("/reports/demand-forecast", {
+    params: {
+      run_id: params.runId,
+      product_id: params.productId,
+      warehouse_id: params.warehouseId,
+      page: params.page ?? 1,
+      page_size: params.pageSize ?? 25,
+    },
+  });
+  return response.data;
+}
+
+export async function recomputeDemandForecast(payload: {
+  date_from?: string;
+  date_to?: string;
+  warehouse_id?: number;
+}): Promise<{ message: string }> {
+  const response = await api.post<{ message: string }>("/reports/demand-forecast/recompute", payload);
+  return response.data;
+}
+
 export async function downloadReportCsv(
   report:
     | "stock"
@@ -131,7 +172,9 @@ export async function downloadReportCsv(
     | "abc"
     | "returns"
     | "picking-performance"
-    | "purchase-recommendations",
+    | "purchase-recommendations"
+    | "trends"
+    | "demand-forecast",
   params: Record<string, string | number | undefined>
 ): Promise<Blob> {
   const response = await api.get<Blob>(`/reports/${report}`, {

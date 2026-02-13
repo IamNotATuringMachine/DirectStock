@@ -306,3 +306,5 @@ async def test_reports_inventory_accuracy_abc_and_kpis(client: AsyncClient, admi
     assert "dock_to_stock_hours" in kpi_payload
     assert "inventory_accuracy_percent" in kpi_payload
     assert "alert_count" in kpi_payload
+    assert "inter_warehouse_transfers_in_transit" in kpi_payload
+    assert "inter_warehouse_transit_quantity" in kpi_payload

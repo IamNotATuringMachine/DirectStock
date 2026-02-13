@@ -17,6 +17,8 @@ class DashboardSummary(BaseModel):
     open_goods_receipts: int
     open_goods_issues: int
     open_stock_transfers: int
+    open_inter_warehouse_transfers: int
+    inter_warehouse_transit_quantity: Decimal
 
 
 class DashboardRecentMovements(BaseModel):

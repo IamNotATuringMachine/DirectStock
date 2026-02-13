@@ -7,6 +7,7 @@ import GoodsReceiptPage from "./pages/GoodsReceiptPage";
 import InventoryPage from "./pages/InventoryPage";
 import InventoryCountPage from "./pages/InventoryCountPage";
 import DocumentsPage from "./pages/DocumentsPage";
+import InterWarehouseTransferPage from "./pages/InterWarehouseTransferPage";
 import PickingPage from "./pages/PickingPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import ProductFormPage from "./pages/ProductFormPage";
@@ -15,6 +16,7 @@ import PurchasingPage from "./pages/PurchasingPage";
 import ReportsPage from "./pages/ReportsPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import ScannerPage from "./pages/ScannerPage";
+import ShippingPage from "./pages/ShippingPage";
 import StockTransferPage from "./pages/StockTransferPage";
 import WarehousePage from "./pages/WarehousePage";
 
@@ -30,6 +32,7 @@ export {
   DocumentsPage,
   GoodsIssuePage,
   GoodsReceiptPage,
+  InterWarehouseTransferPage,
   InventoryPage,
   InventoryCountPage,
   PickingPage,
@@ -40,6 +43,7 @@ export {
   ReportsPage,
   ReturnsPage,
   ScannerPage,
+  ShippingPage,
   StockTransferPage,
   UsersPage,
   WarehousePage,

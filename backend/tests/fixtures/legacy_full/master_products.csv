@@ -1,0 +1,4 @@
+product_number,name,description,unit,status,product_group
+LEG-ART-9001,Legacy Product A,Valid import row A,piece,active,Legacy Group A
+LEG-ART-9002,Legacy Product B,Valid import row B,piece,blocked,Legacy Group A
+LEG-ART-9003,Legacy Product C,Valid import row C,piece,active,Legacy Group B

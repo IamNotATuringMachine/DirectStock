@@ -76,10 +76,10 @@ export default function DashboardPage() {
           <strong>{summary ? `${summary.utilization_percent}%` : "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="dashboard-kpi-open-ops">
-          <span>Offene WE/WA/Uml.</span>
+          <span>Offene WE/WA/Uml./IWT</span>
           <strong>
             {summary
-              ? `${summary.open_goods_receipts}/${summary.open_goods_issues}/${summary.open_stock_transfers}`
+              ? `${summary.open_goods_receipts}/${summary.open_goods_issues}/${summary.open_stock_transfers}/${summary.open_inter_warehouse_transfers}`
               : "-"}
           </strong>
         </div>
@@ -102,6 +102,10 @@ export default function DashboardPage() {
         <div className="kpi-card" data-testid="dashboard-kpi-alert-count">
           <span>Alert Count</span>
           <strong>{kpiQuery.data?.alert_count ?? "-"}</strong>
+        </div>
+        <div className="kpi-card" data-testid="dashboard-kpi-iwt-transit">
+          <span>IWT Transit (Menge)</span>
+          <strong>{summary?.inter_warehouse_transit_quantity ?? "-"}</strong>
         </div>
       </div>
 

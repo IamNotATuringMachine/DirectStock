@@ -14,7 +14,20 @@ from app.models.alerts import AlertEvent
 from app.models.catalog import Product
 from app.models.inventory import Inventory, InventoryCountItem, InventoryCountSession, StockMovement, GoodsReceipt
 from app.models.phase3 import ApprovalRequest, PickTask, PickWave, PurchaseRecommendation, ReturnOrder, ReturnOrderItem
+from app.models.phase4 import (
+    ForecastItem,
+    ForecastRun,
+    InterWarehouseTransfer,
+    InterWarehouseTransferItem,
+)
 from app.models.warehouse import BinLocation, WarehouseZone
+from app.schemas.phase4 import (
+    DemandForecastRecomputeRequest,
+    DemandForecastResponse,
+    DemandForecastRow,
+    TrendResponse,
+    TrendRow,
+)
 from app.schemas.reports import (
     ReportAbcResponse,
     ReportAbcRow,
@@ -34,6 +47,8 @@ from app.schemas.reports import (
     ReportStockResponse,
     ReportStockRow,
 )
+from app.schemas.user import MessageResponse
+from app.services.forecast import recompute_demand_forecast
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -709,6 +724,159 @@ async def report_purchase_recommendations(
     return ReportPurchaseRecommendationResponse(items=items, total=total, page=page, page_size=page_size)
 
 
+@router.get("/trends", response_model=TrendResponse)
+async def report_trends(
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    product_id: int | None = Query(default=None),
+    warehouse_id: int | None = Query(default=None),
+    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
+) -> TrendResponse | Response:
+    _, _, start, end = _date_bounds(date_from, date_to)
+    day_expr = func.date(StockMovement.performed_at)
+    stmt = (
+        select(
+            day_expr.label("day"),
+            Product.id.label("product_id"),
+            Product.product_number.label("product_number"),
+            Product.name.label("product_name"),
+            func.coalesce(func.sum(StockMovement.quantity), 0).label("outbound_quantity"),
+        )
+        .join(Product, Product.id == StockMovement.product_id)
+        .where(
+            StockMovement.movement_type == "goods_issue",
+            StockMovement.performed_at >= start,
+            StockMovement.performed_at < end,
+        )
+        .group_by(day_expr, Product.id, Product.product_number, Product.name)
+        .order_by(day_expr.asc(), Product.product_number.asc())
+    )
+    if product_id is not None:
+        stmt = stmt.where(StockMovement.product_id == product_id)
+    if warehouse_id is not None:
+        stmt = stmt.join(BinLocation, BinLocation.id == StockMovement.from_bin_id).join(
+            WarehouseZone,
+            WarehouseZone.id == BinLocation.zone_id,
+        )
+        stmt = stmt.where(WarehouseZone.warehouse_id == warehouse_id)
+
+    rows = (await db.execute(stmt)).all()
+    items = [
+        TrendRow(
+            day=date.fromisoformat(str(row.day)),
+            product_id=row.product_id,
+            product_number=row.product_number,
+            product_name=row.product_name,
+            outbound_quantity=row.outbound_quantity,
+        )
+        for row in rows
+    ]
+
+    if output == "csv":
+        return _csv_response(
+            fieldnames=["day", "product_id", "product_number", "product_name", "outbound_quantity"],
+            rows=[item.model_dump() for item in items],
+            filename="reports-trends.csv",
+        )
+    return TrendResponse(items=items)
+
+
+@router.get("/demand-forecast", response_model=DemandForecastResponse)
+async def report_demand_forecast(
+    run_id: int | None = Query(default=None),
+    product_id: int | None = Query(default=None),
+    warehouse_id: int | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=500),
+    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
+) -> DemandForecastResponse | Response:
+    resolved_run_id = run_id
+    if resolved_run_id is None:
+        latest = (
+            await db.execute(select(ForecastRun.id).order_by(ForecastRun.generated_at.desc(), ForecastRun.id.desc()).limit(1))
+        ).scalar_one_or_none()
+        if latest is None:
+            return DemandForecastResponse(items=[], total=0)
+        resolved_run_id = int(latest)
+
+    stmt = (
+        select(ForecastItem, Product.product_number, Product.name.label("product_name"))
+        .join(Product, Product.id == ForecastItem.product_id)
+        .where(ForecastItem.run_id == resolved_run_id)
+    )
+    if product_id is not None:
+        stmt = stmt.where(ForecastItem.product_id == product_id)
+    if warehouse_id is not None:
+        stmt = stmt.where(ForecastItem.warehouse_id == warehouse_id)
+
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    rows = (
+        await db.execute(
+            stmt.order_by(ForecastItem.id.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+    items = [
+        # Row layout: (ForecastItem, product_number, product_name)
+        DemandForecastRow(
+            run_id=row[0].run_id,
+            product_id=row[0].product_id,
+            product_number=row.product_number,
+            product_name=row.product_name,
+            warehouse_id=row[0].warehouse_id,
+            historical_mean=row[0].historical_mean,
+            trend_slope=row[0].trend_slope,
+            confidence_score=row[0].confidence_score,
+            history_days_used=row[0].history_days_used,
+            forecast_qty_7=row[0].forecast_qty_7,
+            forecast_qty_30=row[0].forecast_qty_30,
+            forecast_qty_90=row[0].forecast_qty_90,
+        )
+        for row in rows
+    ]
+    if output == "csv":
+        return _csv_response(
+            fieldnames=[
+                "run_id",
+                "product_id",
+                "product_number",
+                "product_name",
+                "warehouse_id",
+                "historical_mean",
+                "trend_slope",
+                "confidence_score",
+                "history_days_used",
+                "forecast_qty_7",
+                "forecast_qty_30",
+                "forecast_qty_90",
+            ],
+            rows=[item.model_dump() for item in items],
+            filename="reports-demand-forecast.csv",
+        )
+    return DemandForecastResponse(items=items, total=total)
+
+
+@router.post("/demand-forecast/recompute", response_model=MessageResponse)
+async def recompute_demand_forecast_endpoint(
+    payload: DemandForecastRecomputeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_roles("admin", "lagerleiter", "controller")),
+) -> MessageResponse:
+    run, items = await recompute_demand_forecast(
+        db,
+        generated_by=current_user.id,
+        date_from=payload.date_from,
+        date_to=payload.date_to,
+        warehouse_id=payload.warehouse_id,
+    )
+    return MessageResponse(message=f"demand forecast recomputed (run_id={run.id}, items={items})")
+
+
 @router.get("/kpis", response_model=ReportKpiResponse)
 async def report_kpis(
     date_from: date | None = Query(default=None),
@@ -853,6 +1021,27 @@ async def report_kpis(
         if approval_cycle_values
         else Decimal("0.00")
     )
+    transit_stats = (
+        await db.execute(
+            select(
+                func.count(func.distinct(InterWarehouseTransfer.id)).label("transfers"),
+                func.coalesce(
+                    func.sum(
+                        InterWarehouseTransferItem.dispatched_quantity
+                        - InterWarehouseTransferItem.received_quantity
+                    ),
+                    0,
+                ).label("transit_quantity"),
+            )
+            .select_from(InterWarehouseTransfer)
+            .join(
+                InterWarehouseTransferItem,
+                InterWarehouseTransferItem.inter_warehouse_transfer_id == InterWarehouseTransfer.id,
+                isouter=True,
+            )
+            .where(InterWarehouseTransfer.status == "dispatched")
+        )
+    ).one()
 
     return ReportKpiResponse(
         date_from=start_day,
@@ -864,4 +1053,6 @@ async def report_kpis(
         pick_accuracy_rate=pick_accuracy_rate,
         returns_rate=returns_rate,
         approval_cycle_hours=approval_cycle_hours,
+        inter_warehouse_transfers_in_transit=int(transit_stats.transfers or 0),
+        inter_warehouse_transit_quantity=Decimal(transit_stats.transit_quantity or 0),
     )

@@ -378,6 +378,80 @@ export type StockTransferItem = {
   updated_at: string;
 };
 
+export type Shipment = {
+  id: number;
+  shipment_number: string;
+  carrier: "dhl" | "dpd" | "ups";
+  status: string;
+  goods_issue_id: number | null;
+  tracking_number: string | null;
+  recipient_name: string | null;
+  shipping_address: string | null;
+  label_document_id: number | null;
+  created_by: number | null;
+  shipped_at: string | null;
+  cancelled_at: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ShipmentEvent = {
+  id: number;
+  shipment_id: number;
+  event_type: string;
+  status: string;
+  description: string | null;
+  event_at: string;
+  source: string;
+  payload_json: Record<string, unknown> | null;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ShipmentTracking = {
+  shipment: Shipment;
+  events: ShipmentEvent[];
+};
+
+export type InterWarehouseTransfer = {
+  id: number;
+  transfer_number: string;
+  from_warehouse_id: number;
+  to_warehouse_id: number;
+  status: "draft" | "dispatched" | "received" | "cancelled";
+  requested_at: string | null;
+  dispatched_at: string | null;
+  received_at: string | null;
+  cancelled_at: string | null;
+  created_by: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InterWarehouseTransferItem = {
+  id: number;
+  inter_warehouse_transfer_id: number;
+  product_id: number;
+  from_bin_id: number;
+  to_bin_id: number;
+  requested_quantity: string;
+  dispatched_quantity: string;
+  received_quantity: string;
+  unit: string;
+  batch_number: string | null;
+  serial_numbers: string[] | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InterWarehouseTransferDetail = {
+  transfer: InterWarehouseTransfer;
+  items: InterWarehouseTransferItem[];
+};
+
 export type DashboardSummary = {
   total_products: number;
   total_warehouses: number;
@@ -389,6 +463,8 @@ export type DashboardSummary = {
   open_goods_receipts: number;
   open_goods_issues: number;
   open_stock_transfers: number;
+  open_inter_warehouse_transfers: number;
+  inter_warehouse_transit_quantity: string;
 };
 
 export type DashboardRecentMovements = {
@@ -814,6 +890,8 @@ export type ReportKpi = {
   pick_accuracy_rate: string;
   returns_rate: string;
   approval_cycle_hours: string;
+  inter_warehouse_transfers_in_transit: number;
+  inter_warehouse_transit_quantity: string;
 };
 
 export type ReportReturnsRow = {
@@ -872,4 +950,36 @@ export type ReportPurchaseRecommendationResponse = {
   total: number;
   page: number;
   page_size: number;
+};
+
+export type TrendRow = {
+  day: string;
+  product_id: number;
+  product_number: string;
+  product_name: string;
+  outbound_quantity: string;
+};
+
+export type TrendResponse = {
+  items: TrendRow[];
+};
+
+export type ForecastRow = {
+  run_id: number;
+  product_id: number;
+  product_number: string;
+  product_name: string;
+  warehouse_id: number | null;
+  historical_mean: string;
+  trend_slope: string;
+  confidence_score: string;
+  history_days_used: number;
+  forecast_qty_7: string;
+  forecast_qty_30: string;
+  forecast_qty_90: string;
+};
+
+export type DemandForecastResponse = {
+  items: ForecastRow[];
+  total: number;
 };

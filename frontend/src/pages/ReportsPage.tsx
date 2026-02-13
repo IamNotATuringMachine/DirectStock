@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   downloadReportCsv,
+  fetchDemandForecast,
   fetchReportAbc,
   fetchReportInboundOutbound,
   fetchReportInventoryAccuracy,
@@ -12,6 +13,8 @@ import {
   fetchReportPurchaseRecommendations,
   fetchReportReturns,
   fetchReportStock,
+  fetchReportTrends,
+  recomputeDemandForecast,
 } from "../services/reportsApi";
 
 type ReportType =
@@ -22,7 +25,9 @@ type ReportType =
   | "abc"
   | "returns"
   | "picking-performance"
-  | "purchase-recommendations";
+  | "purchase-recommendations"
+  | "trends"
+  | "demand-forecast";
 
 function defaultDateRange() {
   const now = new Date();
@@ -44,7 +49,38 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function TrendSparkline({ values }: { values: number[] }) {
+  if (values.length === 0) {
+    return <span>-</span>;
+  }
+  if (values.length === 1) {
+    return (
+      <svg width="120" height="28" viewBox="0 0 120 28" aria-label="trend-sparkline">
+        <line x1="2" y1="14" x2="118" y2="14" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    );
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const points = values
+    .map((value, index) => {
+      const x = 2 + (index / (values.length - 1)) * 116;
+      const y = 24 - ((value - min) / range) * 20;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg width="120" height="28" viewBox="0 0 120 28" aria-label="trend-sparkline">
+      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
 export default function ReportsPage() {
+  const queryClient = useQueryClient();
   const initialRange = defaultDateRange();
   const [reportType, setReportType] = useState<ReportType>("stock");
   const [dateFrom, setDateFrom] = useState(initialRange.from);
@@ -54,6 +90,12 @@ export default function ReportsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 25;
   const [isDownloading, setIsDownloading] = useState(false);
+
+  const [trendProductId, setTrendProductId] = useState("");
+  const [trendWarehouseId, setTrendWarehouseId] = useState("");
+  const [forecastRunId, setForecastRunId] = useState("");
+  const [forecastProductId, setForecastProductId] = useState("");
+  const [forecastWarehouseId, setForecastWarehouseId] = useState("");
 
   const kpisQuery = useQuery({
     queryKey: ["reports-kpis", dateFrom, dateTo],
@@ -108,6 +150,39 @@ export default function ReportsPage() {
     enabled: reportType === "purchase-recommendations",
   });
 
+  const trendsQuery = useQuery({
+    queryKey: ["reports-trends", dateFrom, dateTo, trendProductId, trendWarehouseId],
+    queryFn: () =>
+      fetchReportTrends({
+        dateFrom,
+        dateTo,
+        productId: trendProductId ? Number(trendProductId) : undefined,
+        warehouseId: trendWarehouseId ? Number(trendWarehouseId) : undefined,
+      }),
+    enabled: reportType === "trends",
+  });
+
+  const forecastQuery = useQuery({
+    queryKey: ["reports-demand-forecast", forecastRunId, forecastProductId, forecastWarehouseId, page, pageSize],
+    queryFn: () =>
+      fetchDemandForecast({
+        runId: forecastRunId ? Number(forecastRunId) : undefined,
+        productId: forecastProductId ? Number(forecastProductId) : undefined,
+        warehouseId: forecastWarehouseId ? Number(forecastWarehouseId) : undefined,
+        page,
+        pageSize,
+      }),
+    enabled: reportType === "demand-forecast",
+  });
+
+  const recomputeForecastMutation = useMutation({
+    mutationFn: recomputeDemandForecast,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["reports-demand-forecast"] });
+      setPage(1);
+    },
+  });
+
   const pagination = useMemo(() => {
     if (reportType === "stock" && stockQuery.data) {
       const totalPages = Math.max(1, Math.ceil(stockQuery.data.total / stockQuery.data.page_size));
@@ -129,15 +204,51 @@ export default function ReportsPage() {
       const totalPages = Math.max(1, Math.ceil(purchaseRecommendationQuery.data.total / purchaseRecommendationQuery.data.page_size));
       return { total: purchaseRecommendationQuery.data.total, totalPages };
     }
+    if (reportType === "demand-forecast" && forecastQuery.data) {
+      const totalPages = Math.max(1, Math.ceil(forecastQuery.data.total / pageSize));
+      return { total: forecastQuery.data.total, totalPages };
+    }
     return null;
   }, [
+    forecastQuery.data,
     movementsQuery.data,
+    pageSize,
     pickingPerformanceQuery.data,
     purchaseRecommendationQuery.data,
     reportType,
     returnsQuery.data,
     stockQuery.data,
   ]);
+
+  const trendSparklines = useMemo(() => {
+    const groups = new Map<
+      number,
+      {
+        product_id: number;
+        product_number: string;
+        product_name: string;
+        values: number[];
+        total: number;
+      }
+    >();
+    for (const row of trendsQuery.data?.items ?? []) {
+      const outbound = Number(row.outbound_quantity);
+      const existing = groups.get(row.product_id);
+      if (existing) {
+        existing.values.push(outbound);
+        existing.total += outbound;
+      } else {
+        groups.set(row.product_id, {
+          product_id: row.product_id,
+          product_number: row.product_number,
+          product_name: row.product_name,
+          values: [outbound],
+          total: outbound,
+        });
+      }
+    }
+    return Array.from(groups.values()).sort((a, b) => b.total - a.total);
+  }, [trendsQuery.data?.items]);
 
   const onDownloadCsv = async () => {
     setIsDownloading(true);
@@ -162,6 +273,17 @@ export default function ReportsPage() {
       }
       if (reportType === "abc") {
         params.search = search || undefined;
+      }
+      if (reportType === "trends") {
+        params.product_id = trendProductId || undefined;
+        params.warehouse_id = trendWarehouseId || undefined;
+      }
+      if (reportType === "demand-forecast") {
+        params.page = page;
+        params.page_size = pageSize;
+        params.run_id = forecastRunId || undefined;
+        params.product_id = forecastProductId || undefined;
+        params.warehouse_id = forecastWarehouseId || undefined;
       }
 
       const blob = await downloadReportCsv(reportType, params);
@@ -209,6 +331,14 @@ export default function ReportsPage() {
           <span>Approval Cycle (h)</span>
           <strong>{kpisQuery.data?.approval_cycle_hours ?? "-"}</strong>
         </div>
+        <div className="kpi-card" data-testid="reports-kpi-iwt-transfers">
+          <span>IWT in Transit</span>
+          <strong>{kpisQuery.data?.inter_warehouse_transfers_in_transit ?? "-"}</strong>
+        </div>
+        <div className="kpi-card" data-testid="reports-kpi-iwt-quantity">
+          <span>IWT Transit (Menge)</span>
+          <strong>{kpisQuery.data?.inter_warehouse_transit_quantity ?? "-"}</strong>
+        </div>
       </div>
 
       <div className="products-toolbar">
@@ -229,6 +359,8 @@ export default function ReportsPage() {
           <option value="returns">Returns</option>
           <option value="picking-performance">Picking Performance</option>
           <option value="purchase-recommendations">Purchase Recommendations</option>
+          <option value="trends">Trends</option>
+          <option value="demand-forecast">Demand Forecast</option>
         </select>
         <input
           className="input"
@@ -272,6 +404,82 @@ export default function ReportsPage() {
             <option value="stock_transfer">stock_transfer</option>
             <option value="inventory_adjustment">inventory_adjustment</option>
           </select>
+        ) : null}
+        {reportType === "trends" ? (
+          <>
+            <input
+              className="input"
+              type="number"
+              min="1"
+              placeholder="Produkt-ID"
+              value={trendProductId}
+              onChange={(event) => setTrendProductId(event.target.value)}
+              data-testid="reports-trend-product-id"
+            />
+            <input
+              className="input"
+              type="number"
+              min="1"
+              placeholder="Warehouse-ID"
+              value={trendWarehouseId}
+              onChange={(event) => setTrendWarehouseId(event.target.value)}
+              data-testid="reports-trend-warehouse-id"
+            />
+          </>
+        ) : null}
+        {reportType === "demand-forecast" ? (
+          <>
+            <input
+              className="input"
+              type="number"
+              min="1"
+              placeholder="Run-ID"
+              value={forecastRunId}
+              onChange={(event) => {
+                setForecastRunId(event.target.value);
+                setPage(1);
+              }}
+              data-testid="reports-forecast-run-id"
+            />
+            <input
+              className="input"
+              type="number"
+              min="1"
+              placeholder="Produkt-ID"
+              value={forecastProductId}
+              onChange={(event) => {
+                setForecastProductId(event.target.value);
+                setPage(1);
+              }}
+              data-testid="reports-forecast-product-id"
+            />
+            <input
+              className="input"
+              type="number"
+              min="1"
+              placeholder="Warehouse-ID"
+              value={forecastWarehouseId}
+              onChange={(event) => {
+                setForecastWarehouseId(event.target.value);
+                setPage(1);
+              }}
+              data-testid="reports-forecast-warehouse-id"
+            />
+            <button
+              className="btn"
+              onClick={() =>
+                void recomputeForecastMutation.mutateAsync({
+                  date_from: dateFrom || undefined,
+                  date_to: dateTo || undefined,
+                  warehouse_id: forecastWarehouseId ? Number(forecastWarehouseId) : undefined,
+                })
+              }
+              disabled={recomputeForecastMutation.isPending}
+              data-testid="reports-forecast-recompute-btn"
+            >
+              Forecast neu berechnen
+            </button>
+          </>
         ) : null}
         <button className="btn" onClick={() => void onDownloadCsv()} disabled={isDownloading} data-testid="reports-download-csv-btn">
           CSV Export
@@ -383,7 +591,9 @@ export default function ReportsPage() {
                 <tr key={row.session_id}>
                   <td>{row.session_number}</td>
                   <td>{row.completed_at ? new Date(row.completed_at).toLocaleString() : "-"}</td>
-                  <td>{row.counted_items} / {row.total_items}</td>
+                  <td>
+                    {row.counted_items} / {row.total_items}
+                  </td>
                   <td>{row.exact_match_items}</td>
                   <td>{row.recount_required_items}</td>
                   <td>{row.accuracy_percent}%</td>
@@ -513,6 +723,107 @@ export default function ReportsPage() {
                   <td>{row.recommended_quantity}</td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {reportType === "trends" ? (
+        <>
+          <div className="table-wrap" style={{ marginBottom: "1rem" }}>
+            <table className="products-table" data-testid="reports-trends-sparkline-table">
+              <thead>
+                <tr>
+                  <th>Artikel</th>
+                  <th>Gesamt Outbound</th>
+                  <th>Trend</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trendSparklines.map((row) => (
+                  <tr key={row.product_id}>
+                    <td>
+                      {row.product_number} - {row.product_name}
+                    </td>
+                    <td>{row.total.toFixed(3)}</td>
+                    <td>
+                      <TrendSparkline values={row.values} />
+                    </td>
+                  </tr>
+                ))}
+                {!trendsQuery.isLoading && trendSparklines.length === 0 ? (
+                  <tr>
+                    <td colSpan={3}>Keine Trenddaten verfügbar.</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="table-wrap">
+            <table className="products-table" data-testid="reports-trends-table">
+              <thead>
+                <tr>
+                  <th>Tag</th>
+                  <th>Produkt</th>
+                  <th>Outbound</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(trendsQuery.data?.items ?? []).map((row) => (
+                  <tr key={`${row.day}-${row.product_id}`}>
+                    <td>{row.day}</td>
+                    <td>
+                      {row.product_number} - {row.product_name}
+                    </td>
+                    <td>{row.outbound_quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : null}
+
+      {reportType === "demand-forecast" ? (
+        <div className="table-wrap">
+          <table className="products-table" data-testid="reports-demand-forecast-table">
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Produkt</th>
+                <th>Warehouse</th>
+                <th>Hist. Mean</th>
+                <th>Trend Slope</th>
+                <th>Confidence</th>
+                <th>History Days</th>
+                <th>Forecast 7</th>
+                <th>Forecast 30</th>
+                <th>Forecast 90</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(forecastQuery.data?.items ?? []).map((row) => (
+                <tr key={`${row.run_id}-${row.product_id}-${row.warehouse_id ?? 0}`}>
+                  <td>{row.run_id}</td>
+                  <td>
+                    {row.product_number} - {row.product_name}
+                  </td>
+                  <td>{row.warehouse_id ?? "-"}</td>
+                  <td>{row.historical_mean}</td>
+                  <td>{row.trend_slope}</td>
+                  <td>{row.confidence_score}</td>
+                  <td>{row.history_days_used}</td>
+                  <td>{row.forecast_qty_7}</td>
+                  <td>{row.forecast_qty_30}</td>
+                  <td>{row.forecast_qty_90}</td>
+                </tr>
+              ))}
+              {!forecastQuery.isLoading && (forecastQuery.data?.items.length ?? 0) === 0 ? (
+                <tr>
+                  <td colSpan={10}>Keine Forecast-Daten verfügbar.</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

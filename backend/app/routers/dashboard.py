@@ -9,6 +9,7 @@ from sqlalchemy.orm import aliased
 from app.dependencies import get_current_user, get_db
 from app.models.catalog import Product, ProductWarehouseSetting
 from app.models.inventory import GoodsIssue, GoodsReceipt, Inventory, StockMovement, StockTransfer
+from app.models.phase4 import InterWarehouseTransfer, InterWarehouseTransferItem
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 from app.schemas.dashboard import (
     DashboardActivityToday,
@@ -108,6 +109,30 @@ async def summary(
     open_stock_transfers = (
         await db.execute(select(func.count(StockTransfer.id)).where(StockTransfer.status == "draft"))
     ).scalar_one()
+    open_inter_warehouse_transfers = (
+        await db.execute(
+            select(func.count(InterWarehouseTransfer.id)).where(InterWarehouseTransfer.status == "dispatched")
+        )
+    ).scalar_one()
+    inter_warehouse_transit_quantity = (
+        await db.execute(
+            select(
+                func.coalesce(
+                    func.sum(
+                        InterWarehouseTransferItem.dispatched_quantity - InterWarehouseTransferItem.received_quantity
+                    ),
+                    0,
+                )
+            )
+            .select_from(InterWarehouseTransfer)
+            .join(
+                InterWarehouseTransferItem,
+                InterWarehouseTransferItem.inter_warehouse_transfer_id == InterWarehouseTransfer.id,
+                isouter=True,
+            )
+            .where(InterWarehouseTransfer.status == "dispatched")
+        )
+    ).scalar_one()
 
     low_stock_items = await _load_low_stock(db)
     utilization_percent = (
@@ -127,6 +152,8 @@ async def summary(
         open_goods_receipts=open_goods_receipts,
         open_goods_issues=open_goods_issues,
         open_stock_transfers=open_stock_transfers,
+        open_inter_warehouse_transfers=open_inter_warehouse_transfers,
+        inter_warehouse_transit_quantity=Decimal(inter_warehouse_transit_quantity),
     )
 
 

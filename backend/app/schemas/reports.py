@@ -101,6 +101,8 @@ class ReportKpiResponse(BaseModel):
     pick_accuracy_rate: Decimal
     returns_rate: Decimal
     approval_cycle_hours: Decimal
+    inter_warehouse_transfers_in_transit: int
+    inter_warehouse_transit_quantity: Decimal
 
 
 class ReportReturnsRow(BaseModel):

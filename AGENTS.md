@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Version: 2026-02-13 (Phase 2 baseline complete)
+Version: 2026-02-13 (Phase 4 baseline complete)
 Gilt fuer: gesamtes Repository `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock`
 
 ## 1. Mission
@@ -28,17 +28,19 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 - `backend/`: FastAPI, SQLAlchemy 2.x, Alembic, Auth/RBAC, Audit, Idempotency-Middleware
 - `frontend/`: React 19 + Vite 6 + TypeScript + TanStack Query + Zustand + PWA + Offline-Queue
 - `nginx/`: Entry-Routing fuer `/` und `/api/*`
-- `scripts/`: Seed, Legacy-Import, Lighthouse/PWA-Checks, Alert-Evaluierung (`run_alert_checks.py`)
-- `docs/validation/`: Betriebs- und Verifikationsnachweise inkl. Phase-2-Abnahme
+- `scripts/`: Seed, Legacy-Import (`migrate_legacy_full.py`), Forecast-Batch (`run_demand_forecast.py`), Lighthouse/PWA-Checks, Alert-Evaluierung (`run_alert_checks.py`)
+- `docs/validation/`: Betriebs- und Verifikationsnachweise inkl. Phase-2 bis Phase-4-Abnahmen
 - `directstock.md`: Masterplan
 - `directstock_phase1.md`: Phase-1-Status
 - `directstock_phase2.md`: Phase-2-Statusmatrix und Verifikationsstand
+- `directstock_phase3.md`: Phase-3-Statusmatrix und Verifikationsstand
+- `directstock_phase4.md`: Phase-4-Statusmatrix und Abnahme
 
 ## 5. Source-of-Truth fuer Kontrakte
 1. Backend-Schemas (`backend/app/schemas/*`) definieren API-Response/Request-Vertraege.
 2. Frontend-Typen (`frontend/src/types.ts`) muessen dazu konsistent sein.
-3. Phase-Kontrakte/Status stehen in `directstock_phase2.md`.
-4. Tests sind verbindlicher Teil der Spezifikation, besonders fuer Auth, RBAC, Inventory, Operations, Alerts, Reports und Offline-Idempotency.
+3. Phase-Kontrakte/Status stehen in `directstock_phase4.md` (historische Details in `directstock_phase1.md` bis `directstock_phase3.md`).
+4. Tests sind verbindlicher Teil der Spezifikation, besonders fuer Auth, RBAC, Inventory, Operations, Alerts, Reports, External API, Shipping, Inter-Warehouse und Offline-Idempotency.
 
 ## 6. Build-, Test- und Runtime-Kommandos
 
@@ -64,12 +66,12 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 - Smoke: `/health`, `/api/health`, `/api/docs`, Login
 - `./scripts/lighthouse_pwa.sh` (PWA Score >= 0.90)
 
-### Phase-2 Acceptance Referenz (letzter Stand)
-- Backend: `52 passed`
+### Phase-4 Acceptance Referenz (letzter Stand)
+- Backend: `76 passed`
 - Frontend Unit: `13 passed`
-- Frontend E2E: `8 passed`
+- Frontend E2E: `16 passed`
 - Lighthouse/PWA: `1.00`
-- Nachweis: `docs/validation/phase2-acceptance.md`
+- Nachweise: `docs/validation/phase2-acceptance.md`, `docs/validation/phase3-acceptance.md`, `docs/validation/phase4-acceptance.md`
 
 ## 7. Architektur-Guardrails
 
@@ -79,7 +81,7 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 3. Mutierende Endpunkte (`POST/PUT/PATCH/DELETE`) muessen Audit-Eintraege erzeugen.
 4. RBAC serverseitig pruefen, nie nur im Frontend.
 5. Zeitbezug in UTC.
-6. Phase-2 Module bleiben stabil und additiv: `customers`, `suppliers`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `idempotency`.
+6. Phase-2 bis Phase-4 Module bleiben stabil und additiv: `customers`, `suppliers`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `idempotency`, `abc`, `purchase_recommendations`, `picking`, `returns`, `workflows`, `documents`, `audit_log`, `external_api`, `integration_clients`, `shipping`, `inter_warehouse_transfers`, `forecast`.
 7. Offline-relevante Mutationen duerfen ohne gueltige Konfliktbehandlung keine Doppelbuchungen erzeugen.
 
 ### Datenbank
@@ -97,8 +99,8 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 
 ## 8. Seed/Import/Jobs
 1. Seed muss idempotent und deterministisch sein.
-2. Legacy-Import bleibt **fail-fast**, wenn Pflichtspalten fehlen (Exit-Code `2`).
-3. Positiver Referenzpfad fuer valides Fixture muss idempotenten Upsert nachweisen.
+2. Legacy-Import (`scripts/migrate_legacy_full.py`) bleibt **fail-fast** fuer Vertragsdateien, wenn Pflichtspalten fehlen (Exit-Code `2`), und staged nicht-gemappte Legacy-CSV-Tabellen in `legacy_raw_records`.
+3. Positiver Referenzpfad fuer valides Fixture muss idempotenten Apply/Upsert nachweisen (`dry-run|apply|delta`).
 4. Alert-Batchlauf (`scripts/run_alert_checks.py`) muss ohne Seiteneffekte ausserhalb der Alert-Domaene bleiben.
 
 ## 9. Definition of Done (DoD)
@@ -106,7 +108,7 @@ Eine Aufgabe gilt nur als fertig, wenn:
 1. Implementierung abgeschlossen und lauffaehig ist.
 2. Relevante Tests gruen sind.
 3. Keine offensichtlichen Contract-Breaks bestehen.
-4. Doku aktualisiert ist (`README.md`, `directstock_phase2.md`, `docs/validation/*` sofern betroffen).
+4. Doku aktualisiert ist (`README.md`, `directstock_phase4.md`, `docs/validation/*` sofern betroffen).
 5. Betriebsrelevante Schritte reproduzierbar beschrieben sind.
 
 ## 10. Minimaler Abschlussbericht je Agent-Task
@@ -137,10 +139,10 @@ Jeder Agent liefert am Ende:
 4. Abhaengigkeiten nur minimal und begruendet erweitern.
 5. Idempotency- und Conflict-Responses (`409` + `details`) nicht aufweichen.
 
-## 14. Phase-2 Moduluebersicht (aktiver Bestand)
-- Backend-Router: `auth`, `users`, `products`, `warehouses`, `inventory`, `operations`, `dashboard`, `customers`, `suppliers`, `product_settings`, `purchasing`, `inventory_counts`, `reports`, `alerts`
-- Frontend-Seiten: `Products`, `ProductForm`, `GoodsReceipt`, `GoodsIssue`, `StockTransfer`, `Inventory`, `InventoryCount`, `Purchasing`, `Reports`, `Alerts`, `Dashboard`, `Scanner`, `Warehouse`
-- Validation-Dokumente: `docs/validation/scanner-verification.md`, `docs/validation/phase2-acceptance.md`
+## 14. Phase-4 Moduluebersicht (aktiver Bestand)
+- Backend-Router: `auth`, `users`, `products`, `warehouses`, `inventory`, `operations`, `dashboard`, `customers`, `suppliers`, `product_settings`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `abc`, `purchase_recommendations`, `picking`, `returns`, `workflows`, `documents`, `audit_log`, `external_api`, `integration_clients`, `shipping`, `inter_warehouse_transfers`
+- Frontend-Seiten: `Products`, `ProductForm`, `GoodsReceipt`, `GoodsIssue`, `StockTransfer`, `Inventory`, `InventoryCount`, `Purchasing`, `Reports`, `Alerts`, `Dashboard`, `Scanner`, `Warehouse`, `Picking`, `Returns`, `Approvals`, `Documents`, `AuditTrail`, `Shipping`, `InterWarehouseTransfer`
+- Validation-Dokumente: `docs/validation/scanner-verification.md`, `docs/validation/phase2-acceptance.md`, `docs/validation/phase3-acceptance.md`, `docs/validation/phase4-acceptance.md`, `docs/validation/phase4-migration-rehearsal.md`
 
 ---
 Bei Konflikten gilt: Sicherheit und Datenintegritaet vor Geschwindigkeit.

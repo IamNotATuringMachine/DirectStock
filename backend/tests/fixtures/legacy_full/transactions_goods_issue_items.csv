@@ -1,0 +1,3 @@
+legacy_id,goods_issue_legacy_id,product_number,requested_quantity,issued_quantity,unit,source_bin_code,batch_number,use_fefo,serial_numbers,updated_at
+TRX-GII-1,TRX-GI-1,LEG-ART-9001,2,1,piece,,,false,,2026-02-12T10:00:00+00:00
+TRX-GII-2,TRX-GI-2,LEG-ART-9003,1,1,piece,,,true,,2026-02-13T12:00:00+00:00

@@ -12,6 +12,7 @@ import {
   DocumentsPage,
   GoodsIssuePage,
   GoodsReceiptPage,
+  InterWarehouseTransferPage,
   InventoryCountPage,
   InventoryPage,
   PickingPage,
@@ -22,6 +23,7 @@ import {
   ReportsPage,
   ReturnsPage,
   ScannerPage,
+  ShippingPage,
   StockTransferPage,
   UsersPage,
   WarehousePage,
@@ -151,6 +153,22 @@ export default function App() {
           element={
             <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter"]}>
               <StockTransferPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="shipping"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "versand"]}>
+              <ShippingPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="inter-warehouse-transfer"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter"]}>
+              <InterWarehouseTransferPage />
             </RequireRole>
           }
         />

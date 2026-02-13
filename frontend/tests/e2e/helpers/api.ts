@@ -170,19 +170,31 @@ export async function ensureE2EInventoryStock(
   const product = productPayload.items.find((item) => item.product_number === ensuredProductNumber);
   expect(product).toBeTruthy();
 
-  const unique = Date.now().toString().slice(-8);
-  const createWarehouse = await request.post("/api/warehouses", {
-    headers,
-    data: {
-      code: `E2EIC${unique}`,
-      name: `E2E Inventory Count ${unique}`,
-      is_active: true,
-    },
-  });
-  expect(createWarehouse.ok()).toBeTruthy();
-  const warehouse = (await createWarehouse.json()) as { id: number; code: string };
+  let warehouse: { id: number; code: string } | null = null;
+  let unique = "";
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    unique = `${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 10_000)
+      .toString()
+      .padStart(4, "0")}`;
+    const createWarehouse = await request.post("/api/warehouses", {
+      headers,
+      data: {
+        code: `E2EIC${unique}`,
+        name: `E2E Inventory Count ${unique}`,
+        is_active: true,
+      },
+    });
+    if (createWarehouse.ok()) {
+      warehouse = (await createWarehouse.json()) as { id: number; code: string };
+      break;
+    }
+    if (createWarehouse.status() !== 409) {
+      expect(createWarehouse.ok()).toBeTruthy();
+    }
+  }
+  expect(warehouse).toBeTruthy();
 
-  const createZone = await request.post(`/api/warehouses/${warehouse.id}/zones`, {
+  const createZone = await request.post(`/api/warehouses/${warehouse!.id}/zones`, {
     headers,
     data: {
       code: `E2EZ${unique}`,
@@ -230,5 +242,5 @@ export async function ensureE2EInventoryStock(
   });
   expect(complete.ok()).toBeTruthy();
 
-  return { productNumber: ensuredProductNumber, binId: bin.id, warehouseId: warehouse.id };
+  return { productNumber: ensuredProductNumber, binId: bin.id, warehouseId: warehouse!.id };
 }

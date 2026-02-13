@@ -68,6 +68,42 @@ Details und Task-Status:
 - `directstock_phase3.md`
 - `docs/validation/phase3-acceptance.md`
 
+## Phase-4 Snapshot (aktueller Umsetzungsstand)
+
+Neu ergänzt (additiv, umgesetzt):
+
+- Externe Integrations-API v1:
+  - Token-Flow: `/api/external/token`
+  - Read Contracts: `/api/external/v1/products`, `/warehouses`, `/inventory`, `/movements`, `/shipments`
+  - Write Contracts: `/api/external/v1/commands/purchase-orders`, `/commands/goods-issues`
+  - Integration-Client-Management: `/api/integration-clients`
+- Legacy Migration v2:
+  - Vollimport-Orchestrierung: `scripts/migrate_legacy_full.py` (`dry-run|apply|delta`)
+  - Tracking-Tabellen für Runs/Issues/ID-Mapping
+- Shipping v1:
+  - APIs: `/api/shipments`, `/api/shipments/{id}/create-label`, `/tracking`, `/cancel`
+  - Carrier-Webhooks: `/api/carriers/{carrier}/webhook`
+  - Adapterstruktur für DHL/DPD/UPS
+- Inter-Warehouse Transfers:
+  - APIs: `/api/inter-warehouse-transfers`, `/items`, `/dispatch`, `/receive`, `/cancel`
+  - State Machine: `draft -> dispatched -> received`, `draft -> cancelled`
+- Reports-Erweiterung:
+  - `/api/reports/trends`
+  - `/api/reports/demand-forecast`
+  - `/api/reports/demand-forecast/recompute`
+- Frontend-Erweiterungen:
+  - Neue Seiten: `/shipping`, `/inter-warehouse-transfer`
+  - `ReportsPage` um `trends` + `demand-forecast` inkl. CSV und Forecast-Recompute erweitert
+- E2E-Verifikation um Phase-4-Flows erweitert:
+  - `shipping-flow.spec.ts`
+  - `inter-warehouse-transfer-flow.spec.ts`
+  - `reports-forecast-flow.spec.ts`
+
+Details und Task-Status:
+- `directstock_phase4.md`
+- `docs/validation/phase4-acceptance.md`
+- `docs/validation/phase4-migration-rehearsal.md`
+
 ## Voraussetzungen
 
 - Docker + Docker Compose
@@ -82,8 +118,6 @@ cp .env.example .env
 
 Wichtige zusätzliche Variablen:
 
-- `LEGACY_PRODUCTS_CSV_PATH`
-- `LEGACY_IMPORT_BATCH_SIZE`
 - `SEED_ON_START` (nur Prod-Compose, optional)
 
 ## Starten (Dev/Default Stack)
@@ -123,18 +157,28 @@ python3 scripts/seed_data.py --mode mvp
 python3 scripts/seed_data.py --mode auth
 ```
 
-### Legacy current: Fail-fast Validation
+### Legacy Full Migration (Phase 4)
 
 ```bash
-python3 scripts/import_legacy_products.py --source "$LEGACY_PRODUCTS_CSV_PATH" --batch-size "$LEGACY_IMPORT_BATCH_SIZE" --dry-run
+python3 scripts/migrate_legacy_full.py \
+  --mode dry-run \
+  --domain all \
+  --source backend/tests/fixtures/legacy_full
 ```
 
-Hinweis: Der Importer validiert die CSV-Struktur strikt und bricht bei fehlenden Pflichtspalten mit Exit-Code `2` ab.
+Modi:
+- `--mode dry-run`: nur Validierung/Reconciliation ohne Persistenz
+- `--mode apply`: persistenter Vollimport
+- `--mode delta --since <ISO-UTC>`: inkrementeller Lauf
 
-### Valid Fixture: Idempotent Upsert Apply
+Hinweis: Der Import validiert Vertragsdateien fail-fast (Exit-Code `2`) und übernimmt zusätzlich alle nicht gemappten Legacy-CSV-Tabellen in `legacy_raw_records`.
+
+### Valid Fixture: Idempotent Apply
 
 ```bash
-python3 scripts/import_legacy_products.py \
+python3 scripts/migrate_legacy_full.py \
+  --mode apply \
+  --domain master \
   --source backend/tests/fixtures/legacy_products_valid.csv \
   --batch-size 2
 ```

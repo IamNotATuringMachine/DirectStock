@@ -1,0 +1,3 @@
+legacy_id,record_type,source_table,record_key,record_value,status_code,description,payload_json,updated_at
+SUP-1,status,status,order_open,Open,active,Order status open,"{""locale"":""de""}",2026-02-01T00:00:00+00:00
+SUP-2,config,app_vars,timezone,UTC,active,System timezone,"{""scope"":""system""}",2026-02-02T00:00:00+00:00

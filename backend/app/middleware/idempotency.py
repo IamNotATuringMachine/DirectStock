@@ -20,6 +20,10 @@ _OFFLINE_ENDPOINT_PREFIXES = (
     "/api/pick-waves",
     "/api/pick-tasks",
     "/api/return-orders",
+    "/api/external/v1/commands",
+    "/api/inter-warehouse-transfers",
+    "/api/shipments",
+    "/api/carriers",
 )
 
 

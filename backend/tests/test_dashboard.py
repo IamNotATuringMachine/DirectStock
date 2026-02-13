@@ -90,6 +90,8 @@ async def test_dashboard_endpoints(client: AsyncClient, admin_token: str):
     assert summary_payload["occupied_bins"] >= 1
     assert float(summary_payload["utilization_percent"]) >= 0
     assert float(summary_payload["utilization_percent"]) <= 100
+    assert "open_inter_warehouse_transfers" in summary_payload
+    assert "inter_warehouse_transit_quantity" in summary_payload
 
     recent = await client.get(
         "/api/dashboard/recent-movements?limit=5",

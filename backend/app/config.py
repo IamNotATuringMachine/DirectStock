@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
+    integration_access_token_expire_minutes: int = 30
+
+    dhl_webhook_secret: str = "dhl-webhook-secret"
+    dpd_webhook_secret: str = "dpd-webhook-secret"
+    ups_webhook_secret: str = "ups-webhook-secret"
 
     default_admin_username: str = Field(
         default="admin", validation_alias="DIRECTSTOCK_ADMIN_USERNAME"

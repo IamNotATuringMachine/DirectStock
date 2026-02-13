@@ -22,6 +22,7 @@ from app.models.phase3 import (
     PurchaseRecommendation,
     ReturnOrder,
 )
+from app.models.phase4 import IntegrationClient, InterWarehouseTransfer, Shipment
 from app.models.purchasing import PurchaseOrder
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -48,6 +49,9 @@ _ENTITY_MODEL_MAP: dict[str, type[Any]] = {
     "approval-rules": ApprovalRule,
     "approvals": ApprovalRequest,
     "documents": Document,
+    "integration-clients": IntegrationClient,
+    "shipments": Shipment,
+    "inter-warehouse-transfers": InterWarehouseTransfer,
 }
 
 

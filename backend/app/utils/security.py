@@ -68,6 +68,22 @@ def create_refresh_token(*, user_id: int, username: str, roles: list[str], token
     )
 
 
+def create_integration_access_token(*, client_id: str, scopes: list[str], expires_minutes: int | None = None) -> str:
+    now = datetime.now(UTC)
+    ttl_minutes = expires_minutes or settings.integration_access_token_expire_minutes
+    payload: dict[str, Any] = {
+        "sub": f"integration:{client_id}",
+        "type": "integration_access",
+        "token_version": 0,
+        "client_id": client_id,
+        "scopes": scopes,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=ttl_minutes)).timestamp()),
+        "jti": str(uuid4()),
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
 def decode_token(token: str) -> dict[str, Any]:
     try:
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
