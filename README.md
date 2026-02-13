@@ -20,14 +20,20 @@ Bereits umgesetzt im Backend:
 - Produkt-Lagerdaten-API (`/api/products/{id}/warehouse-settings/{warehouse_id}`)
 - Einkaufsmodul-Basis (`/api/purchase-orders` + Items + Status-Workflow)
 - Erweiterung Warenausgang um optionale Kundenreferenz via `customer_id`
+- Alerting (`/api/alert-rules`, `/api/alerts`, Ack-Flow) inkl. Triggern auf Bestandsänderungen
+- Idempotency-Schutz für Offline-relevante Mutationen über `X-Client-Operation-Id` mit Replay und Konfliktantworten
+- Erweiterte RBAC-Rollenbasis (`einkauf`, `versand`, `controller`) inkl. serverseitiger Rechte-Matrix für Phase-2-Module
 
 Bereits umgesetzt im Frontend:
 
 - Produktformular-Tabs für Lagerdaten und Lieferanten mit API-Anbindung
 - Einkaufsseite (`/purchasing`) mit Bestellanlage, Positionspflege und Statusübergängen
+- Alerts-Seite (`/alerts`) mit Filter- und Ack-Workflow sowie Dashboard-Widget für kritische Alerts
+- Offline-Queue-Engine fuer WE/WA/Umlagerung/Inventur inkl. globalem Sync-Panel (Queue, Retry, Discard, Auto-Sync bei Reconnect)
 
 Details und Task-Status:
 - `directstock_phase2.md`
+- `docs/validation/phase2-acceptance.md`
 
 ## Voraussetzungen
 

@@ -32,6 +32,8 @@ def test_alembic_upgrade_creates_schema(tmp_path, monkeypatch):
         "inventory_batches",
         "inventory_count_sessions",
         "inventory_count_items",
+        "alert_rules",
+        "alert_events",
         "stock_movements",
         "serial_numbers",
         "goods_receipts",

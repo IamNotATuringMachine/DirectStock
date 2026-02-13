@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import OfflineSyncPanel from "./offline/OfflineSyncPanel";
 import PwaStatus from "./pwa/PwaStatus";
 import { useAuthStore } from "../stores/authStore";
 import type { RoleName } from "../types";
@@ -35,10 +36,36 @@ const navItems: NavItem[] = [
     shortLabel: "RP",
     roles: ["admin", "lagerleiter", "einkauf", "controller"],
   },
-  { to: "/goods-receipt", label: "Wareneingang", shortLabel: "WE" },
-  { to: "/goods-issue", label: "Warenausgang", shortLabel: "WA" },
-  { to: "/stock-transfer", label: "Umlagerung", shortLabel: "UM" },
-  { to: "/scanner", label: "Scanner", shortLabel: "SC" },
+  {
+    to: "/alerts",
+    label: "Alerts",
+    shortLabel: "AL",
+    roles: ["admin", "lagerleiter", "lagermitarbeiter", "einkauf", "controller", "versand"],
+  },
+  {
+    to: "/goods-receipt",
+    label: "Wareneingang",
+    shortLabel: "WE",
+    roles: ["admin", "lagerleiter", "lagermitarbeiter", "einkauf"],
+  },
+  {
+    to: "/goods-issue",
+    label: "Warenausgang",
+    shortLabel: "WA",
+    roles: ["admin", "lagerleiter", "lagermitarbeiter", "versand"],
+  },
+  {
+    to: "/stock-transfer",
+    label: "Umlagerung",
+    shortLabel: "UM",
+    roles: ["admin", "lagerleiter", "lagermitarbeiter"],
+  },
+  {
+    to: "/scanner",
+    label: "Scanner",
+    shortLabel: "SC",
+    roles: ["admin", "lagerleiter", "lagermitarbeiter", "einkauf", "versand"],
+  },
 ];
 
 export default function AppLayout() {
@@ -88,6 +115,7 @@ export default function AppLayout() {
           </div>
           <div className="topbar-actions">
             <PwaStatus />
+            <OfflineSyncPanel />
             <button className="btn" onClick={() => void logout()} data-testid="logout-btn">
               Logout
             </button>

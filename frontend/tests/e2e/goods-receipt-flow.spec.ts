@@ -31,6 +31,9 @@ test("goods receipt flow creates movement and updates inventory", async ({ page,
   expect(productOptionValue).toBeTruthy();
 
   await page.getByTestId("goods-receipt-product-select").selectOption(productOptionValue!);
+  await expect
+    .poll(async () => await page.getByTestId("goods-receipt-bin-select").locator("option").count())
+    .toBeGreaterThan(0);
   await page.getByTestId("goods-receipt-quantity-input").fill("3");
   await page.getByTestId("goods-receipt-add-item-btn").click();
 

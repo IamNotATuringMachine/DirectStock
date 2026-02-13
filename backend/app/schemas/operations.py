@@ -38,6 +38,7 @@ class GoodsReceiptItemCreate(BaseModel):
     expiry_date: date | None = None
     manufactured_at: date | None = None
     serial_numbers: list[str] | None = None
+    purchase_order_item_id: int | None = None
 
 
 class GoodsReceiptItemUpdate(BaseModel):
@@ -49,6 +50,7 @@ class GoodsReceiptItemUpdate(BaseModel):
     expiry_date: date | None = None
     manufactured_at: date | None = None
     serial_numbers: list[str] | None = None
+    purchase_order_item_id: int | None = None
 
 
 class GoodsReceiptItemResponse(BaseModel):
@@ -63,6 +65,7 @@ class GoodsReceiptItemResponse(BaseModel):
     expiry_date: date | None
     manufactured_at: date | None
     serial_numbers: list[str] | None
+    purchase_order_item_id: int | None
     created_at: datetime
     updated_at: datetime
 

@@ -18,6 +18,9 @@ DEFAULT_ROLES: list[tuple[str, str]] = [
     ("admin", "Administrator"),
     ("lagerleiter", "Lagerleiter"),
     ("lagermitarbeiter", "Lagermitarbeiter"),
+    ("einkauf", "Einkauf"),
+    ("versand", "Versand"),
+    ("controller", "Controlling"),
 ]
 
 DEFAULT_USERS = [

@@ -317,6 +317,7 @@ export type GoodsReceiptItem = {
   expiry_date: string | null;
   manufactured_at: string | null;
   serial_numbers: string[] | null;
+  purchase_order_item_id: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -466,6 +467,57 @@ export type InventoryCountItem = {
   counted_by: number | null;
   created_at: string;
   updated_at: string;
+};
+
+export type AlertRule = {
+  id: number;
+  name: string;
+  rule_type: "low_stock" | "zero_stock" | "expiry_window";
+  severity: "low" | "medium" | "high" | "critical";
+  is_active: boolean;
+  product_id: number | null;
+  warehouse_id: number | null;
+  threshold_quantity: string | null;
+  expiry_days: number | null;
+  dedupe_window_minutes: number;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AlertRuleListResponse = {
+  items: AlertRule[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type AlertEvent = {
+  id: number;
+  rule_id: number | null;
+  alert_type: "low_stock" | "zero_stock" | "expiry_window" | string;
+  severity: "low" | "medium" | "high" | "critical" | string;
+  status: "open" | "acknowledged";
+  title: string;
+  message: string;
+  source_key: string;
+  product_id: number | null;
+  warehouse_id: number | null;
+  bin_location_id: number | null;
+  batch_id: number | null;
+  triggered_at: string;
+  acknowledged_at: string | null;
+  acknowledged_by: number | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AlertListResponse = {
+  items: AlertEvent[];
+  total: number;
+  page: number;
+  page_size: number;
 };
 
 export type ReportStockRow = {

@@ -37,6 +37,10 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+filterwarnings = [
+  "ignore:.*get_event_loop_policy.*deprecated.*:DeprecationWarning:pytest_asyncio.plugin",
+  "ignore:.*set_event_loop_policy.*deprecated.*:DeprecationWarning:pytest_asyncio.plugin",
+]
 
 [tool.setuptools]
 packages = ["app"]

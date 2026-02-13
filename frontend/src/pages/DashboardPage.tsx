@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
+import { fetchAlerts } from "../services/alertsApi";
 import {
   fetchDashboardActivityToday,
   fetchDashboardLowStock,
@@ -46,6 +47,11 @@ export default function DashboardPage() {
   const kpiQuery = useQuery({
     queryKey: ["dashboard-report-kpis", dateFrom, dateTo],
     queryFn: () => fetchReportKpis({ dateFrom, dateTo }),
+    refetchInterval: 60000,
+  });
+  const criticalAlertsQuery = useQuery({
+    queryKey: ["dashboard-critical-alerts"],
+    queryFn: () => fetchAlerts({ page: 1, pageSize: 5, status: "open", severity: "critical" }),
     refetchInterval: 60000,
   });
 
@@ -155,6 +161,24 @@ export default function DashboardPage() {
           Bewegungen: {activityQuery.data?.movements_today ?? "-"} | Abgeschlossene WE: {activityQuery.data?.completed_goods_receipts_today ?? "-"} |
           Abgeschlossene WA: {activityQuery.data?.completed_goods_issues_today ?? "-"} | Abgeschlossene Umlagerungen: {activityQuery.data?.completed_stock_transfers_today ?? "-"}
         </p>
+      </article>
+
+      <article className="subpanel" data-testid="dashboard-critical-alerts">
+        <h3>Kritische Alerts</h3>
+        <div className="list-stack small">
+          {(criticalAlertsQuery.data?.items ?? []).map((alert) => (
+            <div key={alert.id} className="list-item static-item">
+              <strong>{alert.title}</strong>
+              <span>{new Date(alert.triggered_at).toLocaleString()}</span>
+            </div>
+          ))}
+          {!criticalAlertsQuery.isLoading && (criticalAlertsQuery.data?.items.length ?? 0) === 0 ? <p>Keine kritischen Alerts.</p> : null}
+        </div>
+        <div className="actions-cell">
+          <Link className="btn" to="/alerts" data-testid="dashboard-open-alerts-link">
+            Alerts öffnen
+          </Link>
+        </div>
       </article>
     </section>
   );

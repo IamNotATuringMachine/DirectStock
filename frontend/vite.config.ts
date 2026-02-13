@@ -75,6 +75,36 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return;
+          }
+          if (id.includes("react") || id.includes("scheduler")) {
+            return "vendor-react";
+          }
+          if (id.includes("react-router")) {
+            return "vendor-router";
+          }
+          if (id.includes("@tanstack")) {
+            return "vendor-query";
+          }
+          if (id.includes("axios")) {
+            return "vendor-http";
+          }
+          if (id.includes("zustand")) {
+            return "vendor-state";
+          }
+          if (id.includes("html5-qrcode")) {
+            return "vendor-scanner";
+          }
+          return "vendor-misc";
+        },
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",

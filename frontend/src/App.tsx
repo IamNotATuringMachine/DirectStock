@@ -5,6 +5,7 @@ import AppLayout from "./components/AppLayout";
 import { ProtectedRoute, RequireRole } from "./components/ProtectedRoute";
 import LoginPage from "./LoginPage";
 import {
+  AlertsPage,
   DashboardPage,
   GoodsIssuePage,
   GoodsReceiptPage,
@@ -61,6 +62,14 @@ export default function App() {
           }
         />
         <Route
+          path="alerts"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "einkauf", "controller", "versand"]}>
+              <AlertsPage />
+            </RequireRole>
+          }
+        />
+        <Route
           path="reports"
           element={
             <RequireRole roles={["admin", "lagerleiter", "einkauf", "controller"]}>
@@ -76,10 +85,38 @@ export default function App() {
             </RequireRole>
           }
         />
-        <Route path="goods-receipt" element={<GoodsReceiptPage />} />
-        <Route path="goods-issue" element={<GoodsIssuePage />} />
-        <Route path="stock-transfer" element={<StockTransferPage />} />
-        <Route path="scanner" element={<ScannerPage />} />
+        <Route
+          path="goods-receipt"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "einkauf"]}>
+              <GoodsReceiptPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="goods-issue"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "versand"]}>
+              <GoodsIssuePage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="stock-transfer"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter"]}>
+              <StockTransferPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="scanner"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "einkauf", "versand"]}>
+              <ScannerPage />
+            </RequireRole>
+          }
+        />
         <Route
           path="users"
           element={

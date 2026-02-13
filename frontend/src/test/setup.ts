@@ -17,14 +17,12 @@ const memoryStorage = (() => {
 })();
 
 if (typeof window !== "undefined") {
-  const current = window.localStorage as unknown as { getItem?: unknown; setItem?: unknown } | undefined;
-  if (typeof current?.getItem !== "function" || typeof current?.setItem !== "function") {
-    Object.defineProperty(window, "localStorage", {
-      value: memoryStorage,
-      writable: true,
-      configurable: true,
-    });
-  }
+  // Avoid triggering jsdom/node localStorage getters in worker bootstrapping.
+  Object.defineProperty(window, "localStorage", {
+    value: memoryStorage,
+    writable: true,
+    configurable: true,
+  });
 }
 
 afterEach(() => {

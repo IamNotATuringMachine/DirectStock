@@ -50,10 +50,7 @@ export default function ScannerPage() {
   const mode = useScannerStore((state) => state.mode);
   const setMode = useScannerStore((state) => state.setMode);
   const recentScans = useScannerStore((state) => state.recentScans);
-  const offlineQueue = useScannerStore((state) => state.offlineQueue);
   const addScan = useScannerStore((state) => state.addScan);
-  const enqueueOffline = useScannerStore((state) => state.enqueueOffline);
-  const dequeueOffline = useScannerStore((state) => state.dequeueOffline);
 
   const resolveScan = useCallback(async (input: string) => {
     const parsed = parseScanValue(input);
@@ -140,20 +137,20 @@ export default function ScannerPage() {
         const offline = typeof navigator !== "undefined" && !navigator.onLine;
 
         if (offline) {
-          enqueueOffline(
+          addScan(
             createScanRecord({
               raw: input,
               normalized: parsed.normalized,
               parsedType: parsed.type,
               resolvedKind: "unknown",
               source,
-              status: "queued",
-              message: "Offline in Warteschlange",
+              status: "error",
+              message: "Offline: Lookup nicht verfuegbar",
             })
           );
-          setError("Offline: Scan wurde in die Queue gestellt.");
+          setError("Offline: Lookup kann nicht synchronisiert werden. Nutze WE/WA/Umlagerung/Inventur fuer Queue-Sync.");
           setFeedbackStatus("error");
-          setFeedbackMessage("Offline Queue");
+          setFeedbackMessage("Offline");
           return;
         }
 
@@ -176,27 +173,13 @@ export default function ScannerPage() {
         setLoading(false);
       }
     },
-    [addScan, enqueueOffline, resolveScan]
+    [addScan, resolveScan]
   );
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     await runLookup(code, "manual");
   };
-
-  const retryOfflineQueue = async () => {
-    if (offlineQueue.length === 0) {
-      return;
-    }
-
-    let next = dequeueOffline();
-    while (next) {
-      await runLookup(next.raw, "queue");
-      next = dequeueOffline();
-    }
-  };
-
-  const queueCount = offlineQueue.length;
 
   const displayedHistory = useMemo(() => recentScans.slice(0, 12), [recentScans]);
 
@@ -207,7 +190,7 @@ export default function ScannerPage() {
       <header className="panel-header">
         <div>
           <h2>Scanner</h2>
-          <p className="panel-subtitle">Kamera-Scan, externer Scanner und Offline-Queue in einem Workflow.</p>
+          <p className="panel-subtitle">Kamera-Scan und externer Scanner fuer Lookup-Workflows.</p>
         </div>
       </header>
 
@@ -222,9 +205,6 @@ export default function ScannerPage() {
           </select>
         </label>
 
-        <button className="btn" onClick={() => void retryOfflineQueue()} disabled={queueCount === 0 || loading}>
-          Offline-Queue senden ({queueCount})
-        </button>
       </div>
 
       <form className="scan-form" onSubmit={(event) => void onSubmit(event)}>

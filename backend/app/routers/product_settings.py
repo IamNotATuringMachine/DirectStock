@@ -3,12 +3,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user, get_db, require_roles
+from app.dependencies import get_db, require_roles
 from app.models.catalog import Product, ProductWarehouseSetting
 from app.models.warehouse import Warehouse
 from app.schemas.product_settings import ProductWarehouseSettingResponse, ProductWarehouseSettingUpsert
 
 router = APIRouter(prefix="/api", tags=["product-settings"])
+
+PRODUCT_SETTING_ROLES = ("admin", "lagerleiter", "einkauf")
 
 
 def _to_response(item: ProductWarehouseSetting) -> ProductWarehouseSettingResponse:
@@ -38,7 +40,7 @@ def _to_response(item: ProductWarehouseSetting) -> ProductWarehouseSettingRespon
 async def list_product_warehouse_settings(
     product_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*PRODUCT_SETTING_ROLES)),
 ) -> list[ProductWarehouseSettingResponse]:
     product = (await db.execute(select(Product).where(Product.id == product_id))).scalar_one_or_none()
     if product is None:
@@ -65,7 +67,7 @@ async def upsert_product_warehouse_setting(
     warehouse_id: int,
     payload: ProductWarehouseSettingUpsert,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    _=Depends(require_roles(*PRODUCT_SETTING_ROLES)),
 ) -> ProductWarehouseSettingResponse:
     product = (await db.execute(select(Product).where(Product.id == product_id))).scalar_one_or_none()
     if product is None:
@@ -113,7 +115,7 @@ async def delete_product_warehouse_setting(
     product_id: int,
     warehouse_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    _=Depends(require_roles(*PRODUCT_SETTING_ROLES)),
 ) -> None:
     item = (
         await db.execute(

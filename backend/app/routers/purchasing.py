@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user, get_db, require_roles
+from app.dependencies import get_db, require_roles
 from app.models.auth import User
 from app.models.catalog import Product, Supplier
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem
@@ -22,6 +22,8 @@ from app.schemas.purchasing import (
 from app.schemas.user import MessageResponse
 
 router = APIRouter(prefix="/api", tags=["purchasing"])
+
+PURCHASING_READ_ROLES = ("admin", "lagerleiter", "einkauf")
 
 
 TRANSITIONS: dict[str, set[str]] = {
@@ -78,11 +80,37 @@ def _ensure_editable(order: PurchaseOrder) -> None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Purchase order is not editable")
 
 
+async def _ensure_order_can_be_completed(db: AsyncSession, *, order_id: int) -> None:
+    order_items = list(
+        (
+            await db.execute(
+                select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id == order_id)
+            )
+        ).scalars()
+    )
+    if not order_items:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Purchase order cannot be completed without items",
+        )
+
+    open_items = [
+        order_item.id
+        for order_item in order_items
+        if order_item.received_quantity < order_item.ordered_quantity
+    ]
+    if open_items:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Purchase order cannot be completed while open quantities remain",
+        )
+
+
 @router.get("/purchase-orders", response_model=list[PurchaseOrderResponse])
 async def list_purchase_orders(
     status_filter: str | None = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*PURCHASING_READ_ROLES)),
 ) -> list[PurchaseOrderResponse]:
     stmt = select(PurchaseOrder).order_by(PurchaseOrder.id.desc())
     if status_filter:
@@ -125,7 +153,7 @@ async def create_purchase_order(
 async def get_purchase_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*PURCHASING_READ_ROLES)),
 ) -> PurchaseOrderResponse:
     item = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if item is None:
@@ -194,6 +222,9 @@ async def update_purchase_order_status(
             detail=f"Invalid status transition: {item.status} -> {payload.status}",
         )
 
+    if payload.status == "completed":
+        await _ensure_order_can_be_completed(db, order_id=item.id)
+
     item.status = payload.status
     now = _now()
     if payload.status == "ordered" and item.ordered_at is None:
@@ -210,7 +241,7 @@ async def update_purchase_order_status(
 async def list_purchase_order_items(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*PURCHASING_READ_ROLES)),
 ) -> list[PurchaseOrderItemResponse]:
     order = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if order is None:

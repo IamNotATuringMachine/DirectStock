@@ -70,6 +70,11 @@ class GoodsReceiptItem(TimestampMixin, Base):
     expiry_date: Mapped[date | None] = mapped_column(Date(), nullable=True, index=True)
     manufactured_at: Mapped[date | None] = mapped_column(Date(), nullable=True)
     serial_numbers: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    purchase_order_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("purchase_order_items.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
 
 class GoodsIssue(TimestampMixin, Base):

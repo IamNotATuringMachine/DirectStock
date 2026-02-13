@@ -1,4 +1,5 @@
 import DashboardPage from "./pages/DashboardPage";
+import AlertsPage from "./pages/AlertsPage";
 import GoodsIssuePage from "./pages/GoodsIssuePage";
 import GoodsReceiptPage from "./pages/GoodsReceiptPage";
 import InventoryPage from "./pages/InventoryPage";
@@ -17,6 +18,7 @@ function UsersPage() {
 }
 
 export {
+  AlertsPage,
   DashboardPage,
   GoodsIssuePage,
   GoodsReceiptPage,

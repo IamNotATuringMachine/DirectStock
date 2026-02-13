@@ -261,6 +261,7 @@ async def evaluate_alerts(
     *,
     trigger: str,
     scoped_product_ids: set[int] | None = None,
+    auto_commit: bool = False,
 ) -> int:
     rules = list(
         (
@@ -318,7 +319,7 @@ async def evaluate_alerts(
             )
             created_count += 1
 
-    if created_count:
+    if created_count and auto_commit:
         await db.commit()
 
     return created_count

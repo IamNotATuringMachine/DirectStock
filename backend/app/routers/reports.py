@@ -9,7 +9,8 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.dependencies import get_current_user, get_db
+from app.dependencies import get_db, require_roles
+from app.models.alerts import AlertEvent
 from app.models.catalog import Product
 from app.models.inventory import Inventory, InventoryCountItem, InventoryCountSession, StockMovement, GoodsReceipt
 from app.models.warehouse import BinLocation, WarehouseZone
@@ -26,8 +27,10 @@ from app.schemas.reports import (
     ReportStockResponse,
     ReportStockRow,
 )
+from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
+REPORTS_READ_ROLES = ("admin", "lagerleiter", "einkauf", "controller")
 
 
 def _quantize(value: Decimal, digits: str = "0.01") -> Decimal:
@@ -40,7 +43,7 @@ def _date_bounds(date_from: date | None, date_to: date | None) -> tuple[date, da
     end_day = date_to or today
     if end_day < start_day:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="date_to must be greater than or equal to date_from",
         )
     start = datetime.combine(start_day, time.min, tzinfo=UTC)
@@ -127,7 +130,7 @@ async def report_stock(
     warehouse_id: int | None = Query(default=None),
     output: Literal["json", "csv"] = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportStockResponse | Response:
     filters = []
     if search:
@@ -203,7 +206,7 @@ async def report_movements(
     movement_type: str | None = Query(default=None),
     output: Literal["json", "csv"] = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportMovementResponse | Response:
     _, _, start, end = _date_bounds(date_from, date_to)
     from_bin = aliased(BinLocation)
@@ -287,7 +290,7 @@ async def report_inbound_outbound(
     date_to: date | None = Query(default=None),
     output: Literal["json", "csv"] = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportInboundOutboundResponse | Response:
     _, _, start, end = _date_bounds(date_from, date_to)
     day_expr = func.date(StockMovement.performed_at)
@@ -354,7 +357,7 @@ async def report_inventory_accuracy(
     date_to: date | None = Query(default=None),
     output: Literal["json", "csv"] = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportInventoryAccuracyResponse | Response:
     _, _, start, end = _date_bounds(date_from, date_to)
     rows = (
@@ -416,7 +419,7 @@ async def report_abc(
     search: str | None = Query(default=None),
     output: Literal["json", "csv"] = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportAbcResponse | Response:
     _, _, start, end = _date_bounds(date_from, date_to)
     stmt = (
@@ -493,7 +496,7 @@ async def report_kpis(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportKpiResponse:
     start_day, end_day, start, end = _date_bounds(date_from, date_to)
     outbound_total = (
@@ -566,6 +569,11 @@ async def report_kpis(
         )
     ).all()
     _, accuracy_payload = _build_inventory_accuracy(accuracy_rows)
+    alert_count = (
+        await db.execute(
+            select(func.count(AlertEvent.id)).where(AlertEvent.status == "open")
+        )
+    ).scalar_one()
 
     return ReportKpiResponse(
         date_from=start_day,
@@ -573,5 +581,5 @@ async def report_kpis(
         turnover_rate=turnover_rate,
         dock_to_stock_hours=dock_to_stock_hours,
         inventory_accuracy_percent=accuracy_payload.overall_accuracy_percent,
-        alert_count=0,
+        alert_count=alert_count,
     )

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import ScanFeedback from "../components/scanner/ScanFeedback";
 import WorkflowScanInput from "../components/scanner/WorkflowScanInput";
+import { fetchCustomers } from "../services/customersApi";
 import { fetchInventoryByBin } from "../services/inventoryApi";
 import {
   cancelGoodsIssue,
@@ -29,6 +30,7 @@ const flowSteps: Array<{ id: IssueFlowStep; label: string }> = [
 export default function GoodsIssuePage() {
   const queryClient = useQueryClient();
 
+  const [customerId, setCustomerId] = useState<string>("");
   const [customerReference, setCustomerReference] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
 
@@ -65,6 +67,17 @@ export default function GoodsIssuePage() {
     queryFn: () => fetchProducts({ page: 1, pageSize: 200 }),
   });
 
+  const customersQuery = useQuery({
+    queryKey: ["customers", "goods-issue-picker"],
+    queryFn: async () => {
+      try {
+        return await fetchCustomers({ page: 1, pageSize: 200, isActive: true });
+      } catch {
+        return { items: [], total: 0, page: 1, page_size: 200 };
+      }
+    },
+  });
+
   const warehousesQuery = useQuery({
     queryKey: ["warehouses", "goods-issue-picker"],
     queryFn: fetchWarehouses,
@@ -85,6 +98,7 @@ export default function GoodsIssuePage() {
   const createIssueMutation = useMutation({
     mutationFn: createGoodsIssue,
     onSuccess: async (issue) => {
+      setCustomerId("");
       setCustomerReference("");
       await queryClient.invalidateQueries({ queryKey: ["goods-issues"] });
       setSelectedIssueId(issue.id);
@@ -285,7 +299,10 @@ export default function GoodsIssuePage() {
 
   const onCreateIssue = async (event: FormEvent) => {
     event.preventDefault();
-    await createIssueMutation.mutateAsync({ customer_reference: customerReference.trim() || undefined });
+    await createIssueMutation.mutateAsync({
+      customer_id: customerId ? Number(customerId) : undefined,
+      customer_reference: customerReference.trim() || undefined,
+    });
   };
 
   const onAddItem = async (event: FormEvent) => {
@@ -341,6 +358,19 @@ export default function GoodsIssuePage() {
         <article className="subpanel">
           <h3>1. Beleg anlegen</h3>
           <form className="form-grid" onSubmit={(event) => void onCreateIssue(event)}>
+            <select
+              className="input"
+              value={customerId}
+              onChange={(event) => setCustomerId(event.target.value)}
+              data-testid="goods-issue-customer-select"
+            >
+              <option value="">Kein Kunde</option>
+              {(customersQuery.data?.items ?? []).map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.customer_number} - {customer.company_name}
+                </option>
+              ))}
+            </select>
             <input
               className="input"
               placeholder="Kundenreferenz (optional)"

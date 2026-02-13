@@ -77,3 +77,22 @@ async def test_user_crud_and_password_change(client: AsyncClient, admin_token: s
         f"/api/users/{created_user['id']}", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert delete.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_phase2_roles_can_be_assigned(client: AsyncClient, admin_token: str):
+    create = await client.post(
+        "/api/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "username": "phase2roles",
+            "email": "phase2roles@example.com",
+            "full_name": "Phase2 Roles",
+            "password": "Phase2Roles123!",
+            "roles": ["einkauf", "versand", "controller"],
+            "is_active": True,
+        },
+    )
+    assert create.status_code == 201
+    payload = create.json()
+    assert sorted(payload["roles"]) == ["controller", "einkauf", "versand"]

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.middleware.audit import AuditMiddleware
 from app.middleware.error_handler import register_exception_handlers
+from app.middleware.idempotency import IdempotencyMiddleware
 from app.middleware.request_id import RequestIDMiddleware
 from app.routers.alerts import router as alerts_router
 from app.routers.auth import router as auth_router
@@ -40,6 +41,7 @@ app = FastAPI(
 )
 
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(IdempotencyMiddleware)
 app.add_middleware(AuditMiddleware)
 app.add_middleware(
     CORSMiddleware,

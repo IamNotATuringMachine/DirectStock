@@ -9,6 +9,7 @@ from app.models.auth import User
 from app.schemas.auth import PasswordChangeRequest
 from app.schemas.user import MessageResponse, UserCreate, UserListResponse, UserResponse, UserUpdate
 from app.services.auth_service import create_user, ensure_roles
+from app.utils.http_status import HTTP_422_UNPROCESSABLE
 from app.utils.security import hash_password, verify_password
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -50,7 +51,7 @@ async def create_user_endpoint(payload: UserCreate, db: AsyncSession = Depends(g
         await db.commit()
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=HTTP_422_UNPROCESSABLE, detail=str(exc)) from exc
     except IntegrityError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already exists") from exc
@@ -78,7 +79,7 @@ async def update_user_endpoint(user_id: int, payload: UserUpdate, db: AsyncSessi
         try:
             user.roles = await ensure_roles(db, payload.roles)
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+            raise HTTPException(status_code=HTTP_422_UNPROCESSABLE, detail=str(exc)) from exc
 
     try:
         await db.commit()

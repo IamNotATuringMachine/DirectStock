@@ -22,6 +22,7 @@ from app.schemas.warehouse import (
     ZoneResponse,
     ZoneUpdate,
 )
+from app.utils.http_status import HTTP_422_UNPROCESSABLE
 from app.utils.qr_generator import generate_bin_labels_pdf, generate_qr_png_bytes
 
 router = APIRouter(prefix="/api", tags=["warehouses"])
@@ -291,7 +292,7 @@ async def create_bins_batch(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")
 
     if payload.aisle_from > payload.aisle_to or payload.shelf_from > payload.shelf_to or payload.level_from > payload.level_to:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid batch range")
+        raise HTTPException(status_code=HTTP_422_UNPROCESSABLE, detail="Invalid batch range")
 
     created_items: list[BinLocation] = []
     for aisle in range(payload.aisle_from, payload.aisle_to + 1):

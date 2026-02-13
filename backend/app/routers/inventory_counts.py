@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user, get_db, require_roles
+from app.dependencies import get_db, require_roles
 from app.models.auth import User
 from app.models.catalog import Product
 from app.models.inventory import Inventory, InventoryCountItem, InventoryCountSession, StockMovement
@@ -20,8 +20,12 @@ from app.schemas.inventory_counts import (
     InventoryCountSessionResponse,
 )
 from app.schemas.user import MessageResponse
+from app.services.alerts import evaluate_alerts
+from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api/inventory-counts", tags=["inventory-counts"])
+
+INVENTORY_COUNT_ROLES = ("admin", "lagerleiter", "lagermitarbeiter")
 
 
 def _now() -> datetime:
@@ -118,7 +122,7 @@ def _to_session_response(item: InventoryCountSession) -> InventoryCountSessionRe
 async def list_inventory_count_sessions(
     status_filter: str | None = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
 ) -> list[InventoryCountSessionResponse]:
     stmt = select(InventoryCountSession).order_by(InventoryCountSession.id.desc())
     if status_filter:
@@ -131,7 +135,7 @@ async def list_inventory_count_sessions(
 async def create_inventory_count_session(
     payload: InventoryCountSessionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*INVENTORY_COUNT_ROLES)),
 ) -> InventoryCountSessionResponse:
     session = InventoryCountSession(
         session_number=payload.session_number or _generate_number("INV"),
@@ -155,7 +159,7 @@ async def create_inventory_count_session(
 async def get_inventory_count_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
 ) -> InventoryCountSessionResponse:
     session = await _get_session_or_404(db, session_id)
     return _to_session_response(session)
@@ -166,7 +170,7 @@ async def generate_inventory_count_items(
     session_id: int,
     payload: InventoryCountGenerateItemsRequest,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
 ) -> MessageResponse:
     session = await _get_session_or_404(db, session_id)
     if session.status == "completed":
@@ -208,7 +212,7 @@ async def generate_inventory_count_items(
     rows = (await db.execute(stmt)).all()
     if not rows:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="No inventory rows available for this session scope",
         )
 
@@ -236,7 +240,7 @@ async def generate_inventory_count_items(
 async def list_inventory_count_items(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
 ) -> list[InventoryCountItemResponse]:
     await _get_session_or_404(db, session_id)
 
@@ -286,7 +290,7 @@ async def count_inventory_item(
     item_id: int,
     payload: InventoryCountItemCountUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*INVENTORY_COUNT_ROLES)),
 ) -> InventoryCountItemResponse:
     session = await _get_session_or_404(db, session_id)
     if session.status == "completed":
@@ -317,7 +321,7 @@ async def count_inventory_item(
 async def complete_inventory_count_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*INVENTORY_COUNT_ROLES)),
 ) -> MessageResponse:
     session = await _get_session_or_404(db, session_id)
     if session.status == "completed":
@@ -332,14 +336,14 @@ async def complete_inventory_count_session(
     )
     if not items:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="Inventory count session has no items",
         )
 
     uncounted = [row.id for row in items if row.counted_quantity is None]
     if uncounted:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail=f"Inventory count items without count: {uncounted[0]}",
         )
 
@@ -351,6 +355,7 @@ async def complete_inventory_count_session(
         )
 
     now = _now()
+    touched_product_ids: set[int] = set()
     try:
         for count_item in items:
             diff = Decimal(count_item.difference_quantity or 0)
@@ -405,9 +410,15 @@ async def complete_inventory_count_session(
                     },
                 )
             )
+            touched_product_ids.add(count_item.product_id)
 
         session.status = "completed"
         session.completed_at = now
+        await evaluate_alerts(
+            db,
+            trigger="inventory_count_completed",
+            scoped_product_ids=touched_product_ids or None,
+        )
         await db.commit()
     except HTTPException:
         await db.rollback()
@@ -434,7 +445,7 @@ async def cancel_inventory_count_session(
 async def inventory_count_summary(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
 ) -> dict[str, int]:
     await _get_session_or_404(db, session_id)
     total = (

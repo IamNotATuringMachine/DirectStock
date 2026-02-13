@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Version: 2026-02-13
+Version: 2026-02-13 (Phase 2 baseline complete)
 Gilt fuer: gesamtes Repository `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock`
 
 ## 1. Mission
@@ -12,29 +12,33 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 2. Bestehende APIs nur **additiv** erweitern, ausser eine Breaking-Change-Freigabe liegt explizit vor.
 3. DB-Schema-Aenderungen nur ueber Alembic-Migrationen.
 4. Security-Basics duerfen nicht abgeschwaecht werden (Auth, RBAC, Audit, Request-ID, Error-Format).
-5. Vor Abschluss immer relevante Tests/Builds ausfuehren und Ergebnisse dokumentieren.
-6. Keine Secrets in Code, Commits oder Logs. `.env` bleibt lokal.
+5. Offline-relevante Mutationen muessen Idempotency unterstuetzen (`X-Client-Operation-Id`) oder kompatibel bleiben.
+6. Vor Abschluss immer relevante Tests/Builds ausfuehren und Ergebnisse dokumentieren.
+7. Keine Secrets in Code, Commits oder Logs. `.env` bleibt lokal.
 
-## 3. Arbeitsmodus fuer Agents (2026 Standard)
-1. Kontext laden: betroffene Dateien, bestehende Kontrakte, Testlage.
+## 3. Arbeitsmodus fuer Agents (aktueller Standard)
+1. Kontext laden: betroffene Dateien, bestehende Kontrakte, Testlage, Phase-Dokumente.
 2. Plan in kleinen, verifizierbaren Schritten erstellen.
-3. Implementieren mit kleinen Diffs und klaren Commit-faeigen Einheiten.
+3. Implementieren mit kleinen Diffs und klaren Commit-faehigen Einheiten.
 4. Lokal verifizieren (mindestens betroffene Test-Suites).
 5. Doku/Status aktualisieren, wenn Verhalten, API oder Betriebsablauf geaendert wurde.
 6. Ergebnis mit Risiken, offenen Punkten und naechsten sinnvollen Schritten berichten.
 
 ## 4. Repo-Topologie
-- `backend/`: FastAPI, SQLAlchemy 2.x, Alembic, Auth/RBAC, Audit
-- `frontend/`: React 19 + Vite 6 + TypeScript + TanStack Query + Zustand + PWA
+- `backend/`: FastAPI, SQLAlchemy 2.x, Alembic, Auth/RBAC, Audit, Idempotency-Middleware
+- `frontend/`: React 19 + Vite 6 + TypeScript + TanStack Query + Zustand + PWA + Offline-Queue
 - `nginx/`: Entry-Routing fuer `/` und `/api/*`
-- `scripts/`: Seed, Legacy-Import, Lighthouse/PWA-Checks
-- `docs/`: Betriebs- und Verifikationsnachweise
-- `directstock_phase1.md`: Abnahmestatus/Umsetzungsstatus
+- `scripts/`: Seed, Legacy-Import, Lighthouse/PWA-Checks, Alert-Evaluierung (`run_alert_checks.py`)
+- `docs/validation/`: Betriebs- und Verifikationsnachweise inkl. Phase-2-Abnahme
+- `directstock.md`: Masterplan
+- `directstock_phase1.md`: Phase-1-Status
+- `directstock_phase2.md`: Phase-2-Statusmatrix und Verifikationsstand
 
 ## 5. Source-of-Truth fuer Kontrakte
 1. Backend-Schemas (`backend/app/schemas/*`) definieren API-Response/Request-Vertraege.
 2. Frontend-Typen (`frontend/src/types.ts`) muessen dazu konsistent sein.
-3. Tests sind verbindlicher Teil der Spezifikation, besonders fuer Auth, RBAC, Inventory, Operations.
+3. Phase-Kontrakte/Status stehen in `directstock_phase2.md`.
+4. Tests sind verbindlicher Teil der Spezifikation, besonders fuer Auth, RBAC, Inventory, Operations, Alerts, Reports und Offline-Idempotency.
 
 ## 6. Build-, Test- und Runtime-Kommandos
 
@@ -60,6 +64,13 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 - Smoke: `/health`, `/api/health`, `/api/docs`, Login
 - `./scripts/lighthouse_pwa.sh` (PWA Score >= 0.90)
 
+### Phase-2 Acceptance Referenz (letzter Stand)
+- Backend: `52 passed`
+- Frontend Unit: `13 passed`
+- Frontend E2E: `8 passed`
+- Lighthouse/PWA: `1.00`
+- Nachweis: `docs/validation/phase2-acceptance.md`
+
 ## 7. Architektur-Guardrails
 
 ### Backend
@@ -68,10 +79,12 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 3. Mutierende Endpunkte (`POST/PUT/PATCH/DELETE`) muessen Audit-Eintraege erzeugen.
 4. RBAC serverseitig pruefen, nie nur im Frontend.
 5. Zeitbezug in UTC.
+6. Phase-2 Module bleiben stabil und additiv: `customers`, `suppliers`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `idempotency`.
+7. Offline-relevante Mutationen duerfen ohne gueltige Konfliktbehandlung keine Doppelbuchungen erzeugen.
 
 ### Datenbank
-1. Fachliche Unique-Constraints beibehalten (`product_number`, Bin/Zone/Warehouse-Codes, Username, optional Email).
-2. Indexe fuer Bewegungs-/Bestandsabfragen erhalten (`product_id`, `bin_location_id`, `performed_at`).
+1. Fachliche Unique-Constraints aus den Migrationen `0001` bis `0006` beibehalten.
+2. Indexe fuer Bewegungs-/Bestandsabfragen erhalten (`product_id`, `bin_location_id`, `performed_at`, `status`, `expiry_date`).
 3. Migrationen vorwaerts-sicher, idempotent und reviewbar halten.
 
 ### Frontend
@@ -79,18 +92,21 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 2. Kritische Flows mit stabilen `data-testid`-Attributen absichern.
 3. API-Zugriff nur ueber Service-Layer (`frontend/src/services/*`).
 4. PWA-UX erhalten: Install-Hinweis, Offline-Indikator, Update-Banner.
+5. Offline-Queue zentral in `frontend/src/services/offlineQueue.ts` halten, keine parallelen Queue-Implementierungen einfuehren.
+6. Rollenbasierte Navigation/Routeguards konsistent zu Backend-RBAC pflegen.
 
-## 8. Seed/Import-Regeln
+## 8. Seed/Import/Jobs
 1. Seed muss idempotent und deterministisch sein.
 2. Legacy-Import bleibt **fail-fast**, wenn Pflichtspalten fehlen (Exit-Code `2`).
 3. Positiver Referenzpfad fuer valides Fixture muss idempotenten Upsert nachweisen.
+4. Alert-Batchlauf (`scripts/run_alert_checks.py`) muss ohne Seiteneffekte ausserhalb der Alert-Domaene bleiben.
 
 ## 9. Definition of Done (DoD)
 Eine Aufgabe gilt nur als fertig, wenn:
 1. Implementierung abgeschlossen und lauffaehig ist.
 2. Relevante Tests gruen sind.
 3. Keine offensichtlichen Contract-Breaks bestehen.
-4. Doku aktualisiert ist (`README.md`, ggf. `directstock_phase1.md`, `docs/*`).
+4. Doku aktualisiert ist (`README.md`, `directstock_phase2.md`, `docs/validation/*` sofern betroffen).
 5. Betriebsrelevante Schritte reproduzierbar beschrieben sind.
 
 ## 10. Minimaler Abschlussbericht je Agent-Task
@@ -112,12 +128,19 @@ Jeder Agent liefert am Ende:
 2. Teure Listen-Endpunkte paginierbar halten.
 3. Frontend-Ladezustaende und Fehlerpfade sichtbar machen.
 4. Build-Warnungen nicht ignorieren, wenn sie Laufzeit- oder Bundle-Risiken anzeigen.
+5. Query-/Report-Endpunkte mit Filter- und Exportpfaden performant halten.
 
 ## 13. Security- und Compliance-Baseline
 1. Passwort-Hashing via bcrypt/passlib unveraendert sicher halten.
 2. JWT Claims/TTL nicht aufweichen ohne explizite Freigabe.
 3. Input validieren (Pydantic/TypeScript), Output escapen wo noetig.
 4. Abhaengigkeiten nur minimal und begruendet erweitern.
+5. Idempotency- und Conflict-Responses (`409` + `details`) nicht aufweichen.
+
+## 14. Phase-2 Moduluebersicht (aktiver Bestand)
+- Backend-Router: `auth`, `users`, `products`, `warehouses`, `inventory`, `operations`, `dashboard`, `customers`, `suppliers`, `product_settings`, `purchasing`, `inventory_counts`, `reports`, `alerts`
+- Frontend-Seiten: `Products`, `ProductForm`, `GoodsReceipt`, `GoodsIssue`, `StockTransfer`, `Inventory`, `InventoryCount`, `Purchasing`, `Reports`, `Alerts`, `Dashboard`, `Scanner`, `Warehouse`
+- Validation-Dokumente: `docs/validation/scanner-verification.md`, `docs/validation/phase2-acceptance.md`
 
 ---
 Bei Konflikten gilt: Sicherheit und Datenintegritaet vor Geschwindigkeit.

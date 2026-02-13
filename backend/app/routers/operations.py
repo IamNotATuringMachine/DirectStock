@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user, get_db, require_roles
+from app.dependencies import get_db, require_roles
 from app.models.auth import User
 from app.models.catalog import Customer
 from app.models.inventory import (
@@ -22,6 +22,7 @@ from app.models.inventory import (
     StockTransfer,
     StockTransferItem,
 )
+from app.models.purchasing import PurchaseOrder, PurchaseOrderItem
 from app.schemas.operations import (
     GoodsIssueCreate,
     GoodsIssueItemCreate,
@@ -43,8 +44,14 @@ from app.schemas.operations import (
     StockTransferUpdate,
 )
 from app.schemas.user import MessageResponse
+from app.services.alerts import evaluate_alerts
+from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api", tags=["operations"])
+
+GOODS_RECEIPT_ROLES = ("admin", "lagerleiter", "lagermitarbeiter", "einkauf")
+GOODS_ISSUE_ROLES = ("admin", "lagerleiter", "lagermitarbeiter", "versand")
+STOCK_TRANSFER_ROLES = ("admin", "lagerleiter", "lagermitarbeiter")
 
 
 def _now() -> datetime:
@@ -99,7 +106,7 @@ def _normalize_serial_numbers(values: list[str] | None) -> list[str]:
             continue
         if serial in seen:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=HTTP_422_UNPROCESSABLE,
                 detail=f"Duplicate serial number in payload: {serial}",
             )
         seen.add(serial)
@@ -112,7 +119,7 @@ def _ensure_quantity_matches_serials(quantity: Decimal, serial_numbers: list[str
         return
     if quantity <= 0 or quantity != Decimal(len(serial_numbers)):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail=f"{item_label} quantity must equal number of serial numbers",
         )
 
@@ -209,6 +216,24 @@ async def _resolve_issue_batch(db: AsyncSession, *, issue_item: GoodsIssueItem) 
     return None
 
 
+async def _get_purchase_order_item_or_404(
+    db: AsyncSession,
+    *,
+    purchase_order_item_id: int,
+) -> PurchaseOrderItem:
+    item = (
+        await db.execute(
+            select(PurchaseOrderItem).where(PurchaseOrderItem.id == purchase_order_item_id)
+        )
+    ).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Purchase order item not found",
+        )
+    return item
+
+
 def _to_goods_receipt_response(item: GoodsReceipt) -> GoodsReceiptResponse:
     return GoodsReceiptResponse(
         id=item.id,
@@ -237,6 +262,7 @@ def _to_goods_receipt_item_response(item: GoodsReceiptItem) -> GoodsReceiptItemR
         expiry_date=item.expiry_date,
         manufactured_at=item.manufactured_at,
         serial_numbers=item.serial_numbers,
+        purchase_order_item_id=item.purchase_order_item_id,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -309,7 +335,7 @@ def _to_stock_transfer_item_response(item: StockTransferItem) -> StockTransferIt
 async def list_goods_receipts(
     status_filter: str | None = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> list[GoodsReceiptResponse]:
     stmt = select(GoodsReceipt).order_by(GoodsReceipt.id.desc())
     if status_filter:
@@ -322,7 +348,7 @@ async def list_goods_receipts(
 async def create_goods_receipt(
     payload: GoodsReceiptCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> GoodsReceiptResponse:
     item = GoodsReceipt(
         receipt_number=payload.receipt_number or _generate_number("WE"),
@@ -345,7 +371,7 @@ async def create_goods_receipt(
 async def get_goods_receipt(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> GoodsReceiptResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -358,7 +384,7 @@ async def update_goods_receipt(
     receipt_id: int,
     payload: GoodsReceiptUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> GoodsReceiptResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -378,7 +404,7 @@ async def update_goods_receipt(
 async def delete_goods_receipt(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -395,7 +421,7 @@ async def delete_goods_receipt(
 async def list_goods_receipt_items(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> list[GoodsReceiptItemResponse]:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -422,7 +448,7 @@ async def create_goods_receipt_item(
     receipt_id: int,
     payload: GoodsReceiptItemCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> GoodsReceiptItemResponse:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -436,9 +462,21 @@ async def create_goods_receipt_item(
 
     if (values.get("expiry_date") or values.get("manufactured_at")) and not values.get("batch_number"):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="batch_number is required when expiry_date or manufactured_at is set",
         )
+
+    purchase_order_item_id = values.get("purchase_order_item_id")
+    if purchase_order_item_id is not None:
+        purchase_order_item = await _get_purchase_order_item_or_404(
+            db,
+            purchase_order_item_id=purchase_order_item_id,
+        )
+        if purchase_order_item.product_id != values["product_id"]:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Purchase order item does not match goods receipt item product",
+            )
 
     item = GoodsReceiptItem(goods_receipt_id=receipt_id, **values)
     db.add(item)
@@ -461,7 +499,7 @@ async def update_goods_receipt_item(
     item_id: int,
     payload: GoodsReceiptItemUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> GoodsReceiptItemResponse:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -491,9 +529,20 @@ async def update_goods_receipt_item(
     candidate_manufactured = updates.get("manufactured_at", item.manufactured_at)
     if (candidate_expiry or candidate_manufactured) and not candidate_batch_number:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="batch_number is required when expiry_date or manufactured_at is set",
         )
+
+    if "purchase_order_item_id" in updates and updates["purchase_order_item_id"] is not None:
+        purchase_order_item = await _get_purchase_order_item_or_404(
+            db,
+            purchase_order_item_id=updates["purchase_order_item_id"],
+        )
+        if purchase_order_item.product_id != item.product_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Purchase order item does not match goods receipt item product",
+            )
 
     for key, value in updates.items():
         setattr(item, key, value)
@@ -508,7 +557,7 @@ async def delete_goods_receipt_item(
     receipt_id: int,
     item_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> MessageResponse:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -536,7 +585,7 @@ async def delete_goods_receipt_item(
 async def complete_goods_receipt(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -551,29 +600,78 @@ async def complete_goods_receipt(
     )
     if not receipt_items:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="Goods receipt has no items",
         )
 
     now = _now()
+    touched_product_ids: set[int] = set()
+    touched_purchase_order_ids: set[int] = set()
+    purchase_order_item_cache: dict[int, PurchaseOrderItem] = {}
+    purchase_order_cache: dict[int, PurchaseOrder] = {}
 
     try:
         for receipt_item in receipt_items:
             if receipt_item.target_bin_id is None:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=HTTP_422_UNPROCESSABLE,
                     detail=f"Receipt item {receipt_item.id} has no target_bin_id",
                 )
 
             quantity = Decimal(receipt_item.received_quantity)
             if quantity <= 0:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=HTTP_422_UNPROCESSABLE,
                     detail=f"Receipt item {receipt_item.id} has invalid received quantity",
                 )
 
             serial_numbers = _normalize_serial_numbers(receipt_item.serial_numbers)
             _ensure_quantity_matches_serials(quantity, serial_numbers, item_label=f"Receipt item {receipt_item.id}")
+
+            purchase_order_item: PurchaseOrderItem | None = None
+            if receipt_item.purchase_order_item_id is not None:
+                purchase_order_item = purchase_order_item_cache.get(receipt_item.purchase_order_item_id)
+                if purchase_order_item is None:
+                    purchase_order_item = await _get_purchase_order_item_or_404(
+                        db,
+                        purchase_order_item_id=receipt_item.purchase_order_item_id,
+                    )
+                    purchase_order_item_cache[receipt_item.purchase_order_item_id] = purchase_order_item
+
+                if purchase_order_item.product_id != receipt_item.product_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Receipt item {receipt_item.id} references a purchase order item with different product",
+                    )
+
+                purchase_order = purchase_order_cache.get(purchase_order_item.purchase_order_id)
+                if purchase_order is None:
+                    purchase_order = (
+                        await db.execute(
+                            select(PurchaseOrder).where(PurchaseOrder.id == purchase_order_item.purchase_order_id)
+                        )
+                    ).scalar_one_or_none()
+                    if purchase_order is None:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Purchase order not found",
+                        )
+                    purchase_order_cache[purchase_order.id] = purchase_order
+
+                if purchase_order.status not in {"ordered", "partially_received"}:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Purchase order {purchase_order.order_number} is not ready for goods receipt",
+                    )
+
+                next_received = Decimal(purchase_order_item.received_quantity) + quantity
+                if next_received > Decimal(purchase_order_item.ordered_quantity):
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Goods receipt quantity exceeds open quantity for purchase order item {purchase_order_item.id}",
+                    )
+                purchase_order_item.received_quantity = next_received
+                touched_purchase_order_ids.add(purchase_order.id)
 
             inventory = await _get_inventory(
                 db,
@@ -597,7 +695,7 @@ async def complete_goods_receipt(
                 batch.quantity = Decimal(batch.quantity) + quantity
             elif receipt_item.expiry_date or receipt_item.manufactured_at:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=HTTP_422_UNPROCESSABLE,
                     detail=f"Receipt item {receipt_item.id} requires batch_number for date tracking",
                 )
 
@@ -640,17 +738,46 @@ async def complete_goods_receipt(
                     metadata_json={
                         "goods_receipt_id": item.id,
                         "goods_receipt_item_id": receipt_item.id,
+                        "purchase_order_item_id": receipt_item.purchase_order_item_id,
                         "batch_number": receipt_item.batch_number,
                         "serial_numbers": serial_numbers or None,
                     },
                 )
             )
+            touched_product_ids.add(receipt_item.product_id)
+
+        await db.flush()
+        for purchase_order_id in touched_purchase_order_ids:
+            purchase_order = purchase_order_cache[purchase_order_id]
+            order_items = list(
+                (
+                    await db.execute(
+                        select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id == purchase_order_id)
+                    )
+                ).scalars()
+            )
+            all_received = bool(order_items) and all(
+                Decimal(order_item.received_quantity) >= Decimal(order_item.ordered_quantity)
+                for order_item in order_items
+            )
+            any_received = any(Decimal(order_item.received_quantity) > 0 for order_item in order_items)
+            if all_received:
+                purchase_order.status = "completed"
+                purchase_order.completed_at = now
+            elif any_received:
+                purchase_order.status = "partially_received"
+                purchase_order.completed_at = None
 
         item.status = "completed"
         item.completed_at = now
         if item.received_at is None:
             item.received_at = now
 
+        await evaluate_alerts(
+            db,
+            trigger="goods_receipt_completed",
+            scoped_product_ids=touched_product_ids or None,
+        )
         await db.commit()
     except HTTPException:
         await db.rollback()
@@ -663,7 +790,7 @@ async def complete_goods_receipt(
 async def cancel_goods_receipt(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -680,7 +807,7 @@ async def cancel_goods_receipt(
 async def list_goods_issues(
     status_filter: str | None = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> list[GoodsIssueResponse]:
     stmt = select(GoodsIssue).order_by(GoodsIssue.id.desc())
     if status_filter:
@@ -693,7 +820,7 @@ async def list_goods_issues(
 async def create_goods_issue(
     payload: GoodsIssueCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> GoodsIssueResponse:
     if payload.customer_id is not None:
         customer = (await db.execute(select(Customer).where(Customer.id == payload.customer_id))).scalar_one_or_none()
@@ -722,7 +849,7 @@ async def create_goods_issue(
 async def get_goods_issue(
     issue_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> GoodsIssueResponse:
     item = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if item is None:
@@ -735,7 +862,7 @@ async def update_goods_issue(
     issue_id: int,
     payload: GoodsIssueUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> GoodsIssueResponse:
     item = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if item is None:
@@ -760,7 +887,7 @@ async def update_goods_issue(
 async def delete_goods_issue(
     issue_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if item is None:
@@ -777,7 +904,7 @@ async def delete_goods_issue(
 async def list_goods_issue_items(
     issue_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> list[GoodsIssueItemResponse]:
     parent = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if parent is None:
@@ -802,7 +929,7 @@ async def create_goods_issue_item(
     issue_id: int,
     payload: GoodsIssueItemCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> GoodsIssueItemResponse:
     parent = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if parent is None:
@@ -834,7 +961,7 @@ async def update_goods_issue_item(
     item_id: int,
     payload: GoodsIssueItemUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> GoodsIssueItemResponse:
     parent = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if parent is None:
@@ -871,7 +998,7 @@ async def delete_goods_issue_item(
     issue_id: int,
     item_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> MessageResponse:
     parent = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if parent is None:
@@ -899,7 +1026,7 @@ async def delete_goods_issue_item(
 async def complete_goods_issue(
     issue_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if item is None:
@@ -914,17 +1041,18 @@ async def complete_goods_issue(
     )
     if not issue_items:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="Goods issue has no items",
         )
 
     now = _now()
+    touched_product_ids: set[int] = set()
 
     try:
         for issue_item in issue_items:
             if issue_item.source_bin_id is None:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=HTTP_422_UNPROCESSABLE,
                     detail=f"Issue item {issue_item.id} has no source_bin_id",
                 )
 
@@ -1021,12 +1149,18 @@ async def complete_goods_issue(
                     },
                 )
             )
+            touched_product_ids.add(issue_item.product_id)
 
         item.status = "completed"
         item.completed_at = now
         if item.issued_at is None:
             item.issued_at = now
 
+        await evaluate_alerts(
+            db,
+            trigger="goods_issue_completed",
+            scoped_product_ids=touched_product_ids or None,
+        )
         await db.commit()
     except HTTPException:
         await db.rollback()
@@ -1039,7 +1173,7 @@ async def complete_goods_issue(
 async def cancel_goods_issue(
     issue_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if item is None:
@@ -1056,7 +1190,7 @@ async def cancel_goods_issue(
 async def list_stock_transfers(
     status_filter: str | None = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> list[StockTransferResponse]:
     stmt = select(StockTransfer).order_by(StockTransfer.id.desc())
     if status_filter:
@@ -1069,7 +1203,7 @@ async def list_stock_transfers(
 async def create_stock_transfer(
     payload: StockTransferCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> StockTransferResponse:
     item = StockTransfer(
         transfer_number=payload.transfer_number or _generate_number("ST"),
@@ -1091,7 +1225,7 @@ async def create_stock_transfer(
 async def get_stock_transfer(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> StockTransferResponse:
     item = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if item is None:
@@ -1104,7 +1238,7 @@ async def update_stock_transfer(
     transfer_id: int,
     payload: StockTransferUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> StockTransferResponse:
     item = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if item is None:
@@ -1124,7 +1258,7 @@ async def update_stock_transfer(
 async def delete_stock_transfer(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if item is None:
@@ -1141,7 +1275,7 @@ async def delete_stock_transfer(
 async def list_stock_transfer_items(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> list[StockTransferItemResponse]:
     parent = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if parent is None:
@@ -1168,7 +1302,7 @@ async def create_stock_transfer_item(
     transfer_id: int,
     payload: StockTransferItemCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> StockTransferItemResponse:
     parent = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if parent is None:
@@ -1178,7 +1312,7 @@ async def create_stock_transfer_item(
 
     if payload.from_bin_id == payload.to_bin_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="from_bin_id and to_bin_id must differ",
         )
 
@@ -1206,7 +1340,7 @@ async def update_stock_transfer_item(
     item_id: int,
     payload: StockTransferItemUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> StockTransferItemResponse:
     parent = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if parent is None:
@@ -1234,7 +1368,7 @@ async def update_stock_transfer_item(
     to_bin = updates.get("to_bin_id", item.to_bin_id)
     if from_bin == to_bin:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="from_bin_id and to_bin_id must differ",
         )
 
@@ -1251,7 +1385,7 @@ async def delete_stock_transfer_item(
     transfer_id: int,
     item_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> MessageResponse:
     parent = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if parent is None:
@@ -1279,7 +1413,7 @@ async def delete_stock_transfer_item(
 async def complete_stock_transfer(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    current_user: User = Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if item is None:
@@ -1294,17 +1428,18 @@ async def complete_stock_transfer(
     )
     if not transfer_items:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE,
             detail="Stock transfer has no items",
         )
 
     now = _now()
+    touched_product_ids: set[int] = set()
 
     try:
         for transfer_item in transfer_items:
             if transfer_item.from_bin_id == transfer_item.to_bin_id:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=HTTP_422_UNPROCESSABLE,
                     detail=f"Transfer item {transfer_item.id} has same source and target bin",
                 )
 
@@ -1434,12 +1569,18 @@ async def complete_stock_transfer(
                     },
                 )
             )
+            touched_product_ids.add(transfer_item.product_id)
 
         item.status = "completed"
         item.completed_at = now
         if item.transferred_at is None:
             item.transferred_at = now
 
+        await evaluate_alerts(
+            db,
+            trigger="stock_transfer_completed",
+            scoped_product_ids=touched_product_ids or None,
+        )
         await db.commit()
     except HTTPException:
         await db.rollback()
@@ -1452,7 +1593,7 @@ async def complete_stock_transfer(
 async def cancel_stock_transfer(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
+    _=Depends(require_roles(*STOCK_TRANSFER_ROLES)),
 ) -> MessageResponse:
     item = (await db.execute(select(StockTransfer).where(StockTransfer.id == transfer_id))).scalar_one_or_none()
     if item is None:

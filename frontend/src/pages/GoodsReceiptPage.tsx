@@ -12,6 +12,7 @@ import {
   fetchGoodsReceipts,
 } from "../services/operationsApi";
 import { fetchProductByEan, fetchProductByQr, fetchProducts } from "../services/productsApi";
+import { fetchSuppliers } from "../services/suppliersApi";
 import { fetchBinByQr, fetchBins, fetchWarehouses, fetchZones } from "../services/warehousesApi";
 import type { BinLocation, Product } from "../types";
 import { parseScanValue } from "../utils/scannerUtils";
@@ -29,6 +30,7 @@ export default function GoodsReceiptPage() {
   const queryClient = useQueryClient();
 
   const [notes, setNotes] = useState("");
+  const [supplierId, setSupplierId] = useState<string>("");
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
 
   const [selectedProductId, setSelectedProductId] = useState("");
@@ -62,6 +64,17 @@ export default function GoodsReceiptPage() {
     queryFn: () => fetchProducts({ page: 1, pageSize: 200 }),
   });
 
+  const suppliersQuery = useQuery({
+    queryKey: ["suppliers", "goods-receipt-picker"],
+    queryFn: async () => {
+      try {
+        return await fetchSuppliers({ page: 1, pageSize: 200, isActive: true });
+      } catch {
+        return { items: [], total: 0, page: 1, page_size: 200 };
+      }
+    },
+  });
+
   const warehousesQuery = useQuery({
     queryKey: ["warehouses", "goods-receipt-picker"],
     queryFn: fetchWarehouses,
@@ -83,6 +96,7 @@ export default function GoodsReceiptPage() {
     mutationFn: createGoodsReceipt,
     onSuccess: async (receipt) => {
       setNotes("");
+      setSupplierId("");
       await queryClient.invalidateQueries({ queryKey: ["goods-receipts"] });
       setSelectedReceiptId(receipt.id);
     },
@@ -257,7 +271,10 @@ export default function GoodsReceiptPage() {
 
   const onCreateReceipt = async (event: FormEvent) => {
     event.preventDefault();
-    await createReceiptMutation.mutateAsync({ notes: notes.trim() || undefined });
+    await createReceiptMutation.mutateAsync({
+      supplier_id: supplierId ? Number(supplierId) : undefined,
+      notes: notes.trim() || undefined,
+    });
   };
 
   const onAddItem = async (event: FormEvent) => {
@@ -303,6 +320,19 @@ export default function GoodsReceiptPage() {
         <article className="subpanel">
           <h3>1. Beleg anlegen</h3>
           <form className="form-grid" onSubmit={(event) => void onCreateReceipt(event)} data-testid="goods-receipt-create-form">
+            <select
+              className="input"
+              value={supplierId}
+              onChange={(event) => setSupplierId(event.target.value)}
+              data-testid="goods-receipt-supplier-select"
+            >
+              <option value="">Kein Lieferant</option>
+              {(suppliersQuery.data?.items ?? []).map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.supplier_number} - {supplier.company_name}
+                </option>
+              ))}
+            </select>
             <input
               className="input"
               placeholder="Notiz (optional)"
