@@ -1,3 +1,63 @@
+## DirectStock Phase 1 - Umsetzungsstatus (Hard Abnahme)
+
+Stand: **13. Februar 2026**
+Gesamtstatus: **PARTIAL**
+
+### Legende
+- `DONE`: vollständig umgesetzt und verifiziert
+- `PARTIAL`: umgesetzt, aber mit klaren Restlücken
+- `OPEN`: noch nicht umgesetzt
+
+### Verifikationsstand (zuletzt ausgeführt am 13. Februar 2026)
+- `backend`: `pytest` grün (`23 passed`)
+- `frontend unit`: `vitest` grün (`9 passed`)
+- `frontend e2e`: `playwright` grün (`3 passed`)
+- `build`: `vite build` inkl. PWA erfolgreich
+- `runtime smoke`: `/health`, `/api/health`, `/api/docs` jeweils `200` im Compose-Stack
+
+### Task-Statusmatrix 1.0-1.11
+
+| Task | Status | Kurzbegründung |
+|---|---|---|
+| 1.0.1 Repository + Docker-Infrastruktur | DONE | Monorepo, Compose-Dateien, Basisstruktur vorhanden |
+| 1.0.2 Backend-Projekt | DONE | FastAPI/SQLAlchemy/Alembic Grundgerüst inkl. Health, Config, DB |
+| 1.0.3 Frontend-Projekt | DONE | React/Vite/Tailwind/shadcn Basis inklusive Routing/Test-Setup |
+| 1.0.4 Nginx + Docker-Validierung | DONE | Routing `/api/*` + `/`, Health erfolgreich validiert |
+| 1.1.1 Modelle + Alembic | DONE | Phase-1 Schema + Migrationen + Migrationstest grün |
+| 1.1.2 Auth + Benutzerverwaltung | DONE | Login/Refresh/Logout/Me + User-CRUD + RBAC vorhanden |
+| 1.1.3 Audit + Fehlerhandling | DONE | Audit-Middleware, Request-ID, standardisierte Fehlerantworten |
+| 1.2.1 App-Shell + Routing + Layout | PARTIAL | Routing/Navigation vorhanden, Sidebar nicht einklappbar (280/72) |
+| 1.2.2 Auth-Integration Frontend | DONE | Auth-Store, API-Interceptor, Protected Routes, Login-Flow vorhanden |
+| 1.3.1 Backend Artikelstamm-API | DONE | Produkt-CRUD + Suche/Filter + QR/EAN + Gruppen-API vorhanden |
+| 1.3.2 Frontend Artikelstamm-UI | PARTIAL | Produktseite vorhanden, aber keine separaten ProductFormPage/ProductDetailPage |
+| 1.4.1 Backend Lagerstruktur-API | DONE | Warehouse/Zone/Bin-CRUD, Batch, QR-Lookup, PNG/PDF-QR vorhanden |
+| 1.4.2 Frontend Lagerstruktur-UI | PARTIAL | Funktionale UI vorhanden, aber keine separaten Grid/Dialog-Komponenten |
+| 1.5.1 Universelle Scanner-Komponente | DONE | Kamera + externer Scanner + Feedback + Parsing + ScannerPage umgesetzt |
+| 1.6.1 Backend Wareneingang-API | DONE | CRUD + Complete + Cancel mit Bestandsbuchung |
+| 1.6.2 Frontend Wareneingang-Workflow | DONE | Schrittworkflow Scan->Menge->Bin->Bestätigen inkl. Progress |
+| 1.7.1 Backend Bestands-API | DONE | Aggregiert, by-product/by-bin/by-warehouse, low-stock, movements, summary |
+| 1.7.2 Frontend Bestandsübersicht-UI | PARTIAL | Tabelle/Low-stock/Movements/Refresh vorhanden, Detail-Sheet fehlt |
+| 1.8.1 Backend Warenausgang-API | DONE | Analog WE inkl. Bestandsprüfung und Buchung |
+| 1.8.2 Frontend Warenausgang-Workflow | DONE | Scan-Flow umgesetzt inkl. Restbestandswarnung |
+| 1.9.1 Backend Umlagerungs-API | DONE | Atomare Umbuchung Quelle->Ziel implementiert |
+| 1.9.2 Frontend Umlagerungs-UI | DONE | 5-Schritt-Workflow umgesetzt |
+| 1.10.1 Backend Dashboard-API | DONE | Summary, recent, low-stock, activity-today vorhanden |
+| 1.10.2 Frontend Dashboard-UI | PARTIAL | KPI/Quick-Actions/Listen vorhanden, KPI "Auslastung" fehlt |
+| 1.11.1 PWA-Konfiguration | DONE | Manifest, SW, Offline/Install/Update-UI vorhanden |
+| 1.11.2 Seed + Legacy-Import | PARTIAL | Deterministischer Seed vorhanden; Importer fail-fast validiert, kein produktiver Legacy-Importlauf |
+| 1.11.3 Backend-Tests | DONE | Auth/Product/Warehouse/Inventory/Operations/Audit/Migration/Seed/Import validiert |
+| 1.11.4 Frontend-Tests | DONE | Unit + 3 kritische E2E-Flows grün |
+| 1.11.5 Production-Build + Deployment-Test | PARTIAL | Prod-Artefakte + Compose vorhanden; Lighthouse>90/Tablet-Scanner nicht nachgewiesen |
+
+### Harte Restlücken fuer "Phase 1 komplett"
+- `1.2.1`: Sidebar-Collapse (280px -> 72px) fertigstellen.
+- `1.3.2`: Separate `ProductFormPage` und `ProductDetailPage` implementieren.
+- `1.4.2`: Warehouse-UI in dedizierte Komponenten (`BinLocationGrid`, `QRPrintDialog`, `BinBatchCreateDialog`) aufteilen.
+- `1.7.2`: Produkt-Detail-Sheet mit Bestand pro Bin + letzte 10 Bewegungen ergänzen.
+- `1.10.2`: Dashboard-KPI "Auslastung" ergänzen.
+- `1.11.2`: Legacy-Import gegen fachlich valides Quellformat produktiv durchlaufen lassen.
+- `1.11.5`: Lighthouse-PWA-Score > 90 + manueller Tablet-Scanner-Nachweis dokumentieren.
+
 Verstanden - im Plan-Modus darf ich nur die Plan-Datei bearbeiten. Sobald der Plan
   genehmigt wird, schreibe ich ihn sofort in directstock_phase1.md. Der vollständige Plan
   steht bereit.
