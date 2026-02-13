@@ -1,8 +1,15 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchInventory, fetchInventorySummary, fetchLowStock, fetchMovements } from "../services/inventoryApi";
+import {
+  fetchInventory,
+  fetchInventoryByProduct,
+  fetchInventorySummary,
+  fetchLowStock,
+  fetchMovements,
+} from "../services/inventoryApi";
 import { fetchWarehouses } from "../services/warehousesApi";
+import type { InventoryItem } from "../types";
 
 export default function InventoryPage() {
   const [page, setPage] = useState(1);
@@ -10,6 +17,7 @@ export default function InventoryPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState<string>("");
+  const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null);
 
   const warehouseId = warehouseFilter ? Number(warehouseFilter) : undefined;
 
@@ -21,7 +29,23 @@ export default function InventoryPage() {
     refetchInterval: 30000,
   });
   const lowStockQuery = useQuery({ queryKey: ["inventory-low-stock"], queryFn: fetchLowStock, refetchInterval: 60000 });
-  const movementsQuery = useQuery({ queryKey: ["inventory-movements"], queryFn: () => fetchMovements(12), refetchInterval: 60000 });
+  const movementsQuery = useQuery({
+    queryKey: ["inventory-movements"],
+    queryFn: () => fetchMovements({ limit: 12 }),
+    refetchInterval: 60000,
+  });
+
+  const detailStockQuery = useQuery({
+    queryKey: ["inventory-by-product", selectedProduct?.product_id],
+    queryFn: () => fetchInventoryByProduct(selectedProduct?.product_id as number),
+    enabled: selectedProduct !== null,
+  });
+
+  const detailMovementsQuery = useQuery({
+    queryKey: ["inventory-movements", "product", selectedProduct?.product_id],
+    queryFn: () => fetchMovements({ limit: 10, productId: selectedProduct?.product_id }),
+    enabled: selectedProduct !== null,
+  });
 
   const rows = useMemo(() => inventoryQuery.data?.items ?? [], [inventoryQuery.data]);
   const total = inventoryQuery.data?.total ?? 0;
@@ -105,7 +129,12 @@ export default function InventoryPage() {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.product_id} data-testid={`inventory-row-${row.product_id}`}>
+              <tr
+                key={row.product_id}
+                data-testid={`inventory-row-${row.product_id}`}
+                className="inventory-row-clickable"
+                onClick={() => setSelectedProduct(row)}
+              >
                 <td>{row.product_number}</td>
                 <td>{row.product_name}</td>
                 <td>{row.total_quantity}</td>
@@ -162,6 +191,56 @@ export default function InventoryPage() {
           </div>
         </article>
       </div>
+
+      {selectedProduct ? (
+        <div className="modal-backdrop" onClick={() => setSelectedProduct(null)}>
+          <div className="modal-card" data-testid="inventory-detail-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="panel-header">
+              <div>
+                <h3>{selectedProduct.product_number}</h3>
+                <p className="panel-subtitle">{selectedProduct.product_name}</p>
+              </div>
+              <button className="btn" onClick={() => setSelectedProduct(null)}>
+                Schließen
+              </button>
+            </div>
+
+            <div className="two-col-grid">
+              <article className="subpanel">
+                <h4>Bestand pro Lagerplatz</h4>
+                <div className="list-stack small">
+                  {(detailStockQuery.data ?? []).map((item) => (
+                    <div key={item.inventory_id} className="list-item static-item">
+                      <strong>
+                        {item.warehouse_code} / {item.zone_code} / {item.bin_code}
+                      </strong>
+                      <span>
+                        Menge: {item.quantity} | Reserviert: {item.reserved_quantity} | Verfügbar: {item.available_quantity}
+                      </span>
+                    </div>
+                  ))}
+                  {!detailStockQuery.isLoading && (detailStockQuery.data?.length ?? 0) === 0 ? <p>Kein Bestand vorhanden.</p> : null}
+                </div>
+              </article>
+
+              <article className="subpanel">
+                <h4>Letzte 10 Bewegungen</h4>
+                <div className="list-stack small">
+                  {(detailMovementsQuery.data ?? []).map((movement) => (
+                    <div key={movement.id} className="list-item static-item">
+                      <strong>{movement.reference_number ?? "-"}</strong>
+                      <span>
+                        {movement.movement_type} {movement.quantity} ({movement.from_bin_code ?? "-"} → {movement.to_bin_code ?? "-"})
+                      </span>
+                    </div>
+                  ))}
+                  {!detailMovementsQuery.isLoading && (detailMovementsQuery.data?.length ?? 0) === 0 ? <p>Keine Bewegungen vorhanden.</p> : null}
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

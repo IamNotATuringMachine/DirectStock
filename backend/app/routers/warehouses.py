@@ -1,9 +1,12 @@
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_current_user, get_db, require_roles
+from app.models.inventory import Inventory
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 from app.schemas.warehouse import (
     BinBatchCreateRequest,
@@ -49,7 +52,11 @@ def _to_zone_response(zone: WarehouseZone) -> ZoneResponse:
     )
 
 
-def _to_bin_response(bin_location: BinLocation) -> BinResponse:
+def _to_bin_response(
+    bin_location: BinLocation,
+    *,
+    occupied_quantity: Decimal = Decimal("0"),
+) -> BinResponse:
     return BinResponse(
         id=bin_location.id,
         zone_id=bin_location.zone_id,
@@ -59,9 +66,22 @@ def _to_bin_response(bin_location: BinLocation) -> BinResponse:
         max_volume=bin_location.max_volume,
         qr_code_data=bin_location.qr_code_data,
         is_active=bin_location.is_active,
+        is_occupied=occupied_quantity > 0,
+        occupied_quantity=occupied_quantity,
         created_at=bin_location.created_at,
         updated_at=bin_location.updated_at,
     )
+
+
+async def _get_bin_occupied_quantity(db: AsyncSession, bin_id: int) -> Decimal:
+    quantity = (
+        await db.execute(
+            select(func.coalesce(func.sum(Inventory.quantity), 0)).where(
+                Inventory.bin_location_id == bin_id
+            )
+        )
+    ).scalar_one()
+    return Decimal(quantity)
 
 
 @router.get("/warehouses", response_model=list[WarehouseResponse])
@@ -213,8 +233,23 @@ async def list_bins(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ) -> list[BinResponse]:
-    result = await db.execute(select(BinLocation).where(BinLocation.zone_id == zone_id).order_by(BinLocation.code.asc()))
-    return [_to_bin_response(item) for item in result.scalars()]
+    result = await db.execute(
+        select(
+            BinLocation,
+            func.coalesce(func.sum(Inventory.quantity), 0).label("occupied_quantity"),
+        )
+        .outerjoin(Inventory, Inventory.bin_location_id == BinLocation.id)
+        .where(BinLocation.zone_id == zone_id)
+        .group_by(BinLocation.id)
+        .order_by(BinLocation.code.asc())
+    )
+    return [
+        _to_bin_response(
+            bin_location,
+            occupied_quantity=Decimal(occupied_quantity),
+        )
+        for bin_location, occupied_quantity in result.all()
+    ]
 
 
 @router.post("/zones/{zone_id}/bins", response_model=BinResponse, status_code=status.HTTP_201_CREATED)
@@ -336,7 +371,8 @@ async def get_bin_by_qr(
     ).scalar_one_or_none()
     if bin_location is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bin not found for QR")
-    return _to_bin_response(bin_location)
+    occupied_quantity = await _get_bin_occupied_quantity(db, bin_location.id)
+    return _to_bin_response(bin_location, occupied_quantity=occupied_quantity)
 
 
 @router.get("/bins/{bin_id}/qr-code")

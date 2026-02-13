@@ -268,32 +268,37 @@ async def low_stock(
 @router.get("/movements", response_model=list[StockMovementItem])
 async def list_movements(
     limit: int = Query(default=50, ge=1, le=200),
+    product_id: int | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ) -> list[StockMovementItem]:
     from_bin = aliased(BinLocation)
     to_bin = aliased(BinLocation)
 
+    stmt = (
+        select(
+            StockMovement.id,
+            StockMovement.movement_type,
+            StockMovement.reference_type,
+            StockMovement.reference_number,
+            StockMovement.product_id,
+            Product.product_number,
+            Product.name.label("product_name"),
+            from_bin.code.label("from_bin_code"),
+            to_bin.code.label("to_bin_code"),
+            StockMovement.quantity,
+            StockMovement.performed_at,
+        )
+        .join(Product, Product.id == StockMovement.product_id)
+        .outerjoin(from_bin, from_bin.id == StockMovement.from_bin_id)
+        .outerjoin(to_bin, to_bin.id == StockMovement.to_bin_id)
+    )
+    if product_id is not None:
+        stmt = stmt.where(StockMovement.product_id == product_id)
+
     rows = (
         await db.execute(
-            select(
-                StockMovement.id,
-                StockMovement.movement_type,
-                StockMovement.reference_type,
-                StockMovement.reference_number,
-                StockMovement.product_id,
-                Product.product_number,
-                Product.name.label("product_name"),
-                from_bin.code.label("from_bin_code"),
-                to_bin.code.label("to_bin_code"),
-                StockMovement.quantity,
-                StockMovement.performed_at,
-            )
-            .join(Product, Product.id == StockMovement.product_id)
-            .outerjoin(from_bin, from_bin.id == StockMovement.from_bin_id)
-            .outerjoin(to_bin, to_bin.id == StockMovement.to_bin_id)
-            .order_by(StockMovement.performed_at.desc(), StockMovement.id.desc())
-            .limit(limit)
+            stmt.order_by(StockMovement.performed_at.desc(), StockMovement.id.desc()).limit(limit)
         )
     ).all()
 

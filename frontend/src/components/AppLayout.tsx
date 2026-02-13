@@ -1,25 +1,27 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import PwaStatus from "./pwa/PwaStatus";
 import { useAuthStore } from "../stores/authStore";
 
 const navItems = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/products", label: "Artikelstamm" },
-  { to: "/warehouse", label: "Lagerstruktur" },
-  { to: "/inventory", label: "Bestandsübersicht" },
-  { to: "/goods-receipt", label: "Wareneingang" },
-  { to: "/goods-issue", label: "Warenausgang" },
-  { to: "/stock-transfer", label: "Umlagerung" },
-  { to: "/scanner", label: "Scanner" },
+  { to: "/dashboard", label: "Dashboard", shortLabel: "DB" },
+  { to: "/products", label: "Artikelstamm", shortLabel: "AR" },
+  { to: "/warehouse", label: "Lagerstruktur", shortLabel: "LG" },
+  { to: "/inventory", label: "Bestandsübersicht", shortLabel: "BS" },
+  { to: "/goods-receipt", label: "Wareneingang", shortLabel: "WE" },
+  { to: "/goods-issue", label: "Warenausgang", shortLabel: "WA" },
+  { to: "/stock-transfer", label: "Umlagerung", shortLabel: "UM" },
+  { to: "/scanner", label: "Scanner", shortLabel: "SC" },
 ];
 
 export default function AppLayout() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div className="shell" data-testid="app-shell">
+    <div className={`shell ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`} data-testid="app-shell">
       <aside className="sidebar">
         <div className="brand">DirectStock</div>
         <nav>
@@ -28,19 +30,31 @@ export default function AppLayout() {
               key={item.to}
               to={item.to}
               className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+              aria-label={item.label}
+              title={item.label}
             >
-              {item.label}
+              <span className="nav-link-short">{item.shortLabel}</span>
+              <span className="nav-link-label">{item.label}</span>
             </NavLink>
           ))}
           {user?.roles.includes("admin") ? (
-            <NavLink to="/users" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-              Benutzerverwaltung
+            <NavLink to="/users" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`} aria-label="Benutzerverwaltung" title="Benutzerverwaltung">
+              <span className="nav-link-short">BU</span>
+              <span className="nav-link-label">Benutzerverwaltung</span>
             </NavLink>
           ) : null}
         </nav>
       </aside>
       <div className="content-area">
         <header className="topbar">
+          <button
+            className="btn sidebar-toggle"
+            onClick={() => setIsSidebarCollapsed((value) => !value)}
+            data-testid="sidebar-toggle"
+            aria-label={isSidebarCollapsed ? "Sidebar erweitern" : "Sidebar einklappen"}
+          >
+            {isSidebarCollapsed ? "»" : "«"}
+          </button>
           <div className="topbar-user">
             <strong>{user?.username ?? "-"}</strong>
           </div>

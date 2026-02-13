@@ -1,9 +1,13 @@
+from decimal import Decimal
+
 import pytest
 from httpx import AsyncClient
 
+from app.models.inventory import Inventory
+
 
 @pytest.mark.asyncio
-async def test_warehouse_zone_bin_flow(client: AsyncClient, admin_token: str):
+async def test_warehouse_zone_bin_flow(client: AsyncClient, admin_token: str, db_session):
     warehouse = await client.post(
         "/api/warehouses",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -43,14 +47,38 @@ async def test_warehouse_zone_bin_flow(client: AsyncClient, admin_token: str):
     )
     assert bins.status_code == 200
     assert len(bins.json()) == 4
+    assert "is_occupied" in bins.json()[0]
+    assert "occupied_quantity" in bins.json()[0]
 
     first_bin = bins.json()[0]
+    db_session.add(
+        Inventory(
+            product_id=1,
+            bin_location_id=first_bin["id"],
+            quantity=Decimal("3"),
+            reserved_quantity=Decimal("0"),
+            unit="piece",
+        )
+    )
+    await db_session.commit()
+
+    bins_after_stock = await client.get(
+        f"/api/zones/{zone_id}/bins",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert bins_after_stock.status_code == 200
+    occupied_row = next(item for item in bins_after_stock.json() if item["id"] == first_bin["id"])
+    assert occupied_row["is_occupied"] is True
+    assert Decimal(occupied_row["occupied_quantity"]) == Decimal("3")
+
     qr_lookup = await client.get(
         f"/api/bins/by-qr/{first_bin['qr_code_data']}",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert qr_lookup.status_code == 200
     assert qr_lookup.json()["id"] == first_bin["id"]
+    assert qr_lookup.json()["is_occupied"] is True
+    assert Decimal(qr_lookup.json()["occupied_quantity"]) == Decimal("3")
 
     qr_png = await client.get(
         f"/api/bins/{first_bin['id']}/qr-code",

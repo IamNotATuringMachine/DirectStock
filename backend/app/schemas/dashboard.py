@@ -10,6 +10,8 @@ class DashboardSummary(BaseModel):
     total_products: int
     total_warehouses: int
     total_bins: int
+    occupied_bins: int
+    utilization_percent: Decimal
     total_quantity: Decimal
     low_stock_count: int
     open_goods_receipts: int

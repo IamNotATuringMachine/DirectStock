@@ -1,38 +1,12 @@
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
-import {
-  createProduct,
-  createProductGroup,
-  deleteProduct,
-  fetchProductGroups,
-  fetchProducts,
-  updateProduct,
-} from "../services/productsApi";
+import { deleteProduct, fetchProductGroups, fetchProducts } from "../services/productsApi";
 import { useAuthStore } from "../stores/authStore";
-import type { Product, ProductStatus } from "../types";
-
-type ProductFormState = {
-  productNumber: string;
-  name: string;
-  description: string;
-  groupId: string;
-  unit: string;
-  status: ProductStatus;
-};
+import type { ProductStatus } from "../types";
 
 const productStatuses: ProductStatus[] = ["active", "blocked", "deprecated", "archived"];
-
-function emptyProductForm(): ProductFormState {
-  return {
-    productNumber: "",
-    name: "",
-    description: "",
-    groupId: "",
-    unit: "piece",
-    status: "active",
-  };
-}
 
 export default function ProductsPage() {
   const queryClient = useQueryClient();
@@ -45,13 +19,6 @@ export default function ProductsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | ProductStatus>("");
   const [groupFilter, setGroupFilter] = useState<string>("");
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState<ProductFormState>(emptyProductForm());
-
-  const [newGroupName, setNewGroupName] = useState("");
-  const [newGroupDescription, setNewGroupDescription] = useState("");
 
   const groupIdNumber = groupFilter ? Number(groupFilter) : undefined;
 
@@ -72,26 +39,6 @@ export default function ProductsPage() {
     queryFn: fetchProductGroups,
   });
 
-  const createProductMutation = useMutation({
-    mutationFn: createProduct,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["products"] });
-      setDialogOpen(false);
-      setProductForm(emptyProductForm());
-    },
-  });
-
-  const updateProductMutation = useMutation({
-    mutationFn: ({ productId, payload }: { productId: number; payload: Parameters<typeof updateProduct>[1] }) =>
-      updateProduct(productId, payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["products"] });
-      setDialogOpen(false);
-      setEditingProduct(null);
-      setProductForm(emptyProductForm());
-    },
-  });
-
   const deleteProductMutation = useMutation({
     mutationFn: deleteProduct,
     onSuccess: async () => {
@@ -99,76 +46,9 @@ export default function ProductsPage() {
     },
   });
 
-  const createGroupMutation = useMutation({
-    mutationFn: createProductGroup,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["product-groups"] });
-      setNewGroupName("");
-      setNewGroupDescription("");
-    },
-  });
-
   const total = productsQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
   const productRows = useMemo(() => productsQuery.data?.items ?? [], [productsQuery.data]);
-
-  const openCreateDialog = () => {
-    setEditingProduct(null);
-    setProductForm(emptyProductForm());
-    setDialogOpen(true);
-  };
-
-  const openEditDialog = (product: Product) => {
-    setEditingProduct(product);
-    setProductForm({
-      productNumber: product.product_number,
-      name: product.name,
-      description: product.description ?? "",
-      groupId: product.product_group_id ? String(product.product_group_id) : "",
-      unit: product.unit,
-      status: product.status,
-    });
-    setDialogOpen(true);
-  };
-
-  const handleProductSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-
-    if (editingProduct) {
-      await updateProductMutation.mutateAsync({
-        productId: editingProduct.id,
-        payload: {
-          name: productForm.name,
-          description: productForm.description || null,
-          product_group_id: productForm.groupId ? Number(productForm.groupId) : null,
-          unit: productForm.unit,
-          status: productForm.status,
-        },
-      });
-      return;
-    }
-
-    await createProductMutation.mutateAsync({
-      product_number: productForm.productNumber,
-      name: productForm.name,
-      description: productForm.description || null,
-      product_group_id: productForm.groupId ? Number(productForm.groupId) : null,
-      unit: productForm.unit,
-      status: productForm.status,
-    });
-  };
-
-  const handleCreateGroup = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!newGroupName.trim()) {
-      return;
-    }
-    await createGroupMutation.mutateAsync({
-      name: newGroupName.trim(),
-      description: newGroupDescription.trim() || null,
-    });
-  };
 
   return (
     <section className="panel" data-testid="products-page">
@@ -178,9 +58,9 @@ export default function ProductsPage() {
           <p className="panel-subtitle">Produkte suchen, filtern und verwalten.</p>
         </div>
         {isAdmin ? (
-          <button className="btn btn-primary" onClick={openCreateDialog} data-testid="products-create-btn">
+          <Link className="btn btn-primary" to="/products/new" data-testid="products-create-btn">
             Neuer Artikel
-          </button>
+          </Link>
         ) : null}
       </header>
 
@@ -236,26 +116,6 @@ export default function ProductsPage() {
         </select>
       </div>
 
-      {isAdmin ? (
-        <form className="inline-form" onSubmit={handleCreateGroup}>
-          <input
-            className="input"
-            placeholder="Neue Gruppe"
-            value={newGroupName}
-            onChange={(event) => setNewGroupName(event.target.value)}
-          />
-          <input
-            className="input"
-            placeholder="Beschreibung (optional)"
-            value={newGroupDescription}
-            onChange={(event) => setNewGroupDescription(event.target.value)}
-          />
-          <button className="btn" type="submit" disabled={createGroupMutation.isPending}>
-            Gruppe anlegen
-          </button>
-        </form>
-      ) : null}
-
       {productsQuery.isLoading ? <p>Lade Artikel...</p> : null}
       {productsQuery.isError ? <p className="error">Fehler beim Laden der Artikel.</p> : null}
 
@@ -284,9 +144,12 @@ export default function ProductsPage() {
                       <span className={`status status-${product.status}`}>{product.status}</span>
                     </td>
                     <td className="actions-cell">
-                      <button className="btn" onClick={() => openEditDialog(product)} disabled={!isAdmin}>
+                      <Link className="btn" to={`/products/${product.id}`}>
+                        Details
+                      </Link>
+                      <Link className="btn" to={`/products/${product.id}/edit`}>
                         Bearbeiten
-                      </button>
+                      </Link>
                       <button
                         className="btn"
                         onClick={() => void deleteProductMutation.mutateAsync(product.id)}
@@ -319,102 +182,6 @@ export default function ProductsPage() {
             </div>
           </footer>
         </>
-      ) : null}
-
-      {dialogOpen ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal-card">
-            <h3>{editingProduct ? "Artikel bearbeiten" : "Neuer Artikel"}</h3>
-            <form className="form-grid" onSubmit={(event) => void handleProductSubmit(event)}>
-              <label>
-                Artikelnummer
-                <input
-                  className="input"
-                  value={productForm.productNumber}
-                  onChange={(event) => setProductForm((prev) => ({ ...prev, productNumber: event.target.value }))}
-                  disabled={Boolean(editingProduct)}
-                  required
-                />
-              </label>
-
-              <label>
-                Bezeichnung
-                <input
-                  className="input"
-                  value={productForm.name}
-                  onChange={(event) => setProductForm((prev) => ({ ...prev, name: event.target.value }))}
-                  required
-                />
-              </label>
-
-              <label>
-                Beschreibung
-                <textarea
-                  className="input textarea"
-                  value={productForm.description}
-                  onChange={(event) => setProductForm((prev) => ({ ...prev, description: event.target.value }))}
-                />
-              </label>
-
-              <label>
-                Gruppe
-                <select
-                  className="input"
-                  value={productForm.groupId}
-                  onChange={(event) => setProductForm((prev) => ({ ...prev, groupId: event.target.value }))}
-                >
-                  <option value="">Keine</option>
-                  {(groupsQuery.data ?? []).map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="split-grid">
-                <label>
-                  Einheit
-                  <input
-                    className="input"
-                    value={productForm.unit}
-                    onChange={(event) => setProductForm((prev) => ({ ...prev, unit: event.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  Status
-                  <select
-                    className="input"
-                    value={productForm.status}
-                    onChange={(event) =>
-                      setProductForm((prev) => ({ ...prev, status: event.target.value as ProductStatus }))
-                    }
-                  >
-                    {productStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn" onClick={() => setDialogOpen(false)}>
-                  Abbrechen
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={createProductMutation.isPending || updateProductMutation.isPending}
-                >
-                  {editingProduct ? "Speichern" : "Anlegen"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
       ) : null}
     </section>
   );

@@ -111,6 +111,8 @@ export type BinLocation = {
   max_volume: string | null;
   qr_code_data: string | null;
   is_active: boolean;
+  is_occupied: boolean;
+  occupied_quantity: string;
   created_at: string;
   updated_at: string;
 };
@@ -267,6 +269,8 @@ export type DashboardSummary = {
   total_products: number;
   total_warehouses: number;
   total_bins: number;
+  occupied_bins: number;
+  utilization_percent: string;
   total_quantity: string;
   low_stock_count: number;
   open_goods_receipts: number;

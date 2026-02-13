@@ -1,6 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import BinBatchCreateDialog from "../components/warehouse/BinBatchCreateDialog";
+import BinLocationGrid from "../components/warehouse/BinLocationGrid";
+import QRPrintDialog from "../components/warehouse/QRPrintDialog";
 import {
   createBinBatch,
   createWarehouse,
@@ -44,6 +47,7 @@ export default function WarehousePage() {
   const [aisleTo, setAisleTo] = useState(2);
   const [shelfTo, setShelfTo] = useState(2);
   const [levelTo, setLevelTo] = useState(1);
+
   const [downloadingBinId, setDownloadingBinId] = useState<number | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
@@ -179,6 +183,14 @@ export default function WarehousePage() {
     }
   };
 
+  const onCreateBatch = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedZoneId) {
+      return;
+    }
+    await batchMutation.mutateAsync({ zoneId: selectedZoneId });
+  };
+
   return (
     <section className="panel">
       <header className="panel-header">
@@ -283,45 +295,33 @@ export default function WarehousePage() {
 
         <article className="subpanel">
           <h3>Lagerplätze</h3>
-          {canWrite && selectedZoneId ? (
-            <form
-              className="batch-grid"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void batchMutation.mutateAsync({ zoneId: selectedZoneId });
-              }}
-            >
-              <input className="input" value={batchPrefix} onChange={(event) => setBatchPrefix(event.target.value)} />
-              <input className="input" type="number" min={1} value={aisleTo} onChange={(event) => setAisleTo(Number(event.target.value))} />
-              <input className="input" type="number" min={1} value={shelfTo} onChange={(event) => setShelfTo(Number(event.target.value))} />
-              <input className="input" type="number" min={1} value={levelTo} onChange={(event) => setLevelTo(Number(event.target.value))} />
-              <button className="btn" type="submit" disabled={batchMutation.isPending}>
-                Batch anlegen
-              </button>
-            </form>
-          ) : null}
 
-          <div className="actions-cell">
-            <button className="btn" onClick={() => void onDownloadZonePdf()} disabled={downloadingPdf || (binsQuery.data?.length ?? 0) === 0}>
-              {downloadingPdf ? "PDF wird erstellt..." : "QR-PDF für Zone"}
-            </button>
-          </div>
+          <BinBatchCreateDialog
+            canWrite={canWrite}
+            selectedZoneId={selectedZoneId}
+            batchPrefix={batchPrefix}
+            aisleTo={aisleTo}
+            shelfTo={shelfTo}
+            levelTo={levelTo}
+            isPending={batchMutation.isPending}
+            onBatchPrefixChange={setBatchPrefix}
+            onAisleToChange={setAisleTo}
+            onShelfToChange={setShelfTo}
+            onLevelToChange={setLevelTo}
+            onSubmit={onCreateBatch}
+          />
 
-          <div className="bin-grid">
-            {(binsQuery.data ?? []).map((bin) => (
-              <div key={bin.id} className="list-item static-item">
-                <strong>{bin.code}</strong>
-                <span>{bin.qr_code_data}</span>
-                <button
-                  className="btn"
-                  onClick={() => void onDownloadBinQr(bin)}
-                  disabled={downloadingBinId === bin.id}
-                >
-                  {downloadingBinId === bin.id ? "Lade..." : "QR PNG"}
-                </button>
-              </div>
-            ))}
-          </div>
+          <QRPrintDialog
+            bins={binsQuery.data ?? []}
+            downloadingPdf={downloadingPdf}
+            onDownloadZonePdf={onDownloadZonePdf}
+          />
+
+          <BinLocationGrid
+            bins={binsQuery.data ?? []}
+            downloadingBinId={downloadingBinId}
+            onDownloadQr={onDownloadBinQr}
+          />
         </article>
       </div>
     </section>

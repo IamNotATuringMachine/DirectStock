@@ -9,6 +9,8 @@ import {
   GoodsIssuePage,
   GoodsReceiptPage,
   InventoryPage,
+  ProductDetailPage,
+  ProductFormPage,
   ProductsPage,
   ScannerPage,
   StockTransferPage,
@@ -42,6 +44,9 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="products" element={<ProductsPage />} />
+        <Route path="products/new" element={<ProductFormPage />} />
+        <Route path="products/:id" element={<ProductDetailPage />} />
+        <Route path="products/:id/edit" element={<ProductFormPage />} />
         <Route path="warehouse" element={<WarehousePage />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="goods-receipt" element={<GoodsReceiptPage />} />

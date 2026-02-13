@@ -48,4 +48,8 @@ test("goods receipt flow creates movement and updates inventory", async ({ page,
 
   await expect(page.getByTestId("inventory-table")).toContainText(productNumber);
   await expect(page.getByTestId("inventory-table")).toContainText(afterInventory.raw);
+
+  await page.locator('[data-testid^="inventory-row-"]').first().click();
+  await expect(page.getByTestId("inventory-detail-sheet")).toBeVisible();
+  await expect(page.getByTestId("inventory-detail-sheet")).toContainText(productNumber);
 });

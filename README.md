@@ -66,11 +66,25 @@ python3 scripts/seed_data.py --mode mvp
 python3 scripts/seed_data.py --mode auth
 ```
 
+### Legacy current: Fail-fast Validation
+
 ```bash
 python3 scripts/import_legacy_products.py --source "$LEGACY_PRODUCTS_CSV_PATH" --batch-size "$LEGACY_IMPORT_BATCH_SIZE" --dry-run
 ```
 
 Hinweis: Der Importer validiert die CSV-Struktur strikt und bricht bei fehlenden Pflichtspalten mit Exit-Code `2` ab.
+
+### Valid Fixture: Idempotent Upsert Apply
+
+```bash
+python3 scripts/import_legacy_products.py \
+  --source backend/tests/fixtures/legacy_products_valid.csv \
+  --batch-size 2
+```
+
+Erwartung:
+- erster Lauf: `created > 0`
+- zweiter Lauf mit gleicher Datei: `created=0`, `updated=0`
 
 ## Testen
 
@@ -99,6 +113,34 @@ cd frontend
 npx playwright install
 npm run test:e2e
 ```
+
+## Prod Verification Checklist
+
+1. Prod-Stack starten:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
+
+2. Endpunkte pruefen:
+- `http://localhost:8080/health`
+- `http://localhost:8080/api/health`
+- `http://localhost:8080/api/docs`
+
+3. Login-Smoketest mit Default-Admin.
+
+4. Lighthouse PWA Audit (automatisiert, Score >= 0.90):
+
+```bash
+./scripts/lighthouse_pwa.sh
+```
+
+Artefakte:
+- `artifacts/lighthouse/lighthouse.report.json`
+- `artifacts/lighthouse/lighthouse.report.html`
+
+5. Scanner-Dokumentationsnachweis:
+- `docs/validation/scanner-verification.md`
 
 ## PWA Verifikationscheckliste
 

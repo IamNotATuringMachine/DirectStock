@@ -87,6 +87,8 @@ class BinUpdate(BaseModel):
 class BinResponse(BinBase):
     id: int
     zone_id: int
+    is_occupied: bool = False
+    occupied_quantity: Decimal = Decimal("0")
     created_at: datetime
     updated_at: datetime
 

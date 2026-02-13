@@ -129,6 +129,14 @@ async def test_inventory_endpoints(client: AsyncClient, admin_token: str, db_ses
     assert movements.status_code == 200
     assert any(item["product_id"] == product_id for item in movements.json())
 
+    filtered_movements = await client.get(
+        f"/api/inventory/movements?product_id={product_id}&limit=10",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert filtered_movements.status_code == 200
+    assert filtered_movements.json()
+    assert all(item["product_id"] == product_id for item in filtered_movements.json())
+
     summary = await client.get(
         "/api/inventory/summary",
         headers={"Authorization": f"Bearer {admin_token}"},

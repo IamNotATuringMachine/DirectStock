@@ -35,8 +35,16 @@ export async function fetchLowStock(): Promise<LowStockItem[]> {
   return response.data;
 }
 
-export async function fetchMovements(limit = 20): Promise<MovementItem[]> {
-  const response = await api.get<MovementItem[]>("/inventory/movements", { params: { limit } });
+export async function fetchMovements(params?: {
+  limit?: number;
+  productId?: number;
+}): Promise<MovementItem[]> {
+  const response = await api.get<MovementItem[]>("/inventory/movements", {
+    params: {
+      limit: params?.limit ?? 20,
+      product_id: params?.productId,
+    },
+  });
   return response.data;
 }
 

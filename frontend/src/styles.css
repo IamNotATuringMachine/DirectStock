@@ -93,6 +93,11 @@ label {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
+  transition: grid-template-columns 180ms ease;
+}
+
+.shell.sidebar-collapsed {
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -116,6 +121,7 @@ label {
 .nav-link {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-height: 48px;
   padding: 8px 12px;
   border-radius: 12px;
@@ -124,9 +130,47 @@ label {
   font-size: 1rem;
 }
 
+.nav-link-short {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 28px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: #eef3fb;
+  color: #2b4f7e;
+}
+
+.nav-link-label {
+  white-space: nowrap;
+}
+
 .nav-link.active {
   background: #dbe9fb;
   color: #103b75;
+}
+
+.shell.sidebar-collapsed .brand {
+  font-size: 0;
+  padding: 8px 4px 12px;
+}
+
+.shell.sidebar-collapsed .brand::after {
+  content: "DS";
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.shell.sidebar-collapsed .nav-link {
+  justify-content: center;
+  padding: 8px 6px;
+}
+
+.shell.sidebar-collapsed .nav-link-label {
+  display: none;
 }
 
 .content-area {
@@ -154,6 +198,11 @@ label {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.sidebar-toggle {
+  min-width: 48px;
+  padding: 8px 10px;
 }
 
 .content {
@@ -198,6 +247,19 @@ label {
   margin-bottom: 12px;
 }
 
+.tab-strip {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn-tab-active {
+  border-color: #86aef0;
+  background: #e9f1ff;
+  color: #103b75;
+  font-weight: 600;
+}
+
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
@@ -226,6 +288,14 @@ label {
 
 .products-table tr:last-child td {
   border-bottom: 0;
+}
+
+.inventory-row-clickable {
+  cursor: pointer;
+}
+
+.inventory-row-clickable:hover {
+  background: #f1f6fe;
 }
 
 .actions-cell {
@@ -380,6 +450,25 @@ button.list-item {
   margin-top: 10px;
   max-height: 360px;
   overflow: auto;
+}
+
+.bin-card {
+  border-width: 2px;
+}
+
+.bin-empty {
+  border-color: #d6e3f2;
+  background: #f8fbff;
+}
+
+.bin-occupied {
+  border-color: #9ec3f6;
+  background: #ecf4ff;
+}
+
+.bin-occupancy {
+  color: #355678;
+  font-weight: 600;
 }
 
 .batch-grid {
@@ -631,11 +720,11 @@ button.list-item {
 
   .nav-link {
     justify-content: center;
-    font-size: 0;
+    padding: 8px 6px;
   }
 
-  .nav-link::first-letter {
-    font-size: 1rem;
+  .nav-link-label {
+    display: none;
   }
 
   .products-toolbar {

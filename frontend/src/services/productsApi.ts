@@ -45,6 +45,11 @@ export async function updateProduct(productId: number, payload: ProductUpdatePay
   return response.data;
 }
 
+export async function fetchProductById(productId: number): Promise<Product> {
+  const response = await api.get<Product>(`/products/${productId}`);
+  return response.data;
+}
+
 export async function deleteProduct(productId: number): Promise<void> {
   await api.delete(`/products/${productId}`);
 }

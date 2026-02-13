@@ -83,6 +83,17 @@ async def summary(
     total_products = (await db.execute(select(func.count(Product.id)))).scalar_one()
     total_warehouses = (await db.execute(select(func.count(Warehouse.id)))).scalar_one()
     total_bins = (await db.execute(select(func.count(BinLocation.id)))).scalar_one()
+    occupied_bins = (
+        await db.execute(
+            select(func.count())
+            .select_from(
+                select(Inventory.bin_location_id)
+                .group_by(Inventory.bin_location_id)
+                .having(func.sum(Inventory.quantity) > 0)
+                .subquery()
+            )
+        )
+    ).scalar_one()
 
     total_quantity = (
         await db.execute(select(func.coalesce(func.sum(Inventory.quantity), 0)))
@@ -99,11 +110,18 @@ async def summary(
     ).scalar_one()
 
     low_stock_items = await _load_low_stock(db)
+    utilization_percent = (
+        (Decimal(occupied_bins) * Decimal("100") / Decimal(total_bins)).quantize(Decimal("0.01"))
+        if total_bins
+        else Decimal("0.00")
+    )
 
     return DashboardSummary(
         total_products=total_products,
         total_warehouses=total_warehouses,
         total_bins=total_bins,
+        occupied_bins=occupied_bins,
+        utilization_percent=utilization_percent,
         total_quantity=Decimal(total_quantity),
         low_stock_count=len(low_stock_items),
         open_goods_receipts=open_goods_receipts,

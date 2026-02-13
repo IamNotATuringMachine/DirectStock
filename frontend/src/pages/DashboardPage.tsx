@@ -53,9 +53,9 @@ export default function DashboardPage() {
           <span>Gesamtartikel</span>
           <strong>{summary?.total_products ?? "-"}</strong>
         </div>
-        <div className="kpi-card" data-testid="dashboard-kpi-total-quantity">
-          <span>Gesamtmenge</span>
-          <strong>{summary?.total_quantity ?? "-"}</strong>
+        <div className="kpi-card" data-testid="dashboard-kpi-utilization">
+          <span>Auslastung</span>
+          <strong>{summary ? `${summary.utilization_percent}%` : "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="dashboard-kpi-open-ops">
           <span>Offene WE/WA/Uml.</span>
@@ -70,6 +70,13 @@ export default function DashboardPage() {
           <strong>{summary?.low_stock_count ?? "-"}</strong>
         </div>
       </div>
+
+      <article className="subpanel">
+        <h3>Kapazität</h3>
+        <p>
+          Belegte Lagerplätze: {summary?.occupied_bins ?? "-"} / {summary?.total_bins ?? "-"} | Gesamtmenge: {summary?.total_quantity ?? "-"}
+        </p>
+      </article>
 
       <article className="subpanel">
         <h3>Quick Actions</h3>
