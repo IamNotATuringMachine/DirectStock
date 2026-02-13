@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -43,6 +43,24 @@ class InventoryByBinItem(BaseModel):
     quantity: Decimal
     reserved_quantity: Decimal
     available_quantity: Decimal
+    unit: str
+
+
+class InventoryBatchItem(BaseModel):
+    id: int
+    product_id: int
+    product_number: str
+    product_name: str
+    warehouse_id: int
+    warehouse_code: str
+    zone_id: int
+    zone_code: str
+    bin_id: int
+    bin_code: str
+    batch_number: str
+    expiry_date: date | None
+    manufactured_at: date | None
+    quantity: Decimal
     unit: str
 
 

@@ -47,6 +47,23 @@ class Supplier(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
 
+class Customer(TimestampMixin, Base):
+    __tablename__ = "customers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_number: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    company_name: Mapped[str] = mapped_column(String(255), index=True)
+    contact_name: Mapped[str | None] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(50))
+    billing_address: Mapped[str | None] = mapped_column(Text())
+    shipping_address: Mapped[str | None] = mapped_column(Text())
+    payment_terms: Mapped[str | None] = mapped_column(String(255))
+    delivery_terms: Mapped[str | None] = mapped_column(String(255))
+    credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+
+
 class ProductSupplier(TimestampMixin, Base):
     __tablename__ = "product_suppliers"
     __table_args__ = (UniqueConstraint("product_id", "supplier_id", name="uq_product_supplier"),)

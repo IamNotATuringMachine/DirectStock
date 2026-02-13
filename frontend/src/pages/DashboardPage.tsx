@@ -7,6 +7,7 @@ import {
   fetchDashboardRecentMovements,
   fetchDashboardSummary,
 } from "../services/dashboardApi";
+import { fetchReportKpis } from "../services/reportsApi";
 
 const quickActions = [
   { to: "/goods-receipt", label: "Neuer Wareneingang" },
@@ -16,6 +17,12 @@ const quickActions = [
 ];
 
 export default function DashboardPage() {
+  const now = new Date();
+  const dateTo = now.toISOString().slice(0, 10);
+  const prior = new Date(now);
+  prior.setDate(prior.getDate() - 29);
+  const dateFrom = prior.toISOString().slice(0, 10);
+
   const summaryQuery = useQuery({
     queryKey: ["dashboard-summary"],
     queryFn: fetchDashboardSummary,
@@ -34,6 +41,11 @@ export default function DashboardPage() {
   const activityQuery = useQuery({
     queryKey: ["dashboard-activity"],
     queryFn: fetchDashboardActivityToday,
+    refetchInterval: 60000,
+  });
+  const kpiQuery = useQuery({
+    queryKey: ["dashboard-report-kpis", dateFrom, dateTo],
+    queryFn: () => fetchReportKpis({ dateFrom, dateTo }),
     refetchInterval: 60000,
   });
 
@@ -68,6 +80,22 @@ export default function DashboardPage() {
         <div className="kpi-card" data-testid="dashboard-kpi-low-stock">
           <span>Unter Meldebestand</span>
           <strong>{summary?.low_stock_count ?? "-"}</strong>
+        </div>
+        <div className="kpi-card" data-testid="dashboard-kpi-turnover">
+          <span>Turnover</span>
+          <strong>{kpiQuery.data?.turnover_rate ?? "-"}</strong>
+        </div>
+        <div className="kpi-card" data-testid="dashboard-kpi-dock-to-stock">
+          <span>Dock-to-Stock (h)</span>
+          <strong>{kpiQuery.data?.dock_to_stock_hours ?? "-"}</strong>
+        </div>
+        <div className="kpi-card" data-testid="dashboard-kpi-accuracy">
+          <span>Inventory Accuracy</span>
+          <strong>{kpiQuery.data ? `${kpiQuery.data.inventory_accuracy_percent}%` : "-"}</strong>
+        </div>
+        <div className="kpi-card" data-testid="dashboard-kpi-alert-count">
+          <span>Alert Count</span>
+          <strong>{kpiQuery.data?.alert_count ?? "-"}</strong>
         </div>
       </div>
 

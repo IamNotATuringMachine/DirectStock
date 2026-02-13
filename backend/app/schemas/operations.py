@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -34,6 +34,10 @@ class GoodsReceiptItemCreate(BaseModel):
     received_quantity: Decimal = Field(default=Decimal("0"), gt=Decimal("0"))
     unit: str = Field(default="piece", min_length=1, max_length=20)
     target_bin_id: int
+    batch_number: str | None = Field(default=None, max_length=64)
+    expiry_date: date | None = None
+    manufactured_at: date | None = None
+    serial_numbers: list[str] | None = None
 
 
 class GoodsReceiptItemUpdate(BaseModel):
@@ -41,6 +45,10 @@ class GoodsReceiptItemUpdate(BaseModel):
     received_quantity: Decimal | None = Field(default=None, gt=Decimal("0"))
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     target_bin_id: int | None = None
+    batch_number: str | None = Field(default=None, max_length=64)
+    expiry_date: date | None = None
+    manufactured_at: date | None = None
+    serial_numbers: list[str] | None = None
 
 
 class GoodsReceiptItemResponse(BaseModel):
@@ -51,17 +59,23 @@ class GoodsReceiptItemResponse(BaseModel):
     received_quantity: Decimal
     unit: str
     target_bin_id: int | None
+    batch_number: str | None
+    expiry_date: date | None
+    manufactured_at: date | None
+    serial_numbers: list[str] | None
     created_at: datetime
     updated_at: datetime
 
 
 class GoodsIssueCreate(BaseModel):
     issue_number: str | None = Field(default=None, max_length=64)
+    customer_id: int | None = None
     customer_reference: str | None = Field(default=None, max_length=100)
     notes: str | None = None
 
 
 class GoodsIssueUpdate(BaseModel):
+    customer_id: int | None = None
     customer_reference: str | None = Field(default=None, max_length=100)
     notes: str | None = None
 
@@ -69,6 +83,7 @@ class GoodsIssueUpdate(BaseModel):
 class GoodsIssueResponse(BaseModel):
     id: int
     issue_number: str
+    customer_id: int | None
     customer_reference: str | None
     status: str
     issued_at: datetime | None
@@ -85,6 +100,9 @@ class GoodsIssueItemCreate(BaseModel):
     issued_quantity: Decimal | None = Field(default=None, gt=Decimal("0"))
     unit: str = Field(default="piece", min_length=1, max_length=20)
     source_bin_id: int
+    batch_number: str | None = Field(default=None, max_length=64)
+    use_fefo: bool = False
+    serial_numbers: list[str] | None = None
 
 
 class GoodsIssueItemUpdate(BaseModel):
@@ -92,6 +110,9 @@ class GoodsIssueItemUpdate(BaseModel):
     issued_quantity: Decimal | None = Field(default=None, gt=Decimal("0"))
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     source_bin_id: int | None = None
+    batch_number: str | None = Field(default=None, max_length=64)
+    use_fefo: bool | None = None
+    serial_numbers: list[str] | None = None
 
 
 class GoodsIssueItemResponse(BaseModel):
@@ -102,6 +123,9 @@ class GoodsIssueItemResponse(BaseModel):
     issued_quantity: Decimal
     unit: str
     source_bin_id: int | None
+    batch_number: str | None
+    use_fefo: bool
+    serial_numbers: list[str] | None
     created_at: datetime
     updated_at: datetime
 
@@ -133,6 +157,8 @@ class StockTransferItemCreate(BaseModel):
     unit: str = Field(default="piece", min_length=1, max_length=20)
     from_bin_id: int
     to_bin_id: int
+    batch_number: str | None = Field(default=None, max_length=64)
+    serial_numbers: list[str] | None = None
 
 
 class StockTransferItemUpdate(BaseModel):
@@ -140,6 +166,8 @@ class StockTransferItemUpdate(BaseModel):
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     from_bin_id: int | None = None
     to_bin_id: int | None = None
+    batch_number: str | None = Field(default=None, max_length=64)
+    serial_numbers: list[str] | None = None
 
 
 class StockTransferItemResponse(BaseModel):
@@ -150,5 +178,7 @@ class StockTransferItemResponse(BaseModel):
     unit: str
     from_bin_id: int
     to_bin_id: int
+    batch_number: str | None
+    serial_numbers: list[str] | None
     created_at: datetime
     updated_at: datetime

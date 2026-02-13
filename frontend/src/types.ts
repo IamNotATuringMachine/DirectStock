@@ -1,4 +1,10 @@
-export type RoleName = "admin" | "lagerleiter" | "lagermitarbeiter";
+export type RoleName =
+  | "admin"
+  | "lagerleiter"
+  | "lagermitarbeiter"
+  | "einkauf"
+  | "versand"
+  | "controller";
 
 export type AuthUser = {
   id: number;
@@ -70,6 +76,83 @@ export type ProductGroupCreatePayload = {
   description?: string | null;
   parent_id?: number | null;
   is_active?: boolean;
+};
+
+export type Supplier = {
+  id: number;
+  supplier_number: string;
+  company_name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierListResponse = {
+  items: Supplier[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type ProductSupplierRelation = {
+  id: number;
+  product_id: number;
+  supplier_id: number;
+  supplier_product_number: string | null;
+  price: string | null;
+  lead_time_days: number | null;
+  min_order_quantity: string | null;
+  is_preferred: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProductWarehouseSetting = {
+  id: number;
+  product_id: number;
+  warehouse_id: number;
+  ean: string | null;
+  gtin: string | null;
+  net_weight: string | null;
+  gross_weight: string | null;
+  length_cm: string | null;
+  width_cm: string | null;
+  height_cm: string | null;
+  min_stock: string | null;
+  reorder_point: string | null;
+  max_stock: string | null;
+  safety_stock: string | null;
+  lead_time_days: number | null;
+  qr_code_data: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Customer = {
+  id: number;
+  customer_number: string;
+  company_name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  billing_address: string | null;
+  shipping_address: string | null;
+  payment_terms: string | null;
+  delivery_terms: string | null;
+  credit_limit: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomerListResponse = {
+  items: Customer[];
+  total: number;
+  page: number;
+  page_size: number;
 };
 
 export type Warehouse = {
@@ -167,6 +250,24 @@ export type InventoryByBinItem = {
   unit: string;
 };
 
+export type InventoryBatchItem = {
+  id: number;
+  product_id: number;
+  product_number: string;
+  product_name: string;
+  warehouse_id: number;
+  warehouse_code: string;
+  zone_id: number;
+  zone_code: string;
+  bin_id: number;
+  bin_code: string;
+  batch_number: string;
+  expiry_date: string | null;
+  manufactured_at: string | null;
+  quantity: string;
+  unit: string;
+};
+
 export type LowStockItem = {
   product_id: number;
   product_number: string;
@@ -212,6 +313,10 @@ export type GoodsReceiptItem = {
   received_quantity: string;
   unit: string;
   target_bin_id: number | null;
+  batch_number: string | null;
+  expiry_date: string | null;
+  manufactured_at: string | null;
+  serial_numbers: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -219,6 +324,7 @@ export type GoodsReceiptItem = {
 export type GoodsIssue = {
   id: number;
   issue_number: string;
+  customer_id: number | null;
   customer_reference: string | null;
   status: string;
   issued_at: string | null;
@@ -237,6 +343,9 @@ export type GoodsIssueItem = {
   issued_quantity: string;
   unit: string;
   source_bin_id: number | null;
+  batch_number: string | null;
+  use_fefo: boolean;
+  serial_numbers: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -261,6 +370,8 @@ export type StockTransferItem = {
   unit: string;
   from_bin_id: number;
   to_bin_id: number;
+  batch_number: string | null;
+  serial_numbers: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -292,4 +403,163 @@ export type DashboardActivityToday = {
   completed_goods_receipts_today: number;
   completed_goods_issues_today: number;
   completed_stock_transfers_today: number;
+};
+
+export type PurchaseOrder = {
+  id: number;
+  order_number: string;
+  supplier_id: number | null;
+  status: "draft" | "approved" | "ordered" | "partially_received" | "completed" | "cancelled";
+  expected_delivery_at: string | null;
+  ordered_at: string | null;
+  completed_at: string | null;
+  created_by: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PurchaseOrderItem = {
+  id: number;
+  purchase_order_id: number;
+  product_id: number;
+  ordered_quantity: string;
+  received_quantity: string;
+  unit: string;
+  unit_price: string | null;
+  expected_delivery_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InventoryCountSession = {
+  id: number;
+  session_number: string;
+  session_type: "snapshot" | "cycle";
+  status: "draft" | "in_progress" | "completed" | "cancelled";
+  warehouse_id: number | null;
+  tolerance_quantity: string;
+  generated_at: string | null;
+  completed_at: string | null;
+  created_by: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InventoryCountItem = {
+  id: number;
+  session_id: number;
+  inventory_id: number | null;
+  product_id: number;
+  product_number: string;
+  product_name: string;
+  bin_location_id: number;
+  bin_code: string;
+  snapshot_quantity: string;
+  counted_quantity: string | null;
+  difference_quantity: string | null;
+  unit: string;
+  count_attempts: number;
+  recount_required: boolean;
+  last_counted_at: string | null;
+  counted_by: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReportStockRow = {
+  product_id: number;
+  product_number: string;
+  product_name: string;
+  total_quantity: string;
+  reserved_quantity: string;
+  available_quantity: string;
+  unit: string;
+};
+
+export type ReportStockResponse = {
+  items: ReportStockRow[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type ReportMovementRow = {
+  id: number;
+  movement_type: string;
+  reference_type: string | null;
+  reference_number: string | null;
+  product_id: number;
+  product_number: string;
+  product_name: string;
+  from_bin_code: string | null;
+  to_bin_code: string | null;
+  quantity: string;
+  performed_at: string;
+};
+
+export type ReportMovementResponse = {
+  items: ReportMovementRow[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type ReportInboundOutboundRow = {
+  day: string;
+  inbound_quantity: string;
+  outbound_quantity: string;
+  transfer_quantity: string;
+  adjustment_quantity: string;
+  movement_count: number;
+};
+
+export type ReportInboundOutboundResponse = {
+  items: ReportInboundOutboundRow[];
+};
+
+export type ReportInventoryAccuracySessionRow = {
+  session_id: number;
+  session_number: string;
+  completed_at: string | null;
+  total_items: number;
+  counted_items: number;
+  exact_match_items: number;
+  recount_required_items: number;
+  accuracy_percent: string;
+};
+
+export type ReportInventoryAccuracyResponse = {
+  total_sessions: number;
+  total_items: number;
+  counted_items: number;
+  exact_match_items: number;
+  recount_required_items: number;
+  overall_accuracy_percent: string;
+  sessions: ReportInventoryAccuracySessionRow[];
+};
+
+export type ReportAbcRow = {
+  rank: number;
+  product_id: number;
+  product_number: string;
+  product_name: string;
+  outbound_quantity: string;
+  share_percent: string;
+  cumulative_share_percent: string;
+  category: "A" | "B" | "C";
+};
+
+export type ReportAbcResponse = {
+  items: ReportAbcRow[];
+};
+
+export type ReportKpi = {
+  date_from: string;
+  date_to: string;
+  turnover_rate: string;
+  dock_to_stock_hours: string;
+  inventory_accuracy_percent: string;
+  alert_count: number;
 };

@@ -8,7 +8,7 @@ import {
 
 test("goods receipt flow creates movement and updates inventory", async ({ page, request }) => {
   const token = await loginAsAdminApi(request);
-  const productNumber = await ensureE2EProduct(request, token);
+  const productNumber = await ensureE2EProduct(request, token, `E2E-GR-${Date.now()}`);
   const beforeInventory = await getInventoryQuantityForProduct(request, token, productNumber);
 
   await page.goto("/login");
@@ -39,8 +39,16 @@ test("goods receipt flow creates movement and updates inventory", async ({ page,
   await page.getByTestId("goods-receipt-complete-btn").click();
   await expect(page.getByTestId("goods-receipt-complete-btn")).toBeDisabled();
 
-  const afterInventory = await getInventoryQuantityForProduct(request, token, productNumber);
-  expect(afterInventory.numeric).toBeGreaterThanOrEqual(beforeInventory.numeric + 3);
+  let afterInventory = await getInventoryQuantityForProduct(request, token, productNumber);
+  await expect
+    .poll(
+      async () => {
+        afterInventory = await getInventoryQuantityForProduct(request, token, productNumber);
+        return afterInventory.numeric;
+      },
+      { timeout: 15000 }
+    )
+    .toBeGreaterThanOrEqual(beforeInventory.numeric + 3);
 
   await page.goto("/inventory");
   await page.getByTestId("inventory-search-input").fill(productNumber);

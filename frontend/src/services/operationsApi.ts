@@ -35,6 +35,10 @@ export async function createGoodsReceiptItem(
     received_quantity: string;
     unit?: string;
     target_bin_id: number;
+    batch_number?: string;
+    expiry_date?: string;
+    manufactured_at?: string;
+    serial_numbers?: string[];
   }
 ): Promise<GoodsReceiptItem> {
   const response = await api.post<GoodsReceiptItem>(`/goods-receipts/${receiptId}/items`, payload);
@@ -78,6 +82,9 @@ export async function createGoodsIssueItem(
     issued_quantity?: string;
     unit?: string;
     source_bin_id: number;
+    batch_number?: string;
+    use_fefo?: boolean;
+    serial_numbers?: string[];
   }
 ): Promise<GoodsIssueItem> {
   const response = await api.post<GoodsIssueItem>(`/goods-issues/${issueId}/items`, payload);
@@ -120,6 +127,8 @@ export async function createStockTransferItem(
     unit?: string;
     from_bin_id: number;
     to_bin_id: number;
+    batch_number?: string;
+    serial_numbers?: string[];
   }
 ): Promise<StockTransferItem> {
   const response = await api.post<StockTransferItem>(`/stock-transfers/${transferId}/items`, payload);

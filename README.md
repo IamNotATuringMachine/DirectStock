@@ -11,6 +11,24 @@ Dieses Repository enthält die Sprint-1-Implementierung für DirectStock inkl. P
 - Backend-Tests, Frontend-Unit-Tests und Playwright-E2E-Basissuite
 - Separate Production-Runtime-Artefakte
 
+## Phase-2 Snapshot (aktueller Umsetzungsstand)
+
+Bereits umgesetzt im Backend:
+
+- Kundenstamm-API (`/api/customers`)
+- Lieferantenstamm-API inkl. Produktzuordnung (`/api/suppliers`, `/api/products/{id}/suppliers`)
+- Produkt-Lagerdaten-API (`/api/products/{id}/warehouse-settings/{warehouse_id}`)
+- Einkaufsmodul-Basis (`/api/purchase-orders` + Items + Status-Workflow)
+- Erweiterung Warenausgang um optionale Kundenreferenz via `customer_id`
+
+Bereits umgesetzt im Frontend:
+
+- Produktformular-Tabs für Lagerdaten und Lieferanten mit API-Anbindung
+- Einkaufsseite (`/purchasing`) mit Bestellanlage, Positionspflege und Statusübergängen
+
+Details und Task-Status:
+- `directstock_phase2.md`
+
 ## Voraussetzungen
 
 - Docker + Docker Compose

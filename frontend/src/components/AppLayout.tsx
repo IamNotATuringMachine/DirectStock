@@ -3,12 +3,38 @@ import { NavLink, Outlet } from "react-router-dom";
 
 import PwaStatus from "./pwa/PwaStatus";
 import { useAuthStore } from "../stores/authStore";
+import type { RoleName } from "../types";
 
-const navItems = [
+type NavItem = {
+  to: string;
+  label: string;
+  shortLabel: string;
+  roles?: RoleName[];
+};
+
+const navItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", shortLabel: "DB" },
   { to: "/products", label: "Artikelstamm", shortLabel: "AR" },
   { to: "/warehouse", label: "Lagerstruktur", shortLabel: "LG" },
   { to: "/inventory", label: "Bestandsübersicht", shortLabel: "BS" },
+  {
+    to: "/inventory-counts",
+    label: "Inventur",
+    shortLabel: "IV",
+    roles: ["admin", "lagerleiter", "lagermitarbeiter"],
+  },
+  {
+    to: "/purchasing",
+    label: "Einkauf",
+    shortLabel: "EK",
+    roles: ["admin", "lagerleiter", "einkauf"],
+  },
+  {
+    to: "/reports",
+    label: "Reports",
+    shortLabel: "RP",
+    roles: ["admin", "lagerleiter", "einkauf", "controller"],
+  },
   { to: "/goods-receipt", label: "Wareneingang", shortLabel: "WE" },
   { to: "/goods-issue", label: "Warenausgang", shortLabel: "WA" },
   { to: "/stock-transfer", label: "Umlagerung", shortLabel: "UM" },
@@ -25,7 +51,9 @@ export default function AppLayout() {
       <aside className="sidebar">
         <div className="brand">DirectStock</div>
         <nav>
-          {navItems.map((item) => (
+          {navItems
+            .filter((item) => !item.roles || item.roles.some((role) => user?.roles.includes(role)))
+            .map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

@@ -1,34 +1,50 @@
+from app.models.alerts import AlertEvent, AlertRule
 from app.models.audit import AuditLog
 from app.models.auth import Permission, Role, User, role_permissions, user_roles
 from app.models.base import Base
-from app.models.catalog import Product, ProductGroup, ProductSupplier, ProductWarehouseSetting, Supplier
+from app.models.catalog import Customer, Product, ProductGroup, ProductSupplier, ProductWarehouseSetting, Supplier
 from app.models.inventory import (
     GoodsIssue,
     GoodsIssueItem,
     GoodsReceipt,
     GoodsReceiptItem,
     Inventory,
+    InventoryBatch,
+    InventoryCountItem,
+    InventoryCountSession,
+    SerialNumber,
     StockMovement,
     StockTransfer,
     StockTransferItem,
 )
+from app.models.purchasing import ClientOperationLog, PurchaseOrder, PurchaseOrderItem
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 
 __all__ = [
     "AuditLog",
+    "AlertEvent",
+    "AlertRule",
     "Base",
     "BinLocation",
+    "ClientOperationLog",
+    "Customer",
     "GoodsIssue",
     "GoodsIssueItem",
     "GoodsReceipt",
     "GoodsReceiptItem",
     "Inventory",
+    "InventoryBatch",
+    "InventoryCountItem",
+    "InventoryCountSession",
     "Permission",
     "Product",
     "ProductGroup",
     "ProductSupplier",
     "ProductWarehouseSetting",
+    "PurchaseOrder",
+    "PurchaseOrderItem",
     "Role",
+    "SerialNumber",
     "StockMovement",
     "StockTransfer",
     "StockTransferItem",

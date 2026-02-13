@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from secrets import token_hex
 
@@ -9,12 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_current_user, get_db, require_roles
 from app.models.auth import User
+from app.models.catalog import Customer
 from app.models.inventory import (
     GoodsIssue,
     GoodsIssueItem,
     GoodsReceipt,
     GoodsReceiptItem,
     Inventory,
+    InventoryBatch,
+    SerialNumber,
     StockMovement,
     StockTransfer,
     StockTransferItem,
@@ -85,6 +88,127 @@ def _ensure_draft(entity_name: str, current_status: str) -> None:
         )
 
 
+def _normalize_serial_numbers(values: list[str] | None) -> list[str]:
+    if not values:
+        return []
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        serial = raw.strip()
+        if not serial:
+            continue
+        if serial in seen:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Duplicate serial number in payload: {serial}",
+            )
+        seen.add(serial)
+        normalized.append(serial)
+    return normalized
+
+
+def _ensure_quantity_matches_serials(quantity: Decimal, serial_numbers: list[str], *, item_label: str) -> None:
+    if not serial_numbers:
+        return
+    if quantity <= 0 or quantity != Decimal(len(serial_numbers)):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{item_label} quantity must equal number of serial numbers",
+        )
+
+
+async def _get_inventory_batch(
+    db: AsyncSession,
+    *,
+    product_id: int,
+    bin_location_id: int,
+    batch_number: str,
+    unit: str,
+    expiry_date: date | None,
+    manufactured_at: date | None,
+) -> InventoryBatch:
+    batch = (
+        await db.execute(
+            select(InventoryBatch).where(
+                InventoryBatch.product_id == product_id,
+                InventoryBatch.bin_location_id == bin_location_id,
+                InventoryBatch.batch_number == batch_number,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if batch is None:
+        batch = InventoryBatch(
+            product_id=product_id,
+            bin_location_id=bin_location_id,
+            batch_number=batch_number,
+            expiry_date=expiry_date,
+            manufactured_at=manufactured_at,
+            quantity=Decimal("0"),
+            unit=unit,
+        )
+        db.add(batch)
+        await db.flush()
+        return batch
+
+    if batch.expiry_date is None and expiry_date is not None:
+        batch.expiry_date = expiry_date
+    if batch.manufactured_at is None and manufactured_at is not None:
+        batch.manufactured_at = manufactured_at
+    if not batch.unit:
+        batch.unit = unit
+
+    return batch
+
+
+async def _resolve_issue_batch(db: AsyncSession, *, issue_item: GoodsIssueItem) -> InventoryBatch | None:
+    if issue_item.source_bin_id is None:
+        return None
+    if issue_item.batch_number:
+        batch = (
+            await db.execute(
+                select(InventoryBatch).where(
+                    InventoryBatch.product_id == issue_item.product_id,
+                    InventoryBatch.bin_location_id == issue_item.source_bin_id,
+                    InventoryBatch.batch_number == issue_item.batch_number,
+                )
+            )
+        ).scalar_one_or_none()
+        if batch is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Batch {issue_item.batch_number} not found for issue item {issue_item.id}",
+            )
+        return batch
+
+    if issue_item.use_fefo:
+        batch = (
+            await db.execute(
+                select(InventoryBatch)
+                .where(
+                    InventoryBatch.product_id == issue_item.product_id,
+                    InventoryBatch.bin_location_id == issue_item.source_bin_id,
+                    InventoryBatch.quantity > 0,
+                )
+                .order_by(
+                    InventoryBatch.expiry_date.is_(None),
+                    InventoryBatch.expiry_date.asc(),
+                    InventoryBatch.id.asc(),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if batch is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"No FEFO batch available for issue item {issue_item.id}",
+            )
+        issue_item.batch_number = batch.batch_number
+        return batch
+
+    return None
+
+
 def _to_goods_receipt_response(item: GoodsReceipt) -> GoodsReceiptResponse:
     return GoodsReceiptResponse(
         id=item.id,
@@ -109,6 +233,10 @@ def _to_goods_receipt_item_response(item: GoodsReceiptItem) -> GoodsReceiptItemR
         received_quantity=item.received_quantity,
         unit=item.unit,
         target_bin_id=item.target_bin_id,
+        batch_number=item.batch_number,
+        expiry_date=item.expiry_date,
+        manufactured_at=item.manufactured_at,
+        serial_numbers=item.serial_numbers,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -118,6 +246,7 @@ def _to_goods_issue_response(item: GoodsIssue) -> GoodsIssueResponse:
     return GoodsIssueResponse(
         id=item.id,
         issue_number=item.issue_number,
+        customer_id=item.customer_id,
         customer_reference=item.customer_reference,
         status=item.status,
         issued_at=item.issued_at,
@@ -138,6 +267,9 @@ def _to_goods_issue_item_response(item: GoodsIssueItem) -> GoodsIssueItemRespons
         issued_quantity=item.issued_quantity,
         unit=item.unit,
         source_bin_id=item.source_bin_id,
+        batch_number=item.batch_number,
+        use_fefo=item.use_fefo,
+        serial_numbers=item.serial_numbers,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -166,6 +298,8 @@ def _to_stock_transfer_item_response(item: StockTransferItem) -> StockTransferIt
         unit=item.unit,
         from_bin_id=item.from_bin_id,
         to_bin_id=item.to_bin_id,
+        batch_number=item.batch_number,
+        serial_numbers=item.serial_numbers,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -296,7 +430,17 @@ async def create_goods_receipt_item(
 
     _ensure_draft("Goods receipt", parent.status)
 
-    item = GoodsReceiptItem(goods_receipt_id=receipt_id, **payload.model_dump())
+    values = payload.model_dump()
+    serial_numbers = _normalize_serial_numbers(values.get("serial_numbers"))
+    values["serial_numbers"] = serial_numbers or None
+
+    if (values.get("expiry_date") or values.get("manufactured_at")) and not values.get("batch_number"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="batch_number is required when expiry_date or manufactured_at is set",
+        )
+
+    item = GoodsReceiptItem(goods_receipt_id=receipt_id, **values)
     db.add(item)
     try:
         await db.commit()
@@ -336,7 +480,22 @@ async def update_goods_receipt_item(
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt item not found")
 
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    if updates.get("use_fefo") is None:
+        updates.pop("use_fefo", None)
+    if "serial_numbers" in updates:
+        serial_numbers = _normalize_serial_numbers(updates.get("serial_numbers"))
+        updates["serial_numbers"] = serial_numbers or None
+    candidate_batch_number = updates.get("batch_number", item.batch_number)
+    candidate_expiry = updates.get("expiry_date", item.expiry_date)
+    candidate_manufactured = updates.get("manufactured_at", item.manufactured_at)
+    if (candidate_expiry or candidate_manufactured) and not candidate_batch_number:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="batch_number is required when expiry_date or manufactured_at is set",
+        )
+
+    for key, value in updates.items():
         setattr(item, key, value)
 
     await db.commit()
@@ -413,6 +572,9 @@ async def complete_goods_receipt(
                     detail=f"Receipt item {receipt_item.id} has invalid received quantity",
                 )
 
+            serial_numbers = _normalize_serial_numbers(receipt_item.serial_numbers)
+            _ensure_quantity_matches_serials(quantity, serial_numbers, item_label=f"Receipt item {receipt_item.id}")
+
             inventory = await _get_inventory(
                 db,
                 product_id=receipt_item.product_id,
@@ -420,6 +582,49 @@ async def complete_goods_receipt(
                 unit=receipt_item.unit,
             )
             inventory.quantity = Decimal(inventory.quantity) + quantity
+
+            batch: InventoryBatch | None = None
+            if receipt_item.batch_number:
+                batch = await _get_inventory_batch(
+                    db,
+                    product_id=receipt_item.product_id,
+                    bin_location_id=receipt_item.target_bin_id,
+                    batch_number=receipt_item.batch_number,
+                    unit=receipt_item.unit,
+                    expiry_date=receipt_item.expiry_date,
+                    manufactured_at=receipt_item.manufactured_at,
+                )
+                batch.quantity = Decimal(batch.quantity) + quantity
+            elif receipt_item.expiry_date or receipt_item.manufactured_at:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Receipt item {receipt_item.id} requires batch_number for date tracking",
+                )
+
+            if serial_numbers:
+                existing_rows = list(
+                    (
+                        await db.execute(
+                            select(SerialNumber.serial_number).where(SerialNumber.serial_number.in_(serial_numbers))
+                        )
+                    ).scalars()
+                )
+                if existing_rows:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Serial number already exists: {existing_rows[0]}",
+                    )
+                for serial_number in serial_numbers:
+                    db.add(
+                        SerialNumber(
+                            product_id=receipt_item.product_id,
+                            serial_number=serial_number,
+                            batch_id=batch.id if batch else None,
+                            current_bin_id=receipt_item.target_bin_id,
+                            status="in_stock",
+                            last_movement_at=now,
+                        )
+                    )
 
             db.add(
                 StockMovement(
@@ -435,6 +640,8 @@ async def complete_goods_receipt(
                     metadata_json={
                         "goods_receipt_id": item.id,
                         "goods_receipt_item_id": receipt_item.id,
+                        "batch_number": receipt_item.batch_number,
+                        "serial_numbers": serial_numbers or None,
                     },
                 )
             )
@@ -488,8 +695,14 @@ async def create_goods_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles("admin", "lagerleiter", "lagermitarbeiter")),
 ) -> GoodsIssueResponse:
+    if payload.customer_id is not None:
+        customer = (await db.execute(select(Customer).where(Customer.id == payload.customer_id))).scalar_one_or_none()
+        if customer is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+
     item = GoodsIssue(
         issue_number=payload.issue_number or _generate_number("WA"),
+        customer_id=payload.customer_id,
         customer_reference=payload.customer_reference,
         notes=payload.notes,
         created_by=current_user.id,
@@ -529,6 +742,11 @@ async def update_goods_issue(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods issue not found")
 
     _ensure_draft("Goods issue", item.status)
+
+    if payload.customer_id is not None:
+        customer = (await db.execute(select(Customer).where(Customer.id == payload.customer_id))).scalar_one_or_none()
+        if customer is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
 
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, key, value)
@@ -592,7 +810,10 @@ async def create_goods_issue_item(
 
     _ensure_draft("Goods issue", parent.status)
 
-    item = GoodsIssueItem(goods_issue_id=issue_id, **payload.model_dump())
+    values = payload.model_dump()
+    serial_numbers = _normalize_serial_numbers(values.get("serial_numbers"))
+    values["serial_numbers"] = serial_numbers or None
+    item = GoodsIssueItem(goods_issue_id=issue_id, **values)
     db.add(item)
     try:
         await db.commit()
@@ -632,7 +853,12 @@ async def update_goods_issue_item(
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods issue item not found")
 
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    if "serial_numbers" in updates:
+        serial_numbers = _normalize_serial_numbers(updates.get("serial_numbers"))
+        updates["serial_numbers"] = serial_numbers or None
+
+    for key, value in updates.items():
         setattr(item, key, value)
 
     await db.commit()
@@ -706,6 +932,9 @@ async def complete_goods_issue(
             if quantity <= 0:
                 quantity = Decimal(issue_item.requested_quantity)
 
+            serial_numbers = _normalize_serial_numbers(issue_item.serial_numbers)
+            _ensure_quantity_matches_serials(quantity, serial_numbers, item_label=f"Issue item {issue_item.id}")
+
             inventory = (
                 await db.execute(
                     select(Inventory).where(
@@ -734,6 +963,45 @@ async def complete_goods_issue(
             inventory.quantity = Decimal(inventory.quantity) - quantity
             issue_item.issued_quantity = quantity
 
+            batch = await _resolve_issue_batch(db, issue_item=issue_item)
+            if batch is not None:
+                if Decimal(batch.quantity) < quantity:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Insufficient batch stock for issue item {issue_item.id} (batch={batch.batch_number})",
+                    )
+                batch.quantity = Decimal(batch.quantity) - quantity
+
+            if serial_numbers:
+                serial_rows = list(
+                    (
+                        await db.execute(
+                            select(SerialNumber).where(
+                                SerialNumber.serial_number.in_(serial_numbers),
+                                SerialNumber.product_id == issue_item.product_id,
+                            )
+                        )
+                    ).scalars()
+                )
+                serial_map = {row.serial_number: row for row in serial_rows}
+                missing = [serial for serial in serial_numbers if serial not in serial_map]
+                if missing:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Serial number not found: {missing[0]}",
+                    )
+
+                for serial in serial_numbers:
+                    serial_row = serial_map[serial]
+                    if serial_row.status != "in_stock" or serial_row.current_bin_id != issue_item.source_bin_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail=f"Serial number {serial} is not available in source bin",
+                        )
+                    serial_row.status = "issued"
+                    serial_row.current_bin_id = None
+                    serial_row.last_movement_at = now
+
             db.add(
                 StockMovement(
                     movement_type="goods_issue",
@@ -748,6 +1016,8 @@ async def complete_goods_issue(
                     metadata_json={
                         "goods_issue_id": item.id,
                         "goods_issue_item_id": issue_item.id,
+                        "batch_number": issue_item.batch_number,
+                        "serial_numbers": serial_numbers or None,
                     },
                 )
             )
@@ -912,7 +1182,10 @@ async def create_stock_transfer_item(
             detail="from_bin_id and to_bin_id must differ",
         )
 
-    item = StockTransferItem(stock_transfer_id=transfer_id, **payload.model_dump())
+    values = payload.model_dump()
+    serial_numbers = _normalize_serial_numbers(values.get("serial_numbers"))
+    values["serial_numbers"] = serial_numbers or None
+    item = StockTransferItem(stock_transfer_id=transfer_id, **values)
     db.add(item)
     try:
         await db.commit()
@@ -953,6 +1226,9 @@ async def update_stock_transfer_item(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock transfer item not found")
 
     updates = payload.model_dump(exclude_unset=True)
+    if "serial_numbers" in updates:
+        serial_numbers = _normalize_serial_numbers(updates.get("serial_numbers"))
+        updates["serial_numbers"] = serial_numbers or None
 
     from_bin = updates.get("from_bin_id", item.from_bin_id)
     to_bin = updates.get("to_bin_id", item.to_bin_id)
@@ -1033,6 +1309,8 @@ async def complete_stock_transfer(
                 )
 
             quantity = Decimal(transfer_item.quantity)
+            serial_numbers = _normalize_serial_numbers(transfer_item.serial_numbers)
+            _ensure_quantity_matches_serials(quantity, serial_numbers, item_label=f"Transfer item {transfer_item.id}")
             source_inventory = (
                 await db.execute(
                     select(Inventory).where(
@@ -1071,6 +1349,72 @@ async def complete_stock_transfer(
             source_inventory.quantity = Decimal(source_inventory.quantity) - quantity
             target_inventory.quantity = Decimal(target_inventory.quantity) + quantity
 
+            source_batch: InventoryBatch | None = None
+            target_batch: InventoryBatch | None = None
+            if transfer_item.batch_number:
+                source_batch = (
+                    await db.execute(
+                        select(InventoryBatch).where(
+                            InventoryBatch.product_id == transfer_item.product_id,
+                            InventoryBatch.bin_location_id == transfer_item.from_bin_id,
+                            InventoryBatch.batch_number == transfer_item.batch_number,
+                        )
+                    )
+                ).scalar_one_or_none()
+                if source_batch is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Batch {transfer_item.batch_number} not found at source bin",
+                    )
+                if Decimal(source_batch.quantity) < quantity:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Insufficient batch stock for transfer item {transfer_item.id}",
+                    )
+                source_batch.quantity = Decimal(source_batch.quantity) - quantity
+
+                target_batch = await _get_inventory_batch(
+                    db,
+                    product_id=transfer_item.product_id,
+                    bin_location_id=transfer_item.to_bin_id,
+                    batch_number=source_batch.batch_number,
+                    unit=transfer_item.unit,
+                    expiry_date=source_batch.expiry_date,
+                    manufactured_at=source_batch.manufactured_at,
+                )
+                target_batch.quantity = Decimal(target_batch.quantity) + quantity
+
+            if serial_numbers:
+                serial_rows = list(
+                    (
+                        await db.execute(
+                            select(SerialNumber).where(
+                                SerialNumber.serial_number.in_(serial_numbers),
+                                SerialNumber.product_id == transfer_item.product_id,
+                            )
+                        )
+                    ).scalars()
+                )
+                serial_map = {row.serial_number: row for row in serial_rows}
+                missing = [serial for serial in serial_numbers if serial not in serial_map]
+                if missing:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Serial number not found: {missing[0]}",
+                    )
+
+                for serial in serial_numbers:
+                    serial_row = serial_map[serial]
+                    if serial_row.status != "in_stock" or serial_row.current_bin_id != transfer_item.from_bin_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail=f"Serial number {serial} is not available at source bin",
+                        )
+                    serial_row.current_bin_id = transfer_item.to_bin_id
+                    serial_row.status = "in_stock"
+                    serial_row.batch_id = target_batch.id if target_batch else serial_row.batch_id
+                    serial_row.last_movement_at = now
+
             db.add(
                 StockMovement(
                     movement_type="stock_transfer",
@@ -1085,6 +1429,8 @@ async def complete_stock_transfer(
                     metadata_json={
                         "stock_transfer_id": item.id,
                         "stock_transfer_item_id": transfer_item.id,
+                        "batch_number": transfer_item.batch_number,
+                        "serial_numbers": serial_numbers or None,
                     },
                 )
             )

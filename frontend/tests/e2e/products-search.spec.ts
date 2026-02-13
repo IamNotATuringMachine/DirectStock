@@ -4,7 +4,7 @@ import { ensureE2EProduct, loginAsAdminApi } from "./helpers/api";
 
 test("product search returns expected product", async ({ page, request }) => {
   const token = await loginAsAdminApi(request);
-  const productNumber = await ensureE2EProduct(request, token);
+  const productNumber = await ensureE2EProduct(request, token, `E2E-PS-${Date.now()}`);
 
   await page.goto("/login");
   await page.getByTestId("login-username").fill(process.env.E2E_ADMIN_USERNAME ?? "admin");

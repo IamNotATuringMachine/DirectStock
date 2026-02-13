@@ -8,10 +8,13 @@ import {
   DashboardPage,
   GoodsIssuePage,
   GoodsReceiptPage,
+  InventoryCountPage,
   InventoryPage,
   ProductDetailPage,
   ProductFormPage,
   ProductsPage,
+  PurchasingPage,
+  ReportsPage,
   ScannerPage,
   StockTransferPage,
   UsersPage,
@@ -49,6 +52,30 @@ export default function App() {
         <Route path="products/:id/edit" element={<ProductFormPage />} />
         <Route path="warehouse" element={<WarehousePage />} />
         <Route path="inventory" element={<InventoryPage />} />
+        <Route
+          path="inventory-counts"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter"]}>
+              <InventoryCountPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "einkauf", "controller"]}>
+              <ReportsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="purchasing"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "einkauf"]}>
+              <PurchasingPage />
+            </RequireRole>
+          }
+        />
         <Route path="goods-receipt" element={<GoodsReceiptPage />} />
         <Route path="goods-issue" element={<GoodsIssuePage />} />
         <Route path="stock-transfer" element={<StockTransferPage />} />

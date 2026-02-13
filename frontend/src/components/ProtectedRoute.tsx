@@ -21,10 +21,15 @@ export function RequireRole({
   children: ReactElement;
   roles: string[];
 }) {
+  const token = useAuthStore((state) => state.accessToken);
   const user = useAuthStore((state) => state.user);
 
-  if (!user) {
+  if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!user) {
+    return <p>Lade Berechtigungen...</p>;
   }
 
   const hasRole = user.roles.some((role) => roles.includes(role));
