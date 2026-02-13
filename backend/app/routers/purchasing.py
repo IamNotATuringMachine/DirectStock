@@ -1,14 +1,16 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from secrets import token_hex
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, require_roles
 from app.models.auth import User
 from app.models.catalog import Product, Supplier
+from app.models.phase3 import ApprovalRequest, ApprovalRule
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem
 from app.schemas.purchasing import (
     PurchaseOrderCreate,
@@ -209,7 +211,7 @@ async def update_purchase_order_status(
     order_id: int,
     payload: PurchaseOrderStatusUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    current_user: User = Depends(require_roles("admin", "lagerleiter", "einkauf")),
 ) -> PurchaseOrderResponse:
     item = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if item is None:
@@ -224,6 +226,69 @@ async def update_purchase_order_status(
 
     if payload.status == "completed":
         await _ensure_order_can_be_completed(db, order_id=item.id)
+
+    if payload.status in {"ordered", "completed"}:
+        active_rule = (
+            await db.execute(
+                select(ApprovalRule)
+                .where(
+                    ApprovalRule.entity_type == "purchase_order",
+                    ApprovalRule.is_active.is_(True),
+                )
+                .order_by(ApprovalRule.id.desc())
+            )
+        ).scalars().first()
+        if active_rule is not None:
+            total_amount = (
+                await db.execute(
+                    select(
+                        func.coalesce(
+                            func.sum(
+                                PurchaseOrderItem.ordered_quantity * func.coalesce(PurchaseOrderItem.unit_price, 0)
+                            ),
+                            0,
+                        )
+                    ).where(PurchaseOrderItem.purchase_order_id == item.id)
+                )
+            ).scalar_one()
+            threshold = active_rule.min_amount or 0
+            if Decimal(total_amount) >= Decimal(threshold):
+                approved = (
+                    await db.execute(
+                        select(ApprovalRequest.id).where(
+                            ApprovalRequest.entity_type == "purchase_order",
+                            ApprovalRequest.entity_id == item.id,
+                            ApprovalRequest.status == "approved",
+                        )
+                    )
+                ).scalar_one_or_none()
+                if approved is None:
+                    pending = (
+                        await db.execute(
+                            select(ApprovalRequest.id).where(
+                                ApprovalRequest.entity_type == "purchase_order",
+                                ApprovalRequest.entity_id == item.id,
+                                ApprovalRequest.status == "pending",
+                            )
+                        )
+                    ).scalar_one_or_none()
+                    if pending is None:
+                        db.add(
+                            ApprovalRequest(
+                                entity_type="purchase_order",
+                                entity_id=item.id,
+                                status="pending",
+                                amount=Decimal(total_amount),
+                                reason=f"Auto-created by approval rule {active_rule.id}",
+                                requested_by=current_user.id,
+                                requested_at=_now(),
+                            )
+                        )
+                        await db.commit()
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Purchase order requires approval before this status transition",
+                    )
 
     item.status = payload.status
     now = _now()

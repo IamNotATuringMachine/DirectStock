@@ -31,10 +31,40 @@ const navItems: NavItem[] = [
     roles: ["admin", "lagerleiter", "einkauf"],
   },
   {
+    to: "/picking",
+    label: "Picking",
+    shortLabel: "PK",
+    roles: ["admin", "lagerleiter", "lagermitarbeiter", "versand"],
+  },
+  {
+    to: "/returns",
+    label: "Retouren",
+    shortLabel: "RT",
+    roles: ["admin", "lagerleiter", "versand"],
+  },
+  {
+    to: "/approvals",
+    label: "Genehmigungen",
+    shortLabel: "GN",
+    roles: ["admin", "lagerleiter", "einkauf", "versand"],
+  },
+  {
+    to: "/documents",
+    label: "Dokumente",
+    shortLabel: "DM",
+    roles: ["admin", "lagerleiter", "einkauf", "versand", "controller", "auditor"],
+  },
+  {
+    to: "/audit-trail",
+    label: "Audit Trail",
+    shortLabel: "AT",
+    roles: ["admin", "lagerleiter", "controller", "auditor"],
+  },
+  {
     to: "/reports",
     label: "Reports",
     shortLabel: "RP",
-    roles: ["admin", "lagerleiter", "einkauf", "controller"],
+    roles: ["admin", "lagerleiter", "einkauf", "controller", "auditor"],
   },
   {
     to: "/alerts",

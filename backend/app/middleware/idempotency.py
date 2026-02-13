@@ -17,6 +17,9 @@ _OFFLINE_ENDPOINT_PREFIXES = (
     "/api/goods-issues",
     "/api/stock-transfers",
     "/api/inventory-counts",
+    "/api/pick-waves",
+    "/api/pick-tasks",
+    "/api/return-orders",
 )
 
 

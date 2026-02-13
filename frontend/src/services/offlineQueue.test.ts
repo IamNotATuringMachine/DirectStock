@@ -15,6 +15,8 @@ describe("offlineQueue helpers", () => {
     expect(isOfflineNow()).toBe(true);
     expect(shouldQueueOfflineMutation("POST", "/goods-receipts")).toBe(true);
     expect(shouldQueueOfflineMutation("PUT", "/inventory-counts/1/items/2")).toBe(true);
+    expect(shouldQueueOfflineMutation("PATCH", "/pick-tasks/10")).toBe(true);
+    expect(shouldQueueOfflineMutation("POST", "/return-orders/5/status")).toBe(true);
     expect(shouldQueueOfflineMutation("GET", "/goods-receipts")).toBe(false);
     expect(shouldQueueOfflineMutation("POST", "/products")).toBe(false);
   });

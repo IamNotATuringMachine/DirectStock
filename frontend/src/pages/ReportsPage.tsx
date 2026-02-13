@@ -8,10 +8,21 @@ import {
   fetchReportInventoryAccuracy,
   fetchReportKpis,
   fetchReportMovements,
+  fetchReportPickingPerformance,
+  fetchReportPurchaseRecommendations,
+  fetchReportReturns,
   fetchReportStock,
 } from "../services/reportsApi";
 
-type ReportType = "stock" | "movements" | "inbound-outbound" | "inventory-accuracy" | "abc";
+type ReportType =
+  | "stock"
+  | "movements"
+  | "inbound-outbound"
+  | "inventory-accuracy"
+  | "abc"
+  | "returns"
+  | "picking-performance"
+  | "purchase-recommendations";
 
 function defaultDateRange() {
   const now = new Date();
@@ -79,6 +90,24 @@ export default function ReportsPage() {
     enabled: reportType === "abc",
   });
 
+  const returnsQuery = useQuery({
+    queryKey: ["reports-returns", page, pageSize, dateFrom, dateTo],
+    queryFn: () => fetchReportReturns({ page, pageSize, dateFrom, dateTo }),
+    enabled: reportType === "returns",
+  });
+
+  const pickingPerformanceQuery = useQuery({
+    queryKey: ["reports-picking-performance", page, pageSize, dateFrom, dateTo],
+    queryFn: () => fetchReportPickingPerformance({ page, pageSize, dateFrom, dateTo }),
+    enabled: reportType === "picking-performance",
+  });
+
+  const purchaseRecommendationQuery = useQuery({
+    queryKey: ["reports-purchase-recommendations", page, pageSize],
+    queryFn: () => fetchReportPurchaseRecommendations({ page, pageSize }),
+    enabled: reportType === "purchase-recommendations",
+  });
+
   const pagination = useMemo(() => {
     if (reportType === "stock" && stockQuery.data) {
       const totalPages = Math.max(1, Math.ceil(stockQuery.data.total / stockQuery.data.page_size));
@@ -88,8 +117,27 @@ export default function ReportsPage() {
       const totalPages = Math.max(1, Math.ceil(movementsQuery.data.total / movementsQuery.data.page_size));
       return { total: movementsQuery.data.total, totalPages };
     }
+    if (reportType === "returns" && returnsQuery.data) {
+      const totalPages = Math.max(1, Math.ceil(returnsQuery.data.total / returnsQuery.data.page_size));
+      return { total: returnsQuery.data.total, totalPages };
+    }
+    if (reportType === "picking-performance" && pickingPerformanceQuery.data) {
+      const totalPages = Math.max(1, Math.ceil(pickingPerformanceQuery.data.total / pickingPerformanceQuery.data.page_size));
+      return { total: pickingPerformanceQuery.data.total, totalPages };
+    }
+    if (reportType === "purchase-recommendations" && purchaseRecommendationQuery.data) {
+      const totalPages = Math.max(1, Math.ceil(purchaseRecommendationQuery.data.total / purchaseRecommendationQuery.data.page_size));
+      return { total: purchaseRecommendationQuery.data.total, totalPages };
+    }
     return null;
-  }, [movementsQuery.data, reportType, stockQuery.data]);
+  }, [
+    movementsQuery.data,
+    pickingPerformanceQuery.data,
+    purchaseRecommendationQuery.data,
+    reportType,
+    returnsQuery.data,
+    stockQuery.data,
+  ]);
 
   const onDownloadCsv = async () => {
     setIsDownloading(true);
@@ -107,6 +155,10 @@ export default function ReportsPage() {
         params.page = page;
         params.page_size = pageSize;
         params.movement_type = movementType || undefined;
+      }
+      if (reportType === "returns" || reportType === "picking-performance" || reportType === "purchase-recommendations") {
+        params.page = page;
+        params.page_size = pageSize;
       }
       if (reportType === "abc") {
         params.search = search || undefined;
@@ -145,6 +197,18 @@ export default function ReportsPage() {
           <span>Alert Count</span>
           <strong>{kpisQuery.data?.alert_count ?? "-"}</strong>
         </div>
+        <div className="kpi-card" data-testid="reports-kpi-pick-accuracy">
+          <span>Pick Accuracy</span>
+          <strong>{kpisQuery.data ? `${kpisQuery.data.pick_accuracy_rate}%` : "-"}</strong>
+        </div>
+        <div className="kpi-card" data-testid="reports-kpi-returns-rate">
+          <span>Returns Rate</span>
+          <strong>{kpisQuery.data ? `${kpisQuery.data.returns_rate}%` : "-"}</strong>
+        </div>
+        <div className="kpi-card" data-testid="reports-kpi-approval-cycle">
+          <span>Approval Cycle (h)</span>
+          <strong>{kpisQuery.data?.approval_cycle_hours ?? "-"}</strong>
+        </div>
       </div>
 
       <div className="products-toolbar">
@@ -162,6 +226,9 @@ export default function ReportsPage() {
           <option value="inbound-outbound">Inbound/Outbound</option>
           <option value="inventory-accuracy">Inventory Accuracy</option>
           <option value="abc">ABC</option>
+          <option value="returns">Returns</option>
+          <option value="picking-performance">Picking Performance</option>
+          <option value="purchase-recommendations">Purchase Recommendations</option>
         </select>
         <input
           className="input"
@@ -349,6 +416,101 @@ export default function ReportsPage() {
                   <td>{row.share_percent}%</td>
                   <td>{row.cumulative_share_percent}%</td>
                   <td>{row.category}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {reportType === "returns" ? (
+        <div className="table-wrap">
+          <table className="products-table" data-testid="reports-returns-table">
+            <thead>
+              <tr>
+                <th>Retoure</th>
+                <th>Status</th>
+                <th>Items</th>
+                <th>Menge</th>
+                <th>Restock</th>
+                <th>Scrap</th>
+                <th>Supplier</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(returnsQuery.data?.items ?? []).map((row) => (
+                <tr key={row.return_order_id}>
+                  <td>{row.return_number}</td>
+                  <td>{row.status}</td>
+                  <td>{row.total_items}</td>
+                  <td>{row.total_quantity}</td>
+                  <td>{row.restock_items}</td>
+                  <td>{row.scrap_items}</td>
+                  <td>{row.return_supplier_items}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {reportType === "picking-performance" ? (
+        <div className="table-wrap">
+          <table className="products-table" data-testid="reports-picking-performance-table">
+            <thead>
+              <tr>
+                <th>Wave</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Picked</th>
+                <th>Skipped</th>
+                <th>Open</th>
+                <th>Accuracy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(pickingPerformanceQuery.data?.items ?? []).map((row) => (
+                <tr key={row.wave_id}>
+                  <td>{row.wave_number}</td>
+                  <td>{row.status}</td>
+                  <td>{row.total_tasks}</td>
+                  <td>{row.picked_tasks}</td>
+                  <td>{row.skipped_tasks}</td>
+                  <td>{row.open_tasks}</td>
+                  <td>{row.pick_accuracy_percent}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {reportType === "purchase-recommendations" ? (
+        <div className="table-wrap">
+          <table className="products-table" data-testid="reports-purchase-recommendations-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Produkt</th>
+                <th>Status</th>
+                <th>Target</th>
+                <th>On Hand</th>
+                <th>Open PO</th>
+                <th>Deficit</th>
+                <th>Recommended</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(purchaseRecommendationQuery.data?.items ?? []).map((row) => (
+                <tr key={row.recommendation_id}>
+                  <td>{row.recommendation_id}</td>
+                  <td>{row.product_id}</td>
+                  <td>{row.status}</td>
+                  <td>{row.target_stock}</td>
+                  <td>{row.on_hand_quantity}</td>
+                  <td>{row.open_po_quantity}</td>
+                  <td>{row.deficit_quantity}</td>
+                  <td>{row.recommended_quantity}</td>
                 </tr>
               ))}
             </tbody>

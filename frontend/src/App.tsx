@@ -6,16 +6,21 @@ import { ProtectedRoute, RequireRole } from "./components/ProtectedRoute";
 import LoginPage from "./LoginPage";
 import {
   AlertsPage,
+  ApprovalsPage,
+  AuditTrailPage,
   DashboardPage,
+  DocumentsPage,
   GoodsIssuePage,
   GoodsReceiptPage,
   InventoryCountPage,
   InventoryPage,
+  PickingPage,
   ProductDetailPage,
   ProductFormPage,
   ProductsPage,
   PurchasingPage,
   ReportsPage,
+  ReturnsPage,
   ScannerPage,
   StockTransferPage,
   UsersPage,
@@ -72,7 +77,7 @@ export default function App() {
         <Route
           path="reports"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "einkauf", "controller"]}>
+            <RequireRole roles={["admin", "lagerleiter", "einkauf", "controller", "auditor"]}>
               <ReportsPage />
             </RequireRole>
           }
@@ -82,6 +87,46 @@ export default function App() {
           element={
             <RequireRole roles={["admin", "lagerleiter", "einkauf"]}>
               <PurchasingPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="picking"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "versand"]}>
+              <PickingPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="returns"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "versand"]}>
+              <ReturnsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="approvals"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "einkauf", "versand"]}>
+              <ApprovalsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="documents"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "einkauf", "versand", "controller", "auditor"]}>
+              <DocumentsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="audit-trail"
+          element={
+            <RequireRole roles={["admin", "lagerleiter", "controller", "auditor"]}>
+              <AuditTrailPage />
             </RequireRole>
           }
         />

@@ -98,3 +98,64 @@ class ReportKpiResponse(BaseModel):
     dock_to_stock_hours: Decimal
     inventory_accuracy_percent: Decimal
     alert_count: int
+    pick_accuracy_rate: Decimal
+    returns_rate: Decimal
+    approval_cycle_hours: Decimal
+
+
+class ReportReturnsRow(BaseModel):
+    return_order_id: int
+    return_number: str
+    status: str
+    total_items: int
+    total_quantity: Decimal
+    restock_items: int
+    scrap_items: int
+    return_supplier_items: int
+    created_at: datetime
+
+
+class ReportReturnsResponse(BaseModel):
+    items: list[ReportReturnsRow]
+    total: int
+    page: int
+    page_size: int
+
+
+class ReportPickingPerformanceRow(BaseModel):
+    wave_id: int
+    wave_number: str
+    status: str
+    total_tasks: int
+    picked_tasks: int
+    skipped_tasks: int
+    open_tasks: int
+    pick_accuracy_percent: Decimal
+    created_at: datetime
+    completed_at: datetime | None
+
+
+class ReportPickingPerformanceResponse(BaseModel):
+    items: list[ReportPickingPerformanceRow]
+    total: int
+    page: int
+    page_size: int
+
+
+class ReportPurchaseRecommendationRow(BaseModel):
+    recommendation_id: int
+    product_id: int
+    status: str
+    target_stock: Decimal
+    on_hand_quantity: Decimal
+    open_po_quantity: Decimal
+    deficit_quantity: Decimal
+    recommended_quantity: Decimal
+    generated_at: datetime
+
+
+class ReportPurchaseRecommendationResponse(BaseModel):
+    items: list[ReportPurchaseRecommendationRow]
+    total: int
+    page: int
+    page_size: int

@@ -35,6 +35,39 @@ Details und Task-Status:
 - `directstock_phase2.md`
 - `docs/validation/phase2-acceptance.md`
 
+## Phase-3 Snapshot (aktueller Umsetzungsstand)
+
+Neu ergänzt (additiv, umgesetzt):
+
+- Datenmodell-Foundation für Phase 3 (ABC, Bestellvorschläge, Picking, Retouren, Approval, Dokumente, Audit-v2)
+- Neue APIs:
+  - `/api/abc-classifications`
+  - `/api/purchase-recommendations`
+  - `/api/pick-waves`, `/api/pick-tasks`
+  - `/api/return-orders`
+  - `/api/approval-rules`, `/api/approvals`
+  - `/api/documents`
+  - `/api/audit-log`
+- Reports-Erweiterungen:
+  - `/api/reports/returns`
+  - `/api/reports/picking-performance`
+  - `/api/reports/purchase-recommendations`
+  - Erweiterte KPI-Felder in `/api/reports/kpis`
+- Frontend-Erweiterungen:
+  - Neue Seiten `Picking`, `Returns`, `Approvals`, `Documents`, `Audit Trail`
+  - `PurchasingPage` um Tabs `ABC` und `Bestellvorschläge` erweitert
+  - Rolle `auditor` im Frontend-Role-Typ ergänzt
+- E2E-Verifikation um Phase-3-Flows erweitert:
+  - `picking-wave-flow.spec.ts`
+  - `returns-flow.spec.ts`
+  - `approvals-flow.spec.ts`
+  - `documents-attachment-flow.spec.ts`
+  - `audit-log-visibility.spec.ts`
+
+Details und Task-Status:
+- `directstock_phase3.md`
+- `docs/validation/phase3-acceptance.md`
+
 ## Voraussetzungen
 
 - Docker + Docker Compose

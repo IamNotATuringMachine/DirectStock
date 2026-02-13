@@ -13,6 +13,7 @@ from app.dependencies import get_db, require_roles
 from app.models.alerts import AlertEvent
 from app.models.catalog import Product
 from app.models.inventory import Inventory, InventoryCountItem, InventoryCountSession, StockMovement, GoodsReceipt
+from app.models.phase3 import ApprovalRequest, PickTask, PickWave, PurchaseRecommendation, ReturnOrder, ReturnOrderItem
 from app.models.warehouse import BinLocation, WarehouseZone
 from app.schemas.reports import (
     ReportAbcResponse,
@@ -24,13 +25,19 @@ from app.schemas.reports import (
     ReportKpiResponse,
     ReportMovementResponse,
     ReportMovementRow,
+    ReportPickingPerformanceResponse,
+    ReportPickingPerformanceRow,
+    ReportPurchaseRecommendationResponse,
+    ReportPurchaseRecommendationRow,
+    ReportReturnsResponse,
+    ReportReturnsRow,
     ReportStockResponse,
     ReportStockRow,
 )
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
-REPORTS_READ_ROLES = ("admin", "lagerleiter", "einkauf", "controller")
+REPORTS_READ_ROLES = ("admin", "lagerleiter", "einkauf", "controller", "auditor")
 
 
 def _quantize(value: Decimal, digits: str = "0.01") -> Decimal:
@@ -491,6 +498,217 @@ async def report_abc(
     return ReportAbcResponse(items=items)
 
 
+@router.get("/returns", response_model=ReportReturnsResponse)
+async def report_returns(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=500),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
+) -> ReportReturnsResponse | Response:
+    _, _, start, end = _date_bounds(date_from, date_to)
+    stmt = (
+        select(
+            ReturnOrder.id.label("return_order_id"),
+            ReturnOrder.return_number.label("return_number"),
+            ReturnOrder.status.label("status"),
+            ReturnOrder.created_at.label("created_at"),
+            func.count(ReturnOrderItem.id).label("total_items"),
+            func.coalesce(func.sum(ReturnOrderItem.quantity), 0).label("total_quantity"),
+            func.sum(case((ReturnOrderItem.decision == "restock", 1), else_=0)).label("restock_items"),
+            func.sum(case((ReturnOrderItem.decision == "scrap", 1), else_=0)).label("scrap_items"),
+            func.sum(case((ReturnOrderItem.decision == "return_supplier", 1), else_=0)).label("return_supplier_items"),
+        )
+        .join(ReturnOrderItem, ReturnOrderItem.return_order_id == ReturnOrder.id, isouter=True)
+        .where(ReturnOrder.created_at >= start, ReturnOrder.created_at < end)
+        .group_by(ReturnOrder.id, ReturnOrder.return_number, ReturnOrder.status, ReturnOrder.created_at)
+    )
+
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    rows = (
+        await db.execute(
+            stmt.order_by(ReturnOrder.created_at.desc(), ReturnOrder.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+
+    items = [
+        ReportReturnsRow(
+            return_order_id=row.return_order_id,
+            return_number=row.return_number,
+            status=row.status,
+            total_items=int(row.total_items or 0),
+            total_quantity=Decimal(row.total_quantity or 0),
+            restock_items=int(row.restock_items or 0),
+            scrap_items=int(row.scrap_items or 0),
+            return_supplier_items=int(row.return_supplier_items or 0),
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
+
+    if output == "csv":
+        return _csv_response(
+            fieldnames=[
+                "return_order_id",
+                "return_number",
+                "status",
+                "total_items",
+                "total_quantity",
+                "restock_items",
+                "scrap_items",
+                "return_supplier_items",
+                "created_at",
+            ],
+            rows=[item.model_dump() for item in items],
+            filename="reports-returns.csv",
+        )
+
+    return ReportReturnsResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/picking-performance", response_model=ReportPickingPerformanceResponse)
+async def report_picking_performance(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=500),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
+) -> ReportPickingPerformanceResponse | Response:
+    _, _, start, end = _date_bounds(date_from, date_to)
+    stmt = (
+        select(
+            PickWave.id.label("wave_id"),
+            PickWave.wave_number.label("wave_number"),
+            PickWave.status.label("status"),
+            PickWave.created_at.label("created_at"),
+            PickWave.completed_at.label("completed_at"),
+            func.count(PickTask.id).label("total_tasks"),
+            func.sum(case((PickTask.status == "picked", 1), else_=0)).label("picked_tasks"),
+            func.sum(case((PickTask.status == "skipped", 1), else_=0)).label("skipped_tasks"),
+            func.sum(case((PickTask.status == "open", 1), else_=0)).label("open_tasks"),
+        )
+        .join(PickTask, PickTask.pick_wave_id == PickWave.id, isouter=True)
+        .where(PickWave.created_at >= start, PickWave.created_at < end)
+        .group_by(PickWave.id, PickWave.wave_number, PickWave.status, PickWave.created_at, PickWave.completed_at)
+    )
+
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    rows = (
+        await db.execute(
+            stmt.order_by(PickWave.created_at.desc(), PickWave.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+
+    items: list[ReportPickingPerformanceRow] = []
+    for row in rows:
+        total_tasks = int(row.total_tasks or 0)
+        picked_tasks = int(row.picked_tasks or 0)
+        skipped_tasks = int(row.skipped_tasks or 0)
+        open_tasks = int(row.open_tasks or 0)
+        accuracy = _quantize(Decimal(picked_tasks) * Decimal("100") / Decimal(total_tasks)) if total_tasks else Decimal("0")
+        items.append(
+            ReportPickingPerformanceRow(
+                wave_id=row.wave_id,
+                wave_number=row.wave_number,
+                status=row.status,
+                total_tasks=total_tasks,
+                picked_tasks=picked_tasks,
+                skipped_tasks=skipped_tasks,
+                open_tasks=open_tasks,
+                pick_accuracy_percent=accuracy,
+                created_at=row.created_at,
+                completed_at=row.completed_at,
+            )
+        )
+
+    if output == "csv":
+        return _csv_response(
+            fieldnames=[
+                "wave_id",
+                "wave_number",
+                "status",
+                "total_tasks",
+                "picked_tasks",
+                "skipped_tasks",
+                "open_tasks",
+                "pick_accuracy_percent",
+                "created_at",
+                "completed_at",
+            ],
+            rows=[item.model_dump() for item in items],
+            filename="reports-picking-performance.csv",
+        )
+
+    return ReportPickingPerformanceResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/purchase-recommendations", response_model=ReportPurchaseRecommendationResponse)
+async def report_purchase_recommendations(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=500),
+    status_filter: str | None = Query(default=None, alias="status"),
+    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_roles(*REPORTS_READ_ROLES)),
+) -> ReportPurchaseRecommendationResponse | Response:
+    stmt = select(PurchaseRecommendation)
+    if status_filter:
+        stmt = stmt.where(PurchaseRecommendation.status == status_filter)
+
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    rows = list(
+        (
+            await db.execute(
+                stmt.order_by(PurchaseRecommendation.generated_at.desc(), PurchaseRecommendation.id.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+        ).scalars()
+    )
+
+    items = [
+        ReportPurchaseRecommendationRow(
+            recommendation_id=item.id,
+            product_id=item.product_id,
+            status=item.status,
+            target_stock=item.target_stock,
+            on_hand_quantity=item.on_hand_quantity,
+            open_po_quantity=item.open_po_quantity,
+            deficit_quantity=item.deficit_quantity,
+            recommended_quantity=item.recommended_quantity,
+            generated_at=item.generated_at,
+        )
+        for item in rows
+    ]
+
+    if output == "csv":
+        return _csv_response(
+            fieldnames=[
+                "recommendation_id",
+                "product_id",
+                "status",
+                "target_stock",
+                "on_hand_quantity",
+                "open_po_quantity",
+                "deficit_quantity",
+                "recommended_quantity",
+                "generated_at",
+            ],
+            rows=[item.model_dump() for item in items],
+            filename="reports-purchase-recommendations.csv",
+        )
+
+    return ReportPurchaseRecommendationResponse(items=items, total=total, page=page, page_size=page_size)
+
+
 @router.get("/kpis", response_model=ReportKpiResponse)
 async def report_kpis(
     date_from: date | None = Query(default=None),
@@ -575,6 +793,67 @@ async def report_kpis(
         )
     ).scalar_one()
 
+    pick_totals = (
+        await db.execute(
+            select(
+                func.count(PickTask.id).label("total_tasks"),
+                func.sum(case((PickTask.status == "picked", 1), else_=0)).label("picked_tasks"),
+            )
+            .join(PickWave, PickWave.id == PickTask.pick_wave_id)
+            .where(PickWave.created_at >= start, PickWave.created_at < end)
+        )
+    ).one()
+    pick_total_tasks = int(pick_totals.total_tasks or 0)
+    pick_picked_tasks = int(pick_totals.picked_tasks or 0)
+    pick_accuracy_rate = (
+        _quantize(Decimal(pick_picked_tasks) * Decimal("100") / Decimal(pick_total_tasks))
+        if pick_total_tasks
+        else Decimal("0.00")
+    )
+
+    returns_count = (
+        await db.execute(
+            select(func.count(ReturnOrder.id)).where(
+                ReturnOrder.created_at >= start,
+                ReturnOrder.created_at < end,
+            )
+        )
+    ).scalar_one()
+    outbound_documents = (
+        await db.execute(
+            select(func.count(func.distinct(StockMovement.reference_number))).where(
+                StockMovement.movement_type == "goods_issue",
+                StockMovement.performed_at >= start,
+                StockMovement.performed_at < end,
+            )
+        )
+    ).scalar_one()
+    returns_rate = (
+        _quantize(Decimal(returns_count) * Decimal("100") / Decimal(outbound_documents))
+        if outbound_documents
+        else Decimal("0.00")
+    )
+
+    approval_rows = (
+        await db.execute(
+            select(ApprovalRequest.requested_at, ApprovalRequest.decided_at).where(
+                ApprovalRequest.decided_at.is_not(None),
+                ApprovalRequest.decided_at >= start,
+                ApprovalRequest.decided_at < end,
+            )
+        )
+    ).all()
+    approval_cycle_values = [
+        Decimal((row.decided_at - row.requested_at).total_seconds()) / Decimal("3600")
+        for row in approval_rows
+        if row.decided_at and row.requested_at
+    ]
+    approval_cycle_hours = (
+        _quantize(sum(approval_cycle_values) / Decimal(len(approval_cycle_values)))
+        if approval_cycle_values
+        else Decimal("0.00")
+    )
+
     return ReportKpiResponse(
         date_from=start_day,
         date_to=end_day,
@@ -582,4 +861,7 @@ async def report_kpis(
         dock_to_stock_hours=dock_to_stock_hours,
         inventory_accuracy_percent=accuracy_payload.overall_accuracy_percent,
         alert_count=alert_count,
+        pick_accuracy_rate=pick_accuracy_rate,
+        returns_rate=returns_rate,
+        approval_cycle_hours=approval_cycle_hours,
     )

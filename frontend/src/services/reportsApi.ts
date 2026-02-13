@@ -5,6 +5,9 @@ import type {
   ReportInventoryAccuracyResponse,
   ReportKpi,
   ReportMovementResponse,
+  ReportPickingPerformanceResponse,
+  ReportPurchaseRecommendationResponse,
+  ReportReturnsResponse,
   ReportStockResponse,
 } from "../types";
 
@@ -80,13 +83,55 @@ export async function fetchReportKpis(params: DateRange): Promise<ReportKpi> {
   return response.data;
 }
 
+export async function fetchReportReturns(params: DateRange & { page?: number; pageSize?: number }): Promise<ReportReturnsResponse> {
+  const response = await api.get<ReportReturnsResponse>("/reports/returns", {
+    params: {
+      page: params.page ?? 1,
+      page_size: params.pageSize ?? 25,
+      ...toRangeParams(params),
+    },
+  });
+  return response.data;
+}
+
+export async function fetchReportPickingPerformance(
+  params: DateRange & { page?: number; pageSize?: number }
+): Promise<ReportPickingPerformanceResponse> {
+  const response = await api.get<ReportPickingPerformanceResponse>("/reports/picking-performance", {
+    params: {
+      page: params.page ?? 1,
+      page_size: params.pageSize ?? 25,
+      ...toRangeParams(params),
+    },
+  });
+  return response.data;
+}
+
+export async function fetchReportPurchaseRecommendations(params: {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+}): Promise<ReportPurchaseRecommendationResponse> {
+  const response = await api.get<ReportPurchaseRecommendationResponse>("/reports/purchase-recommendations", {
+    params: {
+      page: params.page ?? 1,
+      page_size: params.pageSize ?? 25,
+      status: params.status || undefined,
+    },
+  });
+  return response.data;
+}
+
 export async function downloadReportCsv(
   report:
     | "stock"
     | "movements"
     | "inbound-outbound"
     | "inventory-accuracy"
-    | "abc",
+    | "abc"
+    | "returns"
+    | "picking-performance"
+    | "purchase-recommendations",
   params: Record<string, string | number | undefined>
 ): Promise<Blob> {
   const response = await api.get<Blob>(`/reports/${report}`, {
