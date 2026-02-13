@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-directstock}
+      POSTGRES_USER: ${POSTGRES_USER:-directstock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-directstock}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-directstock} -d ${POSTGRES_DB:-directstock}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.prod
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://directstock:directstock@postgres:5432/directstock}
+      ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL:-postgresql+asyncpg://directstock:directstock@postgres:5432/directstock}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      DIRECTSTOCK_ADMIN_USERNAME: ${DIRECTSTOCK_ADMIN_USERNAME:-admin}
+      DIRECTSTOCK_ADMIN_EMAIL: ${DIRECTSTOCK_ADMIN_EMAIL:-admin@directstock.local}
+      DIRECTSTOCK_ADMIN_PASSWORD: ${DIRECTSTOCK_ADMIN_PASSWORD:-DirectStock2026!}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
+      SEED_ON_START: ${SEED_ON_START:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  postgres_prod_data:
