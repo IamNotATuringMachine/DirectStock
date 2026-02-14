@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import AppLayout from "./components/AppLayout";
-import { ProtectedRoute, RequireRole } from "./components/ProtectedRoute";
+import { ProtectedRoute, RequirePermission } from "./components/ProtectedRoute";
 import LoginPage from "./LoginPage";
 import {
   AlertsPage,
@@ -23,8 +23,11 @@ import {
   ReportsPage,
   ReturnsPage,
   ScannerPage,
+  SalesOrdersPage,
   ShippingPage,
   StockTransferPage,
+  ServicesPage,
+  InvoicesPage,
   UsersPage,
   WarehousePage,
 } from "./pages";
@@ -53,139 +56,163 @@ export default function App() {
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="products" element={<ProductsPage />} />
-        <Route path="products/new" element={<ProductFormPage />} />
-        <Route path="products/:id" element={<ProductDetailPage />} />
-        <Route path="products/:id/edit" element={<ProductFormPage />} />
-        <Route path="warehouse" element={<WarehousePage />} />
-        <Route path="inventory" element={<InventoryPage />} />
+        <Route path="dashboard" element={<RequirePermission permissions={["page.dashboard.view"]}><DashboardPage /></RequirePermission>} />
+        <Route path="products" element={<RequirePermission permissions={["page.products.view"]}><ProductsPage /></RequirePermission>} />
+        <Route path="products/new" element={<RequirePermission permissions={["page.products.view"]}><ProductFormPage /></RequirePermission>} />
+        <Route path="products/:id" element={<RequirePermission permissions={["page.products.view"]}><ProductDetailPage /></RequirePermission>} />
+        <Route path="products/:id/edit" element={<RequirePermission permissions={["page.products.view"]}><ProductFormPage /></RequirePermission>} />
+        <Route path="warehouse" element={<RequirePermission permissions={["page.warehouse.view"]}><WarehousePage /></RequirePermission>} />
+        <Route path="inventory" element={<RequirePermission permissions={["page.inventory.view"]}><InventoryPage /></RequirePermission>} />
         <Route
           path="inventory-counts"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter"]}>
+            <RequirePermission permissions={["page.inventory-counts.view"]}>
               <InventoryCountPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="alerts"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "einkauf", "controller", "versand"]}>
+            <RequirePermission permissions={["page.alerts.view"]}>
               <AlertsPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="reports"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "einkauf", "controller", "auditor"]}>
+            <RequirePermission permissions={["page.reports.view"]}>
               <ReportsPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="purchasing"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "einkauf"]}>
+            <RequirePermission permissions={["page.purchasing.view"]}>
               <PurchasingPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="picking"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "versand"]}>
+            <RequirePermission permissions={["page.picking.view"]}>
               <PickingPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="returns"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "versand"]}>
+            <RequirePermission permissions={["page.returns.view"]}>
               <ReturnsPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="approvals"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "einkauf", "versand"]}>
+            <RequirePermission permissions={["page.approvals.view"]}>
               <ApprovalsPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="documents"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "einkauf", "versand", "controller", "auditor"]}>
+            <RequirePermission permissions={["page.documents.view"]}>
               <DocumentsPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="audit-trail"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "controller", "auditor"]}>
+            <RequirePermission permissions={["page.audit-trail.view"]}>
               <AuditTrailPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="goods-receipt"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "einkauf"]}>
+            <RequirePermission permissions={["page.goods-receipt.view"]}>
               <GoodsReceiptPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="goods-issue"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "versand"]}>
+            <RequirePermission permissions={["page.goods-issue.view"]}>
               <GoodsIssuePage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="stock-transfer"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter"]}>
+            <RequirePermission permissions={["page.stock-transfer.view"]}>
               <StockTransferPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="shipping"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "versand"]}>
+            <RequirePermission permissions={["page.shipping.view"]}>
               <ShippingPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="inter-warehouse-transfer"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter"]}>
+            <RequirePermission permissions={["page.inter-warehouse-transfer.view"]}>
               <InterWarehouseTransferPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="scanner"
           element={
-            <RequireRole roles={["admin", "lagerleiter", "lagermitarbeiter", "einkauf", "versand"]}>
+            <RequirePermission permissions={["page.scanner.view"]}>
               <ScannerPage />
-            </RequireRole>
+            </RequirePermission>
           }
         />
         <Route
           path="users"
           element={
-            <RequireRole roles={["admin"]}>
+            <RequirePermission permissions={["page.users.view"]}>
               <UsersPage />
-            </RequireRole>
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="services"
+          element={
+            <RequirePermission permissions={["page.services.view"]}>
+              <ServicesPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="sales-orders"
+          element={
+            <RequirePermission permissions={["page.sales-orders.view"]}>
+              <SalesOrdersPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="invoices"
+          element={
+            <RequirePermission permissions={["page.invoices.view"]}>
+              <InvoicesPage />
+            </RequirePermission>
           }
         />
       </Route>

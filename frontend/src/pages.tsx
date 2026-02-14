@@ -16,8 +16,11 @@ import PurchasingPage from "./pages/PurchasingPage";
 import ReportsPage from "./pages/ReportsPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import ScannerPage from "./pages/ScannerPage";
+import SalesOrdersPage from "./pages/SalesOrdersPage";
 import ShippingPage from "./pages/ShippingPage";
 import StockTransferPage from "./pages/StockTransferPage";
+import ServicesPage from "./pages/ServicesPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import UsersPage from "./pages/UsersPage";
 import WarehousePage from "./pages/WarehousePage";
 
@@ -40,8 +43,11 @@ export {
   ReportsPage,
   ReturnsPage,
   ScannerPage,
+  SalesOrdersPage,
   ShippingPage,
   StockTransferPage,
+  ServicesPage,
+  InvoicesPage,
   UsersPage,
   WarehousePage,
 };

@@ -33,6 +33,57 @@ export async function loginAsAdminApi(request: APIRequestContext): Promise<strin
   return payload.access_token;
 }
 
+export async function createE2EUserWithRoles(
+  request: APIRequestContext,
+  roles: string[],
+): Promise<{ username: string; password: string }> {
+  const adminToken = await loginAsAdminApi(request);
+  const marker = `${Date.now()}${Math.floor(Math.random() * 10_000)
+    .toString()
+    .padStart(4, "0")}`;
+  const username = `e2e_ui_${marker}`;
+  const password = `E2eUiPass!${marker.slice(-6)}`;
+
+  const createUser = await request.post("/api/users", {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    data: {
+      username,
+      email: `${username}@example.com`,
+      full_name: "E2E UI User",
+      password,
+      roles,
+      is_active: true,
+    },
+  });
+  expect(createUser.ok()).toBeTruthy();
+
+  return { username, password };
+}
+
+export async function ensureDashboardCardVisible(
+  request: APIRequestContext,
+  token: string,
+  cardKey: string,
+): Promise<void> {
+  const current = await request.get("/api/dashboard/config/me", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(current.ok()).toBeTruthy();
+  const payload = (await current.json()) as {
+    cards: Array<{ card_key: string; visible: boolean; display_order: number }>;
+  };
+
+  const cards = payload.cards.map((card) =>
+    card.card_key === cardKey ? { ...card, visible: true } : card,
+  );
+
+  const update = await request.put("/api/dashboard/config/me", {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { cards },
+  });
+  expect(update.ok()).toBeTruthy();
+}
+
 export async function ensureE2EProduct(
   request: APIRequestContext,
   token: string,

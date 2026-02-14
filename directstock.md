@@ -4,6 +4,15 @@
 > **Erstellt:** 2026-02-13
 > **Basis:** Simplimus-Datenbank (auftragsbearbeitung, 146 Legacy-Tabellen, SQL Server 2000)
 
+## Umsetzungsstand Phase 5 (2026-02-14)
+
+1. Phase-5-Module (RBAC Permissions, UI Preferences, Dashboard Config, Pricing, Services, Sales Orders, Invoices, E-Invoice Export) sind additiv umgesetzt.
+2. API-Verträge wurden additiv erweitert, inklusive `permissions` in `GET /api/auth/me` und Idempotency für `/api/sales-orders` sowie `/api/invoices`.
+3. Vollvalidierung wurde durchgeführt:
+   Backend `95 passed`, Frontend Unit `30 passed`, Frontend E2E `74 passed` (`4 skipped`), Lighthouse PWA `1.00`, Prod-Smoke auf `/health`, `/api/health`, `/api/docs` und Login erfolgreich.
+4. Abnahme-/Nachweisdokument:
+   `docs/validation/phase5-acceptance.md`
+
 ---
 
 ## 1. Stammdaten (Master Data Management)
@@ -489,6 +498,16 @@
 29. Multi-Warehouse mit übergreifenden Umlagerungen
 30. Erweiterte Analyse (Trends, Prognosen)
 
+### Phase 5 – Monetarisierung, Governance & UX
+31. Darkmode / Theme-System mit persistenter Benutzerpräferenz
+32. Dynamisches RBAC (Custom Roles + Page/Action-Berechtigungen)
+33. Produktpreise mit und ohne Mehrwertsteuer (netto-führend, brutto berechnet)
+34. Kundenspezifische Preise mit Gültigkeitszeiträumen
+35. Auftrags-, Lieferschein- und Rechnungsworkflow inkl. Teilrechnung
+36. E-Rechnungsfähigkeit (XRechnung + ZUGFeRD Vorbereitung)
+37. In-App-Guides und vollständige Feature-Dokumentation
+38. Konfigurierbares Dashboard inkl. Rollen-Templates und Card-Policies
+
 ---
 
 ## 16. Nicht-funktionale Anforderungen
@@ -519,4 +538,4 @@
 
 ---
 
-> **Nächster Schritt:** Techstack-Entscheidung und Architektur-Design basierend auf diesem Masterplan.
+> **Nächster Schritt:** Umsetzung gemäß `directstock_phase5.md` und anschließende technische Realisierung der Phase-5-Workstreams.

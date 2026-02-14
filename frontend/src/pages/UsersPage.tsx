@@ -1,6 +1,7 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { fetchPermissions, fetchRoles, updateRolePermissions } from "../services/rbacApi";
 import { useAuthStore } from "../stores/authStore";
 import {
   changeUserPassword,
@@ -9,7 +10,7 @@ import {
   fetchUsers,
   updateUser,
 } from "../services/usersApi";
-import type { RoleName, User } from "../types";
+import type { Role, RoleName, User } from "../types";
 
 const ROLE_OPTIONS: RoleName[] = [
   "admin",
@@ -72,10 +73,12 @@ export default function UsersPage() {
   const [editForm, setEditForm] = useState<UserEditState | null>(null);
   const [newPassword, setNewPassword] = useState("");
 
-  const usersQuery = useQuery({
-    queryKey: ["users"],
-    queryFn: fetchUsers,
-  });
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
+  const [selectedRolePermissions, setSelectedRolePermissions] = useState<string[]>([]);
+
+  const usersQuery = useQuery({ queryKey: ["users"], queryFn: fetchUsers });
+  const rolesQuery = useQuery({ queryKey: ["roles"], queryFn: fetchRoles });
+  const permissionsQuery = useQuery({ queryKey: ["permissions"], queryFn: fetchPermissions });
 
   const createMutation = useMutation({
     mutationFn: createUser,
@@ -111,16 +114,39 @@ export default function UsersPage() {
     },
   });
 
-  const createError = createMutation.error instanceof Error ? createMutation.error.message : null;
-  const updateError = updateMutation.error instanceof Error ? updateMutation.error.message : null;
-  const passwordError =
-    changePasswordMutation.error instanceof Error ? changePasswordMutation.error.message : null;
-  const deleteError = deleteMutation.error instanceof Error ? deleteMutation.error.message : null;
+  const updateRolePermissionsMutation = useMutation({
+    mutationFn: ({ roleId, permissionCodes }: { roleId: number; permissionCodes: string[] }) =>
+      updateRolePermissions(roleId, permissionCodes),
+    onSuccess: async (role) => {
+      setSelectedRolePermissions(role.permissions);
+      await queryClient.invalidateQueries({ queryKey: ["roles"] });
+    },
+  });
 
   const selectedUser = useMemo(
     () => usersQuery.data?.find((user) => user.id === editForm?.id) ?? null,
     [usersQuery.data, editForm?.id]
   );
+
+  const selectedRole = useMemo(
+    () => rolesQuery.data?.find((role) => role.id === selectedRoleId) ?? null,
+    [rolesQuery.data, selectedRoleId]
+  );
+
+  useEffect(() => {
+    if (!rolesQuery.data || rolesQuery.data.length === 0) {
+      return;
+    }
+    if (selectedRoleId === null) {
+      setSelectedRoleId(rolesQuery.data[0].id);
+      setSelectedRolePermissions(rolesQuery.data[0].permissions);
+      return;
+    }
+    const role = rolesQuery.data.find((row) => row.id === selectedRoleId);
+    if (role) {
+      setSelectedRolePermissions(role.permissions);
+    }
+  }, [rolesQuery.data, selectedRoleId]);
 
   const onCreateSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -159,10 +185,29 @@ export default function UsersPage() {
   };
 
   const onDelete = async (user: User) => {
-    if (!window.confirm(`Benutzer ${user.username} wirklich loeschen?`)) {
+    if (!window.confirm(`Benutzer ${user.username} wirklich löschen?`)) {
       return;
     }
     await deleteMutation.mutateAsync(user.id);
+  };
+
+  const onSaveRolePermissions = async () => {
+    if (selectedRoleId === null) {
+      return;
+    }
+    await updateRolePermissionsMutation.mutateAsync({
+      roleId: selectedRoleId,
+      permissionCodes: selectedRolePermissions,
+    });
+  };
+
+  const togglePermissionCode = (role: Role | null, code: string) => {
+    if (role && role.name === "admin") {
+      return;
+    }
+    setSelectedRolePermissions((prev) =>
+      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
+    );
   };
 
   return (
@@ -170,7 +215,7 @@ export default function UsersPage() {
       <header className="panel-header">
         <div>
           <h2>Benutzerverwaltung</h2>
-          <p className="panel-subtitle">Admin-CRUD fuer Benutzer, Rollen, Aktivstatus und Passwort-Aktion.</p>
+          <p className="panel-subtitle">Admin-CRUD für Benutzer, Rollen und Berechtigungen.</p>
         </div>
       </header>
 
@@ -186,7 +231,6 @@ export default function UsersPage() {
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, username: event.target.value }))}
                 minLength={3}
                 required
-                data-testid="users-create-username"
               />
             </label>
             <label>
@@ -196,7 +240,6 @@ export default function UsersPage() {
                 type="email"
                 value={createForm.email}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
-                data-testid="users-create-email"
               />
             </label>
             <label>
@@ -205,7 +248,6 @@ export default function UsersPage() {
                 className="input"
                 value={createForm.full_name}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, full_name: event.target.value }))}
-                data-testid="users-create-full-name"
               />
             </label>
             <label>
@@ -217,7 +259,6 @@ export default function UsersPage() {
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
                 minLength={8}
                 required
-                data-testid="users-create-password"
               />
             </label>
             <label className="checkbox">
@@ -246,8 +287,7 @@ export default function UsersPage() {
                 </label>
               ))}
             </fieldset>
-            {createError ? <p className="error-text">{createError}</p> : null}
-            <button className="btn" type="submit" disabled={createMutation.isPending} data-testid="users-create-submit">
+            <button className="btn" type="submit" disabled={createMutation.isPending}>
               Benutzer anlegen
             </button>
           </form>
@@ -267,22 +307,17 @@ export default function UsersPage() {
               </thead>
               <tbody>
                 {(usersQuery.data ?? []).map((user) => (
-                  <tr key={user.id} data-testid={`users-row-${user.id}`}>
-                    <td data-label="Benutzer">
+                  <tr key={user.id}>
+                    <td>
                       <strong>{user.username}</strong>
                       <div>{user.email ?? "-"}</div>
                       <div>{user.full_name ?? "-"}</div>
                     </td>
-                    <td data-label="Rollen">{user.roles.join(", ") || "-"}</td>
-                    <td data-label="Status">{user.is_active ? "aktiv" : "gesperrt"}</td>
-                    <td data-label="Aktionen">
+                    <td>{user.roles.join(", ") || "-"}</td>
+                    <td>{user.is_active ? "aktiv" : "gesperrt"}</td>
+                    <td>
                       <div className="actions-cell">
-                        <button
-                          className="btn"
-                          type="button"
-                          onClick={() => setEditForm(toEditState(user))}
-                          data-testid={`users-edit-${user.id}`}
-                        >
+                        <button className="btn" type="button" onClick={() => setEditForm(toEditState(user))}>
                           Bearbeiten
                         </button>
                         <button
@@ -294,7 +329,6 @@ export default function UsersPage() {
                               payload: { is_active: !user.is_active },
                             })
                           }
-                          data-testid={`users-toggle-active-${user.id}`}
                         >
                           {user.is_active ? "Sperren" : "Aktivieren"}
                         </button>
@@ -303,9 +337,8 @@ export default function UsersPage() {
                           type="button"
                           disabled={user.id === currentUser?.id}
                           onClick={() => void onDelete(user)}
-                          data-testid={`users-delete-${user.id}`}
                         >
-                          Loeschen
+                          Löschen
                         </button>
                       </div>
                     </td>
@@ -313,9 +346,7 @@ export default function UsersPage() {
                 ))}
               </tbody>
             </table>
-            {!usersQuery.isLoading && (usersQuery.data?.length ?? 0) === 0 ? <p>Keine Benutzer vorhanden.</p> : null}
           </div>
-          {deleteError ? <p className="error-text">{deleteError}</p> : null}
         </article>
       </div>
 
@@ -374,9 +405,8 @@ export default function UsersPage() {
                 </label>
               ))}
             </fieldset>
-            {updateError ? <p className="error-text">{updateError}</p> : null}
             <div className="actions-cell">
-              <button className="btn" type="submit" disabled={updateMutation.isPending} data-testid="users-edit-save">
+              <button className="btn" type="submit" disabled={updateMutation.isPending}>
                 Speichern
               </button>
               <button className="btn" type="button" onClick={() => setEditForm(null)}>
@@ -385,7 +415,7 @@ export default function UsersPage() {
             </div>
           </form>
 
-          <form className="form-grid" onSubmit={(event) => void onPasswordSubmit(event)} data-testid="users-password-form">
+          <form className="form-grid" onSubmit={(event) => void onPasswordSubmit(event)}>
             <label>
               Neues Passwort
               <input
@@ -396,18 +426,48 @@ export default function UsersPage() {
                 onChange={(event) => setNewPassword(event.target.value)}
               />
             </label>
-            {passwordError ? <p className="error-text">{passwordError}</p> : null}
-            <button
-              className="btn"
-              type="submit"
-              disabled={changePasswordMutation.isPending || newPassword.trim().length < 8}
-              data-testid="users-password-submit"
-            >
+            <button className="btn" type="submit" disabled={changePasswordMutation.isPending || newPassword.trim().length < 8}>
               Passwort setzen
             </button>
           </form>
         </article>
       ) : null}
+
+      <article className="subpanel" data-testid="roles-permissions-panel">
+        <h3>Rollen und Rechte</h3>
+        <div className="inline-form">
+          <select
+            className="input"
+            value={selectedRoleId ?? ""}
+            onChange={(event) => setSelectedRoleId(Number(event.target.value))}
+          >
+            {(rolesQuery.data ?? []).map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+          <button className="btn" type="button" onClick={() => void onSaveRolePermissions()}>
+            Rechte speichern
+          </button>
+        </div>
+
+        <p className="panel-subtitle">Ausgewählte Rolle: {selectedRole?.name ?? "-"}</p>
+
+        <div className="checkbox-grid" style={{ maxHeight: 280, overflow: "auto" }}>
+          {(permissionsQuery.data ?? []).map((permission) => (
+            <label key={permission.code} className="checkbox">
+              <input
+                type="checkbox"
+                checked={selectedRolePermissions.includes(permission.code)}
+                onChange={() => togglePermissionCode(selectedRole ?? null, permission.code)}
+                disabled={selectedRole?.name === "admin"}
+              />
+              {permission.code}
+            </label>
+          ))}
+        </div>
+      </article>
     </section>
   );
 }

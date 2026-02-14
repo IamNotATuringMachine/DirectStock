@@ -14,22 +14,31 @@ from app.routers.alerts import router as alerts_router
 from app.routers.auth import router as auth_router
 from app.routers.customers import router as customers_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.dashboard_config import router as dashboard_config_router
 from app.routers.documents import router as documents_router
 from app.routers.external_api import router as external_api_router
+from app.routers.invoices import router as invoices_router
 from app.routers.inventory import router as inventory_router
 from app.routers.inventory_counts import router as inventory_counts_router
 from app.routers.integration_clients import router as integration_clients_router
 from app.routers.inter_warehouse_transfers import router as inter_warehouse_transfers_router
 from app.routers.operations import router as operations_router
+from app.routers.pages import router as pages_router
+from app.routers.permissions import router as permissions_router
 from app.routers.picking import router as picking_router
+from app.routers.pricing import router as pricing_router
 from app.routers.product_settings import router as product_settings_router
 from app.routers.products import router as products_router
 from app.routers.purchase_recommendations import router as purchase_recommendations_router
 from app.routers.purchasing import router as purchasing_router
 from app.routers.reports import router as reports_router
 from app.routers.returns import router as returns_router
+from app.routers.roles import router as roles_router
+from app.routers.sales_orders import router as sales_orders_router
 from app.routers.shipping import router as shipping_router
+from app.routers.services_catalog import router as services_catalog_router
 from app.routers.suppliers import router as suppliers_router
+from app.routers.ui_preferences import router as ui_preferences_router
 from app.routers.users import router as users_router
 from app.routers.warehouses import router as warehouses_router
 from app.routers.workflows import router as workflows_router
@@ -79,6 +88,15 @@ app.include_router(picking_router)
 app.include_router(returns_router)
 app.include_router(workflows_router)
 app.include_router(documents_router)
+app.include_router(permissions_router)
+app.include_router(pages_router)
+app.include_router(roles_router)
+app.include_router(ui_preferences_router)
+app.include_router(dashboard_config_router)
+app.include_router(pricing_router)
+app.include_router(services_catalog_router)
+app.include_router(sales_orders_router)
+app.include_router(invoices_router)
 app.include_router(audit_log_router)
 app.include_router(integration_clients_router)
 app.include_router(external_api_router)

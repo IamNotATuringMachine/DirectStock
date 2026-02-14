@@ -74,10 +74,10 @@ test.describe("mobile cards table readability", () => {
 
       await expect(table).toHaveClass(/mobile-cards-table/);
       const rows = table.locator("tbody tr");
-      const rowCount = await rows.count();
       if (target.requiredRows) {
-        expect(rowCount).toBeGreaterThan(0);
+        await expect.poll(async () => await rows.count()).toBeGreaterThan(0);
       }
+      const rowCount = await rows.count();
       if (rowCount === 0) {
         continue;
       }

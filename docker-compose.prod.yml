@@ -29,6 +29,9 @@ services:
       DIRECTSTOCK_ADMIN_PASSWORD: ${DIRECTSTOCK_ADMIN_PASSWORD:-change-me-admin-password}
       CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
       SEED_ON_START: ${SEED_ON_START:-false}
+      EINVOICE_EN16931_VALIDATION_MODE: ${EINVOICE_EN16931_VALIDATION_MODE:-strict}
+      EINVOICE_KOSIT_VALIDATOR_JAR: ${EINVOICE_KOSIT_VALIDATOR_JAR:-}
+      EINVOICE_KOSIT_SCENARIO: ${EINVOICE_KOSIT_SCENARIO:-}
     depends_on:
       postgres:
         condition: service_healthy

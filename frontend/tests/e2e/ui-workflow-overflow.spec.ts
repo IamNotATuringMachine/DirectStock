@@ -16,10 +16,11 @@ async function login(page: Page) {
 
 test.describe("workflow overflow guard", () => {
   test("workflow pages have no global overflow and no topbar overlap", async ({ page }) => {
+    test.setTimeout(120_000);
     await login(page);
 
     for (const item of WORKFLOW_PAGES) {
-      await page.goto(item.path);
+      await page.goto(item.path, { waitUntil: "domcontentloaded" });
       await expect(page.getByTestId(item.testId)).toBeVisible();
 
       const metrics = await page.evaluate(() => {

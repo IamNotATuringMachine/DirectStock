@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db_session
-from app.models.auth import User
+from app.models.auth import Role, User
 from app.models.phase4 import IntegrationClient
 from app.utils.security import TokenError, decode_token
 
@@ -46,7 +46,13 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
 
     user_id = int(payload["sub"])
-    stmt = select(User).where(User.id == user_id).options(selectinload(User.roles))
+    stmt = (
+        select(User)
+        .where(User.id == user_id)
+        .options(
+            selectinload(User.roles).selectinload(Role.permissions),
+        )
+    )
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
@@ -57,6 +63,13 @@ async def get_current_user(
 
     request.state.user_id = user.id
     request.state.role_names = [role.name for role in user.roles]
+    request.state.permission_codes = sorted(
+        {
+            permission.code
+            for role in user.roles
+            for permission in getattr(role, "permissions", [])
+        }
+    )
     return user
 
 
@@ -65,6 +78,24 @@ def require_roles(*allowed_roles: str) -> Callable:
         role_names = {role.name for role in current_user.roles}
         if not role_names.intersection(allowed_roles):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Missing required role")
+        return current_user
+
+    return _require
+
+
+def require_permissions(*required_permissions: str) -> Callable:
+    async def _require(current_user: User = Depends(get_current_user)) -> User:
+        permission_codes = {
+            permission.code
+            for role in current_user.roles
+            for permission in getattr(role, "permissions", [])
+        }
+        missing = [code for code in required_permissions if code not in permission_codes]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing required permission(s): {', '.join(missing)}",
+            )
         return current_user
 
     return _require

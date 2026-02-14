@@ -104,6 +104,46 @@ Details und Task-Status:
 - `docs/validation/phase4-acceptance.md`
 - `docs/validation/phase4-migration-rehearsal.md`
 
+## Phase-5 Snapshot (aktueller Umsetzungsstand)
+
+Neu ergänzt (additiv, umgesetzt):
+
+- Permission-basiertes RBAC als technische Source-of-Truth:
+  - `GET /api/auth/me` liefert additiv `permissions: string[]`
+  - neue Router: `/api/permissions`, `/api/pages`, `/api/roles`
+  - neue Dependency `require_permissions(...)` in Phase-5-Routern
+- UI Preferences + Dashboard-Konfiguration:
+  - `/api/ui-preferences/me`
+  - `/api/dashboard/cards/catalog`
+  - `/api/dashboard/config/me`
+  - `/api/dashboard/config/roles/{role_id}`
+- Pricing + Services:
+  - `/api/pricing/*` (Basispreise, Kundenpreise, Preisauflösung)
+  - `/api/services`
+- Sales + Invoices:
+  - `/api/sales-orders`
+  - `/api/invoices`
+  - `/api/sales-orders/{id}/delivery-note` (GoodsIssue-basierte Lieferscheinerzeugung)
+- E-Invoice Exportpfade:
+  - `/api/invoices/{id}/exports/xrechnung`
+  - `/api/invoices/{id}/exports/zugferd`
+  - Export-Tracking in `invoice_exports`
+- Frontend:
+  - Permission-Guards in Routing/Navigation
+  - neue Seiten `/services`, `/sales-orders`, `/invoices`
+  - Theme-Persistenz und Dashboard-Customizing
+
+Phase-5-Validierung (Stand 2026-02-14):
+- Backend: `95 passed`
+- Frontend Unit: `30 passed`
+- Frontend E2E Volllauf: `74 passed`, `4 skipped`
+- Lighthouse/PWA: `1.00`
+- Prod Smoke: `/health`, `/api/health`, `/api/docs`, Login erfolgreich
+
+Details und Nachweise:
+- `directstock_phase5.md`
+- `docs/validation/phase5-acceptance.md`
+
 ## Voraussetzungen
 
 - Docker + Docker Compose
@@ -119,6 +159,9 @@ cp .env.example .env
 Wichtige zusätzliche Variablen:
 
 - `SEED_ON_START` (nur Prod-Compose, optional)
+- `EINVOICE_EN16931_VALIDATION_MODE` (`strict` oder `builtin_fallback`, Default: `strict`)
+- `EINVOICE_KOSIT_VALIDATOR_JAR` (Pfad zur KoSIT-Validator-JAR)
+- `EINVOICE_KOSIT_SCENARIO` (Pfad zur KoSIT-Szenario-Datei)
 
 ## Starten (Dev/Default Stack)
 

@@ -3,14 +3,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
-from app.models.auth import Role, User
+from app.models.auth import Permission, Role, User, role_permissions
 from app.models.catalog import Product, ProductGroup, ProductWarehouseSetting
 from app.models.inventory import Inventory, StockMovement
+from app.models.phase5 import AppPage, DashboardCard, RoleDashboardPolicy
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 from app.utils.security import hash_password
 
@@ -56,6 +57,214 @@ SEED_ZONE_CONFIGS = {
     "OUT": {"name": "Outbound", "zone_type": "outbound", "aisles": range(1, 6), "shelves": range(1, 3), "levels": range(1, 3)},
 }
 
+PHASE5_PAGES: list[tuple[str, str, str]] = [
+    ("dashboard", "Dashboard", "Operativer Überblick"),
+    ("products", "Artikelstamm", "Produktverwaltung"),
+    ("warehouse", "Lagerstruktur", "Lager- und Platzverwaltung"),
+    ("inventory", "Bestandsübersicht", "Bestand und Verfügbarkeit"),
+    ("inventory-counts", "Inventur", "Inventurprozesse"),
+    ("purchasing", "Einkauf", "Beschaffung und Bestellungen"),
+    ("picking", "Picking", "Kommissionierung"),
+    ("returns", "Retouren", "Retouren- und RMA-Prozesse"),
+    ("approvals", "Genehmigungen", "Freigaben und Workflows"),
+    ("documents", "Dokumente", "Dokumentenablage"),
+    ("audit-trail", "Audit Trail", "Compliance Auditlog"),
+    ("reports", "Reports", "Berichte und KPIs"),
+    ("alerts", "Alerts", "Warnungen und Benachrichtigungen"),
+    ("goods-receipt", "Wareneingang", "WE-Prozesse"),
+    ("goods-issue", "Warenausgang", "WA-Prozesse"),
+    ("stock-transfer", "Umlagerung", "Intra-Warehouse Umlagerung"),
+    ("inter-warehouse-transfer", "Inter-Warehouse", "Standortübergreifende Umlagerung"),
+    ("shipping", "Shipping", "Versand"),
+    ("scanner", "Scanner", "Scan Workflows"),
+    ("users", "Benutzerverwaltung", "User- und Rollenverwaltung"),
+    ("services", "Dienstleistungen", "Service-Katalog"),
+    ("sales-orders", "Verkaufsaufträge", "Sales Orders"),
+    ("invoices", "Rechnungen", "Invoicing"),
+]
+
+PHASE5_MODULE_PERMISSIONS: list[tuple[str, str]] = [
+    ("module.roles.read", "Read roles"),
+    ("module.roles.manage", "Create/update/delete roles"),
+    ("module.permissions.read", "Read permission catalog"),
+    ("module.pages.read", "Read page catalog"),
+    ("module.ui_preferences.manage_self", "Manage own UI preferences"),
+    ("module.dashboard_config.read", "Read dashboard config catalog"),
+    ("module.dashboard_config.manage_self", "Manage own dashboard config"),
+    ("module.dashboard_config.manage_role", "Manage role dashboard policies"),
+    ("module.pricing.read", "Read pricing"),
+    ("module.pricing.write", "Write pricing"),
+    ("module.services.read", "Read services"),
+    ("module.services.write", "Write services"),
+    ("module.sales_orders.read", "Read sales orders"),
+    ("module.sales_orders.write", "Write sales orders"),
+    ("module.invoices.read", "Read invoices"),
+    ("module.invoices.write", "Write invoices"),
+    ("module.invoices.export", "Export invoices"),
+]
+
+PHASE5_ROLE_MODULE_PERMISSIONS: dict[str, set[str]] = {
+    "admin": {"*"},
+    "lagerleiter": {
+        "module.permissions.read",
+        "module.pages.read",
+        "module.ui_preferences.manage_self",
+        "module.dashboard_config.read",
+        "module.dashboard_config.manage_self",
+        "module.pricing.read",
+        "module.pricing.write",
+        "module.services.read",
+        "module.services.write",
+        "module.sales_orders.read",
+        "module.sales_orders.write",
+        "module.invoices.read",
+        "module.invoices.write",
+        "module.invoices.export",
+    },
+    "lagermitarbeiter": {
+        "module.permissions.read",
+        "module.pages.read",
+        "module.ui_preferences.manage_self",
+        "module.dashboard_config.read",
+        "module.dashboard_config.manage_self",
+        "module.sales_orders.read",
+    },
+    "einkauf": {
+        "module.permissions.read",
+        "module.pages.read",
+        "module.ui_preferences.manage_self",
+        "module.dashboard_config.read",
+        "module.dashboard_config.manage_self",
+        "module.pricing.read",
+        "module.pricing.write",
+        "module.services.read",
+        "module.sales_orders.read",
+        "module.sales_orders.write",
+        "module.invoices.read",
+    },
+    "versand": {
+        "module.permissions.read",
+        "module.pages.read",
+        "module.ui_preferences.manage_self",
+        "module.dashboard_config.read",
+        "module.dashboard_config.manage_self",
+        "module.services.read",
+        "module.sales_orders.read",
+        "module.sales_orders.write",
+        "module.invoices.read",
+        "module.invoices.write",
+        "module.invoices.export",
+    },
+    "controller": {
+        "module.permissions.read",
+        "module.pages.read",
+        "module.ui_preferences.manage_self",
+        "module.dashboard_config.read",
+        "module.dashboard_config.manage_self",
+        "module.pricing.read",
+        "module.services.read",
+        "module.sales_orders.read",
+        "module.invoices.read",
+    },
+    "auditor": {
+        "module.permissions.read",
+        "module.pages.read",
+        "module.ui_preferences.manage_self",
+        "module.dashboard_config.read",
+        "module.dashboard_config.manage_self",
+        "module.pricing.read",
+        "module.services.read",
+        "module.sales_orders.read",
+        "module.invoices.read",
+    },
+}
+
+PHASE5_ROLE_PAGE_ACCESS: dict[str, set[str]] = {
+    "admin": {slug for slug, _, _ in PHASE5_PAGES},
+    "lagerleiter": {
+        "dashboard",
+        "products",
+        "warehouse",
+        "inventory",
+        "inventory-counts",
+        "purchasing",
+        "picking",
+        "returns",
+        "approvals",
+        "documents",
+        "audit-trail",
+        "reports",
+        "alerts",
+        "goods-receipt",
+        "goods-issue",
+        "stock-transfer",
+        "inter-warehouse-transfer",
+        "shipping",
+        "scanner",
+        "services",
+        "sales-orders",
+        "invoices",
+    },
+    "lagermitarbeiter": {
+        "dashboard",
+        "products",
+        "warehouse",
+        "inventory",
+        "inventory-counts",
+        "picking",
+        "alerts",
+        "goods-receipt",
+        "goods-issue",
+        "stock-transfer",
+        "inter-warehouse-transfer",
+        "scanner",
+        "sales-orders",
+    },
+    "einkauf": {
+        "dashboard",
+        "products",
+        "inventory",
+        "purchasing",
+        "approvals",
+        "documents",
+        "reports",
+        "alerts",
+        "goods-receipt",
+        "scanner",
+        "services",
+        "sales-orders",
+        "invoices",
+    },
+    "versand": {
+        "dashboard",
+        "products",
+        "inventory",
+        "picking",
+        "returns",
+        "approvals",
+        "documents",
+        "alerts",
+        "goods-issue",
+        "shipping",
+        "scanner",
+        "services",
+        "sales-orders",
+        "invoices",
+    },
+    "controller": {"dashboard", "documents", "audit-trail", "reports", "alerts", "services", "sales-orders", "invoices"},
+    "auditor": {"documents", "audit-trail", "reports", "sales-orders", "invoices"},
+}
+
+PHASE5_DASHBOARD_CARDS: list[tuple[str, str, str, int]] = [
+    ("summary", "Zusammenfassung", "Kernmetriken", 10),
+    ("capacity", "Kapazität", "Lagerplatzauslastung", 20),
+    ("quick-actions", "Quick Actions", "Schnellzugriffe", 30),
+    ("recent-movements", "Letzte Bewegungen", "Neueste Bewegungsbuchungen", 40),
+    ("low-stock", "Niedrige Bestände", "Kritische Bestände", 50),
+    ("activity-today", "Aktivität heute", "Tagesaktivität", 60),
+    ("critical-alerts", "Kritische Alerts", "Offene kritische Alerts", 70),
+]
+
 
 def _expected_bin_codes(zone_code: str) -> list[str]:
     config = SEED_ZONE_CONFIGS[zone_code]
@@ -70,7 +279,11 @@ def _expected_bin_codes(zone_code: str) -> list[str]:
 async def _seed_roles(db: AsyncSession) -> dict[str, Role]:
     existing_roles = {
         role.name: role
-        for role in (await db.execute(select(Role))).scalars()
+        for role in (
+            await db.execute(
+                select(Role).options(selectinload(Role.permissions))
+            )
+        ).scalars()
     }
 
     for role_name, description in DEFAULT_ROLES:
@@ -84,6 +297,113 @@ async def _seed_roles(db: AsyncSession) -> dict[str, Role]:
 
     await db.flush()
     return existing_roles
+
+
+async def _seed_phase5_rbac_and_dashboard(db: AsyncSession, role_map: dict[str, Role]) -> None:
+    existing_permissions = {
+        permission.code: permission
+        for permission in (await db.execute(select(Permission))).scalars()
+    }
+    existing_pages = {
+        page.slug: page
+        for page in (await db.execute(select(AppPage))).scalars()
+    }
+    existing_cards = {
+        card.card_key: card
+        for card in (await db.execute(select(DashboardCard))).scalars()
+    }
+
+    permissions: list[tuple[str, str]] = [
+        *[(f"page.{slug}.view", f"View access for page '{slug}'") for slug, _, _ in PHASE5_PAGES],
+        *PHASE5_MODULE_PERMISSIONS,
+    ]
+
+    for code, description in permissions:
+        permission = existing_permissions.get(code)
+        if permission is None:
+            permission = Permission(code=code, description=description)
+            db.add(permission)
+            existing_permissions[code] = permission
+        else:
+            permission.description = description
+
+    for slug, title, description in PHASE5_PAGES:
+        page = existing_pages.get(slug)
+        if page is None:
+            page = AppPage(slug=slug, title=title, description=description)
+            db.add(page)
+            existing_pages[slug] = page
+        else:
+            page.title = title
+            page.description = description
+
+    await db.flush()
+
+    all_permission_codes = set(existing_permissions.keys())
+    for role_name, role in role_map.items():
+        modules = PHASE5_ROLE_MODULE_PERMISSIONS.get(role_name, set())
+        pages = PHASE5_ROLE_PAGE_ACCESS.get(role_name, set())
+
+        desired_codes: set[str]
+        if "*" in modules:
+            desired_codes = set(all_permission_codes)
+        else:
+            desired_codes = set(modules)
+            desired_codes.update({f"page.{slug}.view" for slug in pages})
+
+        desired_permission_ids = [
+            existing_permissions[code].id
+            for code in sorted(desired_codes)
+            if code in existing_permissions
+        ]
+        await db.execute(delete(role_permissions).where(role_permissions.c.role_id == role.id))
+        if desired_permission_ids:
+            await db.execute(
+                insert(role_permissions),
+                [{"role_id": role.id, "permission_id": permission_id} for permission_id in desired_permission_ids],
+            )
+
+    for card_key, title, description, default_order in PHASE5_DASHBOARD_CARDS:
+        card = existing_cards.get(card_key)
+        if card is None:
+            card = DashboardCard(
+                card_key=card_key,
+                title=title,
+                description=description,
+                default_order=default_order,
+                is_active=True,
+            )
+            db.add(card)
+            existing_cards[card_key] = card
+        else:
+            card.title = title
+            card.description = description
+            card.default_order = default_order
+            card.is_active = True
+
+    await db.flush()
+
+    existing_policies = {
+        (policy.role_id, policy.card_key): policy
+        for policy in (await db.execute(select(RoleDashboardPolicy))).scalars()
+    }
+    for role in role_map.values():
+        for card_key, _, _, _ in PHASE5_DASHBOARD_CARDS:
+            key = (role.id, card_key)
+            policy = existing_policies.get(key)
+            if policy is None:
+                policy = RoleDashboardPolicy(
+                    role_id=role.id,
+                    card_key=card_key,
+                    allowed=True,
+                    default_visible=True,
+                    locked=False,
+                )
+                db.add(policy)
+            else:
+                policy.allowed = True
+                policy.default_visible = True
+                policy.locked = False
 
 
 async def _seed_users(db: AsyncSession, role_map: dict[str, Role]) -> User:
@@ -442,6 +762,7 @@ async def seed_defaults(
     inventory_seed_size: int = 20,
 ) -> None:
     role_map = await _seed_roles(db)
+    await _seed_phase5_rbac_and_dashboard(db, role_map)
     admin_user = await _seed_users(db, role_map)
 
     if include_mvp:

@@ -26,6 +26,7 @@ class AuthUser(BaseModel):
     username: str
     email: str | None
     roles: list[str]
+    permissions: list[str] = Field(default_factory=list)
     is_active: bool
 
 

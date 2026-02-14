@@ -12,6 +12,17 @@
   --accent-strong: #0d3a80;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1722;
+  --panel: #172232;
+  --ink: #e9f0fa;
+  --muted: #9fb1c8;
+  --line: #2a3a4f;
+  --accent: #5ea2ff;
+  --accent-strong: #78b3ff;
+}
+
 body {
   margin: 0;
   background:
@@ -19,6 +30,12 @@ body {
     linear-gradient(145deg, #e7eef9 0%, var(--bg) 40%, #d9e3f0 100%);
   min-height: 100vh;
   color: var(--ink);
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 15% -10%, #1a2a3d 0%, transparent 45%),
+    linear-gradient(145deg, #111b29 0%, var(--bg) 40%, #0b1320 100%);
 }
 
 .page {

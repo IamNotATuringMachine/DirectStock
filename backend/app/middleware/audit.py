@@ -11,6 +11,7 @@ from starlette.responses import Response
 
 from app.database import AsyncSessionLocal
 from app.models.audit import AuditLog
+from app.models.auth import Role
 from app.models.inventory import GoodsIssue, GoodsReceipt, InventoryCountSession, StockTransfer
 from app.models.phase3 import (
     AbcClassificationRun,
@@ -23,6 +24,7 @@ from app.models.phase3 import (
     ReturnOrder,
 )
 from app.models.phase4 import IntegrationClient, InterWarehouseTransfer, Shipment
+from app.models.phase5 import AppPage, Invoice, SalesOrder, Service, UserUiPreference
 from app.models.purchasing import PurchaseOrder
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -52,6 +54,12 @@ _ENTITY_MODEL_MAP: dict[str, type[Any]] = {
     "integration-clients": IntegrationClient,
     "shipments": Shipment,
     "inter-warehouse-transfers": InterWarehouseTransfer,
+    "roles": Role,
+    "pages": AppPage,
+    "ui-preferences": UserUiPreference,
+    "services": Service,
+    "sales-orders": SalesOrder,
+    "invoices": Invoice,
 }
 
 
@@ -183,6 +191,16 @@ def _extract_entity_id_from_payload(entity: str, payload: Any) -> int | None:
     nested = payload.get("wave")
     if entity == "pick-waves" and isinstance(nested, dict):
         return _safe_int(nested.get("id"))
+
+    if entity == "sales-orders":
+        nested_order = payload.get("order")
+        if isinstance(nested_order, dict):
+            return _safe_int(nested_order.get("id"))
+
+    if entity == "invoices":
+        nested_invoice = payload.get("invoice")
+        if isinstance(nested_invoice, dict):
+            return _safe_int(nested_invoice.get("id"))
 
     return None
 

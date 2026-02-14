@@ -14,6 +14,7 @@ from app.models.auth import User
 from app.models.inventory import GoodsIssue, GoodsReceipt, InventoryCountSession, StockTransfer
 from app.models.phase3 import ApprovalRequest, ApprovalRule, Document, PickTask, PickWave, ReturnOrder
 from app.models.phase4 import InterWarehouseTransfer, Shipment
+from app.models.phase5 import Invoice, SalesOrder, Service
 from app.models.purchasing import PurchaseOrder
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 from app.schemas.phase3 import DocumentListResponse, DocumentResponse
@@ -46,6 +47,9 @@ _ENTITY_MODEL_MAP: dict[str, type] = {
     "warehouse": Warehouse,
     "zone": WarehouseZone,
     "bin": BinLocation,
+    "sales_order": SalesOrder,
+    "invoice": Invoice,
+    "service": Service,
 }
 
 

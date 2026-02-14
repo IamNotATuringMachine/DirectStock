@@ -24,6 +24,8 @@ _OFFLINE_ENDPOINT_PREFIXES = (
     "/api/inter-warehouse-transfers",
     "/api/shipments",
     "/api/carriers",
+    "/api/sales-orders",
+    "/api/invoices",
 )
 
 

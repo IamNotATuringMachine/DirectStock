@@ -44,6 +44,8 @@ const OFFLINE_SCOPE_PREFIXES = [
   "/return-orders",
   "/inter-warehouse-transfers",
   "/shipments",
+  "/sales-orders",
+  "/invoices",
 ];
 
 function isOfflineScope(url: string): boolean {

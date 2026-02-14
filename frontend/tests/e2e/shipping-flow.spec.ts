@@ -1,9 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { createE2EUserWithRoles } from "./helpers/api";
 
-test("shipping flow supports create label tracking and cancel", async ({ page }) => {
+test("shipping flow supports create label tracking and cancel", async ({ page, request }) => {
+  const user = await createE2EUserWithRoles(request, ["admin"]);
+
   await page.goto("/login");
-  await page.getByTestId("login-username").fill(process.env.E2E_ADMIN_USERNAME ?? "admin");
-  await page.getByTestId("login-password").fill(process.env.E2E_ADMIN_PASSWORD ?? "DirectStock2026!");
+  await page.getByTestId("login-username").fill(user.username);
+  await page.getByTestId("login-password").fill(user.password);
   await page.getByTestId("login-submit").click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -17,7 +20,9 @@ test("shipping flow supports create label tracking and cancel", async ({ page })
   await page.getByTestId("shipping-create-btn").click();
 
   await expect.poll(async () => await page.locator('[data-testid^="shipping-item-"]').count()).toBeGreaterThan(0);
-  await page.locator('[data-testid^="shipping-item-"]').first().click();
+  await expect
+    .poll(async () => (await page.getByTestId("shipping-selected-status").textContent()) ?? "")
+    .toContain("Status: draft");
 
   await page.getByTestId("shipping-create-label-btn").click();
   await expect

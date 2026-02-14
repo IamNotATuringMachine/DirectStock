@@ -13,13 +13,21 @@ from app.utils.security import (
 
 
 async def get_user_by_username(db: AsyncSession, username: str) -> User | None:
-    stmt = select(User).where(User.username == username).options(selectinload(User.roles))
+    stmt = (
+        select(User)
+        .where(User.username == username)
+        .options(selectinload(User.roles).selectinload(Role.permissions))
+    )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
-    stmt = select(User).where(User.id == user_id).options(selectinload(User.roles))
+    stmt = (
+        select(User)
+        .where(User.id == user_id)
+        .options(selectinload(User.roles).selectinload(Role.permissions))
+    )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -35,6 +43,10 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> U
 
 def _user_roles(user: User) -> list[str]:
     return sorted(role.name for role in user.roles)
+
+
+def _user_permissions(user: User) -> list[str]:
+    return sorted({permission.code for role in user.roles for permission in role.permissions})
 
 
 def create_token_response(user: User, access_expire_minutes: int) -> TokenResponse:
@@ -64,6 +76,7 @@ def to_auth_user(user: User) -> AuthUser:
         username=user.username,
         email=user.email,
         roles=_user_roles(user),
+        permissions=_user_permissions(user),
         is_active=user.is_active,
     )
 
