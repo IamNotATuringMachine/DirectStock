@@ -104,6 +104,8 @@ def _webhook_secret_for_carrier(carrier: str) -> str:
 async def list_shipments(
     status_filter: str | None = Query(default=None, alias="status"),
     carrier: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*READ_ROLES)),
 ) -> list[ShipmentResponse]:
@@ -112,7 +114,13 @@ async def list_shipments(
         stmt = stmt.where(Shipment.status == status_filter)
     if carrier:
         stmt = stmt.where(Shipment.carrier == carrier.strip().lower())
-    rows = list((await db.execute(stmt)).scalars())
+    rows = list(
+        (
+            await db.execute(
+                stmt.offset((page - 1) * page_size).limit(page_size)
+            )
+        ).scalars()
+    )
     return [_to_shipment_response(row) for row in rows]
 
 

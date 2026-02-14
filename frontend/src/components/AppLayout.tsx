@@ -110,8 +110,11 @@ const navItems: NavItem[] = [
   },
 ];
 
+const IDLE_LOGOUT_MS = 30 * 60 * 1000;
+
 export default function AppLayout() {
   const user = useAuthStore((state) => state.user);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const logout = useAuthStore((state) => state.logout);
   const location = useLocation();
 
@@ -163,6 +166,41 @@ export default function AppLayout() {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [isMobileLayout, isMobileNavOpen]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+
+    let timeoutId: number | null = null;
+    const resetIdleTimer = () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      timeoutId = window.setTimeout(() => {
+        void logout();
+      }, IDLE_LOGOUT_MS);
+    };
+
+    const activityEvents: Array<keyof WindowEventMap> = [
+      "mousemove",
+      "keydown",
+      "click",
+      "touchstart",
+      "scroll",
+    ];
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      activityEvents.forEach((eventName) =>
+        window.removeEventListener(eventName, resetIdleTimer as EventListenerOrEventListenerObject)
+      );
+    };
+  }, [accessToken, logout]);
 
   const onToggleNavigation = () => {
     if (isMobileLayout) {

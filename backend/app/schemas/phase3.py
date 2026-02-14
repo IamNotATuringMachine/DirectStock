@@ -248,7 +248,6 @@ class DocumentResponse(BaseModel):
     file_name: str
     mime_type: str
     file_size: int
-    storage_path: str
     version: int
     uploaded_by: int | None
     created_at: datetime
@@ -258,6 +257,8 @@ class DocumentResponse(BaseModel):
 class DocumentListResponse(BaseModel):
     items: list[DocumentResponse]
     total: int
+    page: int
+    page_size: int
 
 
 class AuditLogEntryResponse(BaseModel):

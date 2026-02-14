@@ -38,6 +38,10 @@ async function invalidateAfterSync(queryClient: ReturnType<typeof useQueryClient
     queryClient.invalidateQueries({ queryKey: ["inventory"] }),
     queryClient.invalidateQueries({ queryKey: ["inventory-summary"] }),
     queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }),
+    queryClient.invalidateQueries({ queryKey: ["inter-warehouse-transfers"] }),
+    queryClient.invalidateQueries({ queryKey: ["inter-warehouse-transfer-detail"] }),
+    queryClient.invalidateQueries({ queryKey: ["shipments"] }),
+    queryClient.invalidateQueries({ queryKey: ["shipment-tracking"] }),
   ]);
 }
 

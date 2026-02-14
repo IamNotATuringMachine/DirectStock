@@ -18,11 +18,8 @@ import ReturnsPage from "./pages/ReturnsPage";
 import ScannerPage from "./pages/ScannerPage";
 import ShippingPage from "./pages/ShippingPage";
 import StockTransferPage from "./pages/StockTransferPage";
+import UsersPage from "./pages/UsersPage";
 import WarehousePage from "./pages/WarehousePage";
-
-function UsersPage() {
-  return <h2>Benutzerverwaltung</h2>;
-}
 
 export {
   AlertsPage,

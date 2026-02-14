@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import ScanFeedback from "../components/scanner/ScanFeedback";
 import WorkflowScanInput from "../components/scanner/WorkflowScanInput";
-import { fetchProductByEan, fetchProductByQr, fetchProducts } from "../services/productsApi";
+import { fetchAllProducts, fetchProductByEan, fetchProductByQr } from "../services/productsApi";
 import {
   cancelInterWarehouseTransfer,
   createInterWarehouseTransfer,
@@ -51,7 +51,7 @@ export default function InterWarehouseTransferPage() {
 
   const productsQuery = useQuery({
     queryKey: ["products", "inter-warehouse-transfer-picker"],
-    queryFn: () => fetchProducts({ page: 1, pageSize: 200 }),
+    queryFn: () => fetchAllProducts(),
   });
 
   const transfersQuery = useQuery({

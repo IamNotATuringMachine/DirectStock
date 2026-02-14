@@ -30,6 +30,44 @@ export async function fetchProducts(params: ProductListParams): Promise<ProductL
   return response.data;
 }
 
+export async function fetchAllProducts(params?: {
+  search?: string;
+  groupId?: number;
+  status?: ProductStatus;
+  maxPages?: number;
+}): Promise<ProductListResponse> {
+  const pageSize = 200;
+  const maxPages = params?.maxPages ?? 100;
+  let page = 1;
+  let total = 0;
+  const items: Product[] = [];
+
+  while (page <= maxPages) {
+    const response = await fetchProducts({
+      page,
+      pageSize,
+      search: params?.search,
+      groupId: params?.groupId,
+      status: params?.status,
+    });
+
+    total = response.total;
+    items.push(...response.items);
+
+    if (items.length >= response.total || response.items.length === 0) {
+      break;
+    }
+    page += 1;
+  }
+
+  return {
+    items,
+    total: total || items.length,
+    page: 1,
+    page_size: items.length || pageSize,
+  };
+}
+
 export async function fetchProductGroups(): Promise<ProductGroup[]> {
   const response = await api.get<ProductGroup[]>("/product-groups");
   return response.data;

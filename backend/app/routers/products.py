@@ -79,7 +79,7 @@ async def list_products(
     stmt = (
         select(Product)
         .options(joinedload(Product.group))
-        .order_by(Product.id.asc())
+        .order_by(Product.id.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )

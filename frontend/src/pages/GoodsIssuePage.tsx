@@ -13,7 +13,7 @@ import {
   fetchGoodsIssueItems,
   fetchGoodsIssues,
 } from "../services/operationsApi";
-import { fetchProductByEan, fetchProductByQr, fetchProducts } from "../services/productsApi";
+import { fetchAllProducts, fetchProductByEan, fetchProductByQr } from "../services/productsApi";
 import { fetchBinByQr, fetchBins, fetchWarehouses, fetchZones } from "../services/warehousesApi";
 import type { BinLocation, InventoryByBinItem, Product } from "../types";
 import { parseScanValue } from "../utils/scannerUtils";
@@ -64,7 +64,7 @@ export default function GoodsIssuePage() {
 
   const productsQuery = useQuery({
     queryKey: ["products", "goods-issue-picker"],
-    queryFn: () => fetchProducts({ page: 1, pageSize: 200 }),
+    queryFn: () => fetchAllProducts(),
   });
 
   const customersQuery = useQuery({

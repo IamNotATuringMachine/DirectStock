@@ -2,6 +2,10 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.config import get_settings
+
+settings = get_settings()
+
 
 def _build_error(
     *,
@@ -59,10 +63,14 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
+        if settings.environment.strip().lower() in {"development", "dev", "test"}:
+            details = {"error": exc.__class__.__name__}
+        else:
+            details = None
         return _build_error(
             request=request,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             code="internal_error",
             message="Internal server error",
-            details=str(exc),
+            details=details,
         )

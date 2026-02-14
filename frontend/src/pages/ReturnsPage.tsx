@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchProducts } from "../services/productsApi";
+import { fetchAllProducts } from "../services/productsApi";
 import {
   createReturnOrder,
   createReturnOrderItem,
@@ -34,7 +34,7 @@ export default function ReturnsPage() {
 
   const productsQuery = useQuery({
     queryKey: ["products", "returns-picker"],
-    queryFn: () => fetchProducts({ page: 1, pageSize: 200 }),
+    queryFn: () => fetchAllProducts(),
   });
 
   const itemsQuery = useQuery({

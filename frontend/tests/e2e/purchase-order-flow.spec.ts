@@ -4,7 +4,7 @@ import { ensureE2EProduct, ensureE2ESupplier, loginAsAdminApi } from "./helpers/
 
 test("purchase order flow creates order, item and status transition", async ({ page, request }) => {
   const token = await loginAsAdminApi(request);
-  const productNumber = await ensureE2EProduct(request, token, `E2E-PO-${Date.now()}`);
+  const productNumber = await ensureE2EProduct(request, token, `000-E2E-PO-${Date.now()}`);
   const supplier = await ensureE2ESupplier(request, token);
 
   await page.goto("/login");

@@ -11,7 +11,7 @@ import {
   fetchGoodsReceiptItems,
   fetchGoodsReceipts,
 } from "../services/operationsApi";
-import { fetchProductByEan, fetchProductByQr, fetchProducts } from "../services/productsApi";
+import { fetchAllProducts, fetchProductByEan, fetchProductByQr } from "../services/productsApi";
 import { fetchSuppliers } from "../services/suppliersApi";
 import { fetchBinByQr, fetchBins, fetchWarehouses, fetchZones } from "../services/warehousesApi";
 import type { BinLocation, Product } from "../types";
@@ -61,7 +61,7 @@ export default function GoodsReceiptPage() {
 
   const productsQuery = useQuery({
     queryKey: ["products", "goods-receipt-picker"],
-    queryFn: () => fetchProducts({ page: 1, pageSize: 200 }),
+    queryFn: () => fetchAllProducts(),
   });
 
   const suppliersQuery = useQuery({

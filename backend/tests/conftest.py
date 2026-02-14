@@ -13,7 +13,7 @@ os.environ.setdefault("ASYNC_DATABASE_URL", f"sqlite+aiosqlite:///{test_db_path}
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_USERNAME", "admin")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_EMAIL", "admin@example.com")
-os.environ.setdefault("DIRECTSTOCK_ADMIN_PASSWORD", "DirectStock2026!")
+os.environ.setdefault("DIRECTSTOCK_ADMIN_PASSWORD", "change-me-admin-password")
 
 from app.bootstrap import seed_defaults
 from app.database import AsyncSessionLocal, engine
@@ -59,7 +59,7 @@ async def client(setup_database) -> AsyncGenerator[AsyncClient, None]:
 async def admin_token(client: AsyncClient) -> str:
     response = await client.post(
         "/api/auth/login",
-        json={"username": "admin", "password": "DirectStock2026!"},
+        json={"username": "admin", "password": "change-me-admin-password"},
     )
     payload = response.json()
     return payload["access_token"]

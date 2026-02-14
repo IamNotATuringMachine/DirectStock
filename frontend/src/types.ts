@@ -15,6 +15,37 @@ export type AuthUser = {
   is_active: boolean;
 };
 
+export type User = {
+  id: number;
+  username: string;
+  email: string | null;
+  full_name: string | null;
+  is_active: boolean;
+  roles: RoleName[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserListResponse = {
+  items: User[];
+};
+
+export type UserCreatePayload = {
+  username: string;
+  email?: string | null;
+  full_name?: string | null;
+  password: string;
+  roles: RoleName[];
+  is_active: boolean;
+};
+
+export type UserUpdatePayload = {
+  email?: string | null;
+  full_name?: string | null;
+  is_active?: boolean;
+  roles?: RoleName[];
+};
+
 export type TokenResponse = {
   access_token: string;
   refresh_token: string;
@@ -667,7 +698,6 @@ export type DocumentFile = {
   file_name: string;
   mime_type: string;
   file_size: number;
-  storage_path: string;
   version: number;
   uploaded_by: number | null;
   created_at: string;
@@ -677,6 +707,8 @@ export type DocumentFile = {
 export type DocumentFileListResponse = {
   items: DocumentFile[];
   total: number;
+  page: number;
+  page_size: number;
 };
 
 export type AuditLogEntry = {

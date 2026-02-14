@@ -22,6 +22,8 @@ frontend/playwright-report/
 test-results/
 frontend/test-results/
 output/
+backend/.documents/
+backend/directstock_backend.egg-info/
 
 
 # Env

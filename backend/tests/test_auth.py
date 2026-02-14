@@ -6,7 +6,7 @@ from httpx import AsyncClient
 async def test_login_success(client: AsyncClient):
     response = await client.post(
         "/api/auth/login",
-        json={"username": "admin", "password": "DirectStock2026!"},
+        json={"username": "admin", "password": "change-me-admin-password"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -29,7 +29,7 @@ async def test_login_failure(client: AsyncClient):
 async def test_refresh_success(client: AsyncClient):
     login = await client.post(
         "/api/auth/login",
-        json={"username": "admin", "password": "DirectStock2026!"},
+        json={"username": "admin", "password": "change-me-admin-password"},
     )
     refresh_token = login.json()["refresh_token"]
 
@@ -57,7 +57,7 @@ async def test_me(client: AsyncClient, admin_token: str):
 async def test_logout_revokes_tokens(client: AsyncClient):
     login = await client.post(
         "/api/auth/login",
-        json={"username": "admin", "password": "DirectStock2026!"},
+        json={"username": "admin", "password": "change-me-admin-password"},
     )
     access_token = login.json()["access_token"]
     refresh_token = login.json()["refresh_token"]

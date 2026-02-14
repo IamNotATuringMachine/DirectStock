@@ -1,4 +1,5 @@
 from io import BytesIO
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -6,12 +7,32 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_document_upload_list_download_delete(client: AsyncClient, admin_token: str):
+    suffix = uuid4().hex[:8].upper()
+    supplier = await client.post(
+        "/api/suppliers",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "supplier_number": f"DOC-SUP-{suffix}",
+            "company_name": "Document Supplier",
+            "is_active": True,
+        },
+    )
+    assert supplier.status_code == 201
+
+    order = await client.post(
+        "/api/purchase-orders",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"supplier_id": supplier.json()["id"], "notes": "Document test"},
+    )
+    assert order.status_code == 201
+    order_id = order.json()["id"]
+
     files = {
         "file": ("sample.pdf", BytesIO(b"%PDF-1.4\n%test\n"), "application/pdf"),
     }
     data = {
         "entity_type": "purchase_order",
-        "entity_id": "1",
+        "entity_id": str(order_id),
         "document_type": "attachment",
     }
 
@@ -25,7 +46,7 @@ async def test_document_upload_list_download_delete(client: AsyncClient, admin_t
     doc_id = uploaded.json()["id"]
 
     listed = await client.get(
-        "/api/documents?entity_type=purchase_order&entity_id=1&document_type=attachment",
+        f"/api/documents?entity_type=purchase_order&entity_id={order_id}&document_type=attachment",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert listed.status_code == 200

@@ -42,6 +42,8 @@ const OFFLINE_SCOPE_PREFIXES = [
   "/pick-waves",
   "/pick-tasks",
   "/return-orders",
+  "/inter-warehouse-transfers",
+  "/shipments",
 ];
 
 function isOfflineScope(url: string): boolean {

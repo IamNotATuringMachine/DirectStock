@@ -187,7 +187,7 @@ async def _create_completed_inventory_count(client: AsyncClient, admin_token: st
 
 
 @pytest.mark.asyncio
-async def test_reports_stock_and_csv(client: AsyncClient, admin_token: str):
+async def test_reports_stock_exports(client: AsyncClient, admin_token: str):
     prefix = f"RPST-{_suffix()}"
     data = await _create_master_data(client, admin_token, prefix)
     await _receive_stock(client, admin_token, product_id=data["product_a_id"], bin_id=data["bin_id"], quantity="8")
@@ -209,6 +209,22 @@ async def test_reports_stock_and_csv(client: AsyncClient, admin_token: str):
     assert stock_csv.headers["content-type"].startswith("text/csv")
     assert "product_number" in stock_csv.text
     assert data["product_a_number"] in stock_csv.text
+
+    stock_xlsx = await client.get(
+        f"/api/reports/stock?format=xlsx&search={data['product_a_number']}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert stock_xlsx.status_code == 200
+    assert stock_xlsx.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    stock_pdf = await client.get(
+        f"/api/reports/stock?format=pdf&search={data['product_a_number']}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert stock_pdf.status_code == 200
+    assert stock_pdf.headers["content-type"].startswith("application/pdf")
 
 
 @pytest.mark.asyncio

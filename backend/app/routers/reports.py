@@ -1,10 +1,16 @@
 import csv
 import io
+import json
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from openpyxl import Workbook
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -53,6 +59,7 @@ from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 REPORTS_READ_ROLES = ("admin", "lagerleiter", "einkauf", "controller", "auditor")
+ExportFormat = Literal["json", "csv", "xlsx", "pdf"]
 
 
 def _quantize(value: Decimal, digits: str = "0.01") -> Decimal:
@@ -73,22 +80,104 @@ def _date_bounds(date_from: date | None, date_to: date | None) -> tuple[date, da
     return start_day, end_day, start, end
 
 
+def _serialize_tabular_value(value: object) -> object:
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=True)
+    return value
+
+
+def _normalize_tabular_rows(fieldnames: list[str], rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    normalized: list[dict[str, object]] = []
+    for row in rows:
+        normalized.append({field: _serialize_tabular_value(row.get(field)) for field in fieldnames})
+    return normalized
+
+
 def _csv_response(fieldnames: list[str], rows: list[dict[str, object]], filename: str) -> Response:
+    normalized_rows = _normalize_tabular_rows(fieldnames, rows)
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=fieldnames)
     writer.writeheader()
-    for row in rows:
-        writer.writerow(
-            {
-                key: value.isoformat() if isinstance(value, (datetime, date)) else value
-                for key, value in row.items()
-            }
-        )
+    for row in normalized_rows:
+        writer.writerow(row)
     return Response(
         content=buffer.getvalue(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _xlsx_response(fieldnames: list[str], rows: list[dict[str, object]], filename: str) -> Response:
+    normalized_rows = _normalize_tabular_rows(fieldnames, rows)
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Report"
+    worksheet.append(fieldnames)
+    for row in normalized_rows:
+        worksheet.append([row.get(field) for field in fieldnames])
+
+    output = io.BytesIO()
+    workbook.save(output)
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _pdf_response(fieldnames: list[str], rows: list[dict[str, object]], filename: str) -> Response:
+    normalized_rows = _normalize_tabular_rows(fieldnames, rows)
+    table_data: list[list[str]] = [fieldnames]
+    for row in normalized_rows:
+        table_data.append([str(row.get(field) or "") for field in fieldnames])
+
+    buffer = io.BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=8 * mm,
+        rightMargin=8 * mm,
+        topMargin=8 * mm,
+        bottomMargin=8 * mm,
+    )
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E5E7EB")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#111827")),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 8),
+                ("FONTSIZE", (0, 1), (-1, -1), 7),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#9CA3AF")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    document.build([table])
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _tabular_response(
+    *,
+    output_format: Literal["csv", "xlsx", "pdf"],
+    fieldnames: list[str],
+    rows: list[dict[str, object]],
+    basename: str,
+) -> Response:
+    if output_format == "csv":
+        return _csv_response(fieldnames=fieldnames, rows=rows, filename=f"{basename}.csv")
+    if output_format == "xlsx":
+        return _xlsx_response(fieldnames=fieldnames, rows=rows, filename=f"{basename}.xlsx")
+    return _pdf_response(fieldnames=fieldnames, rows=rows, filename=f"{basename}.pdf")
 
 
 def _build_inventory_accuracy(
@@ -150,7 +239,7 @@ async def report_stock(
     page_size: int = Query(default=50, ge=1, le=500),
     search: str | None = Query(default=None),
     warehouse_id: int | None = Query(default=None),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportStockResponse | Response:
@@ -200,8 +289,9 @@ async def report_stock(
         for row in rows
     ]
 
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "product_id",
                 "product_number",
@@ -212,7 +302,7 @@ async def report_stock(
                 "unit",
             ],
             rows=[item.model_dump() for item in items],
-            filename="reports-stock.csv",
+            basename="reports-stock",
         )
 
     return ReportStockResponse(items=items, total=total, page=page, page_size=page_size)
@@ -226,7 +316,7 @@ async def report_movements(
     date_to: date | None = Query(default=None),
     product_id: int | None = Query(default=None),
     movement_type: str | None = Query(default=None),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportMovementResponse | Response:
@@ -284,8 +374,9 @@ async def report_movements(
         for row in rows
     ]
 
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "id",
                 "movement_type",
@@ -300,7 +391,7 @@ async def report_movements(
                 "performed_at",
             ],
             rows=[item.model_dump() for item in items],
-            filename="reports-movements.csv",
+            basename="reports-movements",
         )
 
     return ReportMovementResponse(items=items, total=total, page=page, page_size=page_size)
@@ -310,7 +401,7 @@ async def report_movements(
 async def report_inbound_outbound(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportInboundOutboundResponse | Response:
@@ -356,8 +447,9 @@ async def report_inbound_outbound(
         for row in rows
     ]
 
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "day",
                 "inbound_quantity",
@@ -367,7 +459,7 @@ async def report_inbound_outbound(
                 "movement_count",
             ],
             rows=[item.model_dump() for item in items],
-            filename="reports-inbound-outbound.csv",
+            basename="reports-inbound-outbound",
         )
 
     return ReportInboundOutboundResponse(items=items)
@@ -377,7 +469,7 @@ async def report_inbound_outbound(
 async def report_inventory_accuracy(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportInventoryAccuracyResponse | Response:
@@ -416,8 +508,9 @@ async def report_inventory_accuracy(
     ).all()
 
     sessions, payload = _build_inventory_accuracy(rows)
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "session_id",
                 "session_number",
@@ -429,7 +522,7 @@ async def report_inventory_accuracy(
                 "accuracy_percent",
             ],
             rows=[item.model_dump() for item in sessions],
-            filename="reports-inventory-accuracy.csv",
+            basename="reports-inventory-accuracy",
         )
     return payload
 
@@ -439,7 +532,7 @@ async def report_abc(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     search: str | None = Query(default=None),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportAbcResponse | Response:
@@ -495,8 +588,9 @@ async def report_abc(
             )
         )
 
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "rank",
                 "product_id",
@@ -508,7 +602,7 @@ async def report_abc(
                 "category",
             ],
             rows=[item.model_dump() for item in items],
-            filename="reports-abc.csv",
+            basename="reports-abc",
         )
     return ReportAbcResponse(items=items)
 
@@ -519,7 +613,7 @@ async def report_returns(
     page_size: int = Query(default=50, ge=1, le=500),
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportReturnsResponse | Response:
@@ -565,8 +659,9 @@ async def report_returns(
         for row in rows
     ]
 
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "return_order_id",
                 "return_number",
@@ -579,7 +674,7 @@ async def report_returns(
                 "created_at",
             ],
             rows=[item.model_dump() for item in items],
-            filename="reports-returns.csv",
+            basename="reports-returns",
         )
 
     return ReportReturnsResponse(items=items, total=total, page=page, page_size=page_size)
@@ -591,7 +686,7 @@ async def report_picking_performance(
     page_size: int = Query(default=50, ge=1, le=500),
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportPickingPerformanceResponse | Response:
@@ -644,8 +739,9 @@ async def report_picking_performance(
             )
         )
 
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "wave_id",
                 "wave_number",
@@ -659,7 +755,7 @@ async def report_picking_performance(
                 "completed_at",
             ],
             rows=[item.model_dump() for item in items],
-            filename="reports-picking-performance.csv",
+            basename="reports-picking-performance",
         )
 
     return ReportPickingPerformanceResponse(items=items, total=total, page=page, page_size=page_size)
@@ -670,7 +766,7 @@ async def report_purchase_recommendations(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=500),
     status_filter: str | None = Query(default=None, alias="status"),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> ReportPurchaseRecommendationResponse | Response:
@@ -704,8 +800,9 @@ async def report_purchase_recommendations(
         for item in rows
     ]
 
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "recommendation_id",
                 "product_id",
@@ -718,7 +815,7 @@ async def report_purchase_recommendations(
                 "generated_at",
             ],
             rows=[item.model_dump() for item in items],
-            filename="reports-purchase-recommendations.csv",
+            basename="reports-purchase-recommendations",
         )
 
     return ReportPurchaseRecommendationResponse(items=items, total=total, page=page, page_size=page_size)
@@ -730,7 +827,7 @@ async def report_trends(
     date_to: date | None = Query(default=None),
     product_id: int | None = Query(default=None),
     warehouse_id: int | None = Query(default=None),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> TrendResponse | Response:
@@ -774,11 +871,12 @@ async def report_trends(
         for row in rows
     ]
 
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=["day", "product_id", "product_number", "product_name", "outbound_quantity"],
             rows=[item.model_dump() for item in items],
-            filename="reports-trends.csv",
+            basename="reports-trends",
         )
     return TrendResponse(items=items)
 
@@ -790,7 +888,7 @@ async def report_demand_forecast(
     warehouse_id: int | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=500),
-    output: Literal["json", "csv"] = Query(default="json", alias="format"),
+    output: ExportFormat = Query(default="json", alias="format"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*REPORTS_READ_ROLES)),
 ) -> DemandForecastResponse | Response:
@@ -839,8 +937,9 @@ async def report_demand_forecast(
         )
         for row in rows
     ]
-    if output == "csv":
-        return _csv_response(
+    if output != "json":
+        return _tabular_response(
+            output_format=output,
             fieldnames=[
                 "run_id",
                 "product_id",
@@ -856,7 +955,7 @@ async def report_demand_forecast(
                 "forecast_qty_90",
             ],
             rows=[item.model_dump() for item in items],
-            filename="reports-demand-forecast.csv",
+            basename="reports-demand-forecast",
         )
     return DemandForecastResponse(items=items, total=total)
 

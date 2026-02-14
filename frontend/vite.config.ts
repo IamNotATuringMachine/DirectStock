@@ -45,12 +45,13 @@ export default defineConfig({
           {
             urlPattern:
               /\/api\/(products|product-groups|warehouses|zones|bins)(?:\/.*)?(?:\?.*)?$/,
-            handler: "StaleWhileRevalidate",
+            handler: "NetworkFirst",
             options: {
               cacheName: "api-master-data",
+              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24,
+                maxAgeSeconds: 60 * 60 * 12,
               },
             },
           },

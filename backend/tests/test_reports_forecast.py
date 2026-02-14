@@ -126,6 +126,14 @@ async def test_reports_trends_and_demand_forecast(client: AsyncClient, admin_tok
     assert trends.status_code == 200
     assert len(trends.json()["items"]) >= 1
 
+    trends_pdf = await client.get(
+        "/api/reports/trends",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        params={"warehouse_id": data["warehouse_id"], "format": "pdf"},
+    )
+    assert trends_pdf.status_code == 200
+    assert trends_pdf.headers["content-type"].startswith("application/pdf")
+
     forecast = await client.get(
         "/api/reports/demand-forecast",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -133,3 +141,13 @@ async def test_reports_trends_and_demand_forecast(client: AsyncClient, admin_tok
     )
     assert forecast.status_code == 200
     assert forecast.json()["total"] >= 1
+
+    forecast_xlsx = await client.get(
+        "/api/reports/demand-forecast",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        params={"warehouse_id": data["warehouse_id"], "format": "xlsx"},
+    )
+    assert forecast_xlsx.status_code == 200
+    assert forecast_xlsx.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )

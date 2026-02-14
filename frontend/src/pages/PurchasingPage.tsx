@@ -15,7 +15,7 @@ import {
   fetchPurchaseOrders,
   updatePurchaseOrderStatus,
 } from "../services/purchasingApi";
-import { fetchProducts } from "../services/productsApi";
+import { fetchAllProducts } from "../services/productsApi";
 import { fetchSuppliers } from "../services/suppliersApi";
 import type { PurchaseOrder } from "../types";
 
@@ -50,7 +50,7 @@ export default function PurchasingPage() {
 
   const productsQuery = useQuery({
     queryKey: ["products", "purchasing-picker"],
-    queryFn: () => fetchProducts({ page: 1, pageSize: 200 }),
+    queryFn: () => fetchAllProducts(),
     enabled: tab === "orders",
   });
 

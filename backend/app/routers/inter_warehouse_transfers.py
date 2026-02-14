@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from secrets import token_hex
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -146,10 +146,21 @@ def _to_item_response(item: InterWarehouseTransferItem) -> InterWarehouseTransfe
 
 @router.get("", response_model=list[InterWarehouseTransferResponse])
 async def list_inter_warehouse_transfers(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_roles(*READ_ROLES)),
 ) -> list[InterWarehouseTransferResponse]:
-    rows = list((await db.execute(select(InterWarehouseTransfer).order_by(InterWarehouseTransfer.id.desc()))).scalars())
+    rows = list(
+        (
+            await db.execute(
+                select(InterWarehouseTransfer)
+                .order_by(InterWarehouseTransfer.id.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+        ).scalars()
+    )
     return [_to_transfer_response(row) for row in rows]
 
 
