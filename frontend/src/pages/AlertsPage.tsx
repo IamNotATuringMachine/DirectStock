@@ -111,7 +111,7 @@ export default function AlertsPage() {
       </div>
 
       <div className="table-wrap">
-        <table className="products-table" data-testid="alerts-table">
+        <table className="products-table mobile-cards-table" data-testid="alerts-table">
           <thead>
             <tr>
               <th>Zeit</th>
@@ -125,15 +125,15 @@ export default function AlertsPage() {
           <tbody>
             {(alertsQuery.data?.items ?? []).map((alert) => (
               <tr key={alert.id} data-testid={`alerts-row-${alert.id}`}>
-                <td>{new Date(alert.triggered_at).toLocaleString()}</td>
-                <td>{alert.severity}</td>
-                <td>{alert.alert_type}</td>
-                <td>
+                <td data-label="Zeit">{new Date(alert.triggered_at).toLocaleString()}</td>
+                <td data-label="Severity">{alert.severity}</td>
+                <td data-label="Typ">{alert.alert_type}</td>
+                <td data-label="Titel">
                   <strong>{alert.title}</strong>
                   <div>{alert.message}</div>
                 </td>
-                <td>{alert.status}</td>
-                <td>
+                <td data-label="Status">{alert.status}</td>
+                <td data-label="Aktion" className="actions-cell">
                   <button
                     className="btn"
                     onClick={() => void ackMutation.mutateAsync(alert.id)}

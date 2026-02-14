@@ -255,7 +255,7 @@ export default function ShippingPage() {
               </div>
 
               <div className="table-wrap">
-                <table className="products-table" data-testid="shipping-tracking-table">
+                <table className="products-table mobile-cards-table" data-testid="shipping-tracking-table">
                   <thead>
                     <tr>
                       <th>Zeit</th>
@@ -268,11 +268,11 @@ export default function ShippingPage() {
                   <tbody>
                     {(trackingQuery.data?.events ?? []).map((event) => (
                       <tr key={event.id}>
-                        <td>{new Date(event.event_at).toLocaleString()}</td>
-                        <td>{event.event_type}</td>
-                        <td>{event.status}</td>
-                        <td>{event.source}</td>
-                        <td>{event.description ?? "-"}</td>
+                        <td data-label="Zeit">{new Date(event.event_at).toLocaleString()}</td>
+                        <td data-label="Event">{event.event_type}</td>
+                        <td data-label="Status">{event.status}</td>
+                        <td data-label="Quelle">{event.source}</td>
+                        <td data-label="Beschreibung">{event.description ?? "-"}</td>
                       </tr>
                     ))}
                     {!trackingQuery.isLoading && (trackingQuery.data?.events.length ?? 0) === 0 ? (

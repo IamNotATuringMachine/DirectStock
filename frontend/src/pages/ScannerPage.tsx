@@ -184,7 +184,7 @@ export default function ScannerPage() {
   const displayedHistory = useMemo(() => recentScans.slice(0, 12), [recentScans]);
 
   return (
-    <section className="panel">
+    <section className="panel" data-testid="scanner-page">
       <ExternalScannerListener onScan={(value) => void runLookup(value, "external")} />
 
       <header className="panel-header">

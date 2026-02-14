@@ -116,7 +116,7 @@ export default function InventoryPage() {
       </div>
 
       <div className="table-wrap">
-        <table className="products-table" data-testid="inventory-table">
+        <table className="products-table mobile-cards-table" data-testid="inventory-table">
           <thead>
             <tr>
               <th>Artikelnr.</th>
@@ -135,12 +135,12 @@ export default function InventoryPage() {
                 className="inventory-row-clickable"
                 onClick={() => setSelectedProduct(row)}
               >
-                <td>{row.product_number}</td>
-                <td>{row.product_name}</td>
-                <td>{row.total_quantity}</td>
-                <td>{row.reserved_quantity}</td>
-                <td>{row.available_quantity}</td>
-                <td>{row.unit}</td>
+                <td data-label="Artikelnr.">{row.product_number}</td>
+                <td data-label="Bezeichnung">{row.product_name}</td>
+                <td data-label="Gesamt">{row.total_quantity}</td>
+                <td data-label="Reserviert">{row.reserved_quantity}</td>
+                <td data-label="Verfügbar">{row.available_quantity}</td>
+                <td data-label="Einheit">{row.unit}</td>
               </tr>
             ))}
           </tbody>

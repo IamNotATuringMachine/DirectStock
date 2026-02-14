@@ -7,19 +7,15 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
-export default function PwaStatus() {
-  const {
-    needRefresh,
-    offlineReady,
-    updateServiceWorker,
-    dismissNotification,
-  } = usePwaRegistration();
+type PwaStatusProps = {
+  compact?: boolean;
+};
 
-  const [isOnline, setIsOnline] = useState<boolean>(
-    typeof navigator === "undefined" ? true : navigator.onLine
-  );
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
+export default function PwaStatus({ compact = false }: PwaStatusProps) {
+  const { needRefresh, offlineReady, updateServiceWorker, dismissNotification } = usePwaRegistration();
+
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator === "undefined" ? true : navigator.onLine);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -55,13 +51,16 @@ export default function PwaStatus() {
     setDeferredPrompt(null);
   };
 
+  const onlineLabel = compact ? (isOnline ? "On" : "Off") : isOnline ? "Online" : "Offline";
+
   return (
-    <div className="pwa-status" data-testid="pwa-status">
+    <div className={`pwa-status ${compact ? "compact" : ""}`} data-testid="pwa-status">
       <span
         className={`pwa-chip ${isOnline ? "pwa-chip-online" : "pwa-chip-offline"}`}
         data-testid="pwa-online-indicator"
+        aria-label={isOnline ? "Online" : "Offline"}
       >
-        {isOnline ? "Online" : "Offline"}
+        {onlineLabel}
       </span>
 
       {deferredPrompt ? (
@@ -75,11 +74,7 @@ export default function PwaStatus() {
           <span>{needRefresh ? "Neue Version verfügbar" : "Offline-Modus bereit"}</span>
           <div className="actions-cell">
             {needRefresh ? (
-              <button
-                className="btn"
-                onClick={() => void updateServiceWorker?.(true)}
-                data-testid="pwa-update-btn"
-              >
+              <button className="btn" onClick={() => void updateServiceWorker?.(true)} data-testid="pwa-update-btn">
                 Aktualisieren
               </button>
             ) : null}

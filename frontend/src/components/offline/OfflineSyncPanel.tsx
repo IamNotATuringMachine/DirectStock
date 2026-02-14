@@ -20,6 +20,10 @@ type QueueStats = {
 
 const REFRESH_INTERVAL_MS = 5000;
 
+type OfflineSyncPanelProps = {
+  compact?: boolean;
+};
+
 async function invalidateAfterSync(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["goods-receipts"] }),
@@ -37,7 +41,7 @@ async function invalidateAfterSync(queryClient: ReturnType<typeof useQueryClient
   ]);
 }
 
-export default function OfflineSyncPanel() {
+export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelProps) {
   const queryClient = useQueryClient();
   const [stats, setStats] = useState<QueueStats>({ queued: 0, failed: 0, total: 0 });
   const [items, setItems] = useState<OfflineQueueItem[]>([]);
@@ -128,15 +132,18 @@ export default function OfflineSyncPanel() {
     await loadQueueState();
   };
 
+  const chipLabel = compact ? `Queue ${stats.total}` : `${isOnline ? "Online" : "Offline"} | Queue ${stats.total}`;
+
   return (
-    <div className="offline-sync">
+    <div className={`offline-sync ${compact ? "compact" : ""}`}>
       <button
-        className={`pwa-chip ${isOnline ? "pwa-chip-online" : "pwa-chip-offline"}`}
+        className={`pwa-chip offline-sync-chip ${isOnline ? "pwa-chip-online" : "pwa-chip-offline"} ${compact ? "compact" : ""}`}
         onClick={() => setIsPanelOpen((value) => !value)}
         data-testid="offline-sync-chip"
+        aria-label={`${isOnline ? "Online" : "Offline"} Queue: ${stats.total}`}
         type="button"
       >
-        {isOnline ? "Online" : "Offline"} | Queue {stats.total}
+        {chipLabel}
       </button>
       {isPanelOpen ? (
         <div className="offline-sync-panel" data-testid="offline-sync-panel">

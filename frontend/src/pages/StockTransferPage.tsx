@@ -365,7 +365,7 @@ export default function StockTransferPage() {
   };
 
   return (
-    <section className="panel">
+    <section className="panel" data-testid="stock-transfer-page">
       <header className="panel-header">
         <div>
           <h2>Umlagerung</h2>

@@ -346,7 +346,7 @@ export default function GoodsIssuePage() {
   };
 
   return (
-    <section className="panel">
+    <section className="panel" data-testid="goods-issue-page">
       <header className="panel-header">
         <div>
           <h2>Warenausgang</h2>

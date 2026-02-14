@@ -122,7 +122,7 @@ export default function ProductsPage() {
       {!productsQuery.isLoading && !productsQuery.isError ? (
         <>
           <div className="table-wrap">
-            <table className="products-table" data-testid="products-table">
+            <table className="products-table mobile-cards-table" data-testid="products-table">
               <thead>
                 <tr>
                   <th>Artikelnr.</th>
@@ -136,14 +136,14 @@ export default function ProductsPage() {
               <tbody>
                 {productRows.map((product) => (
                   <tr key={product.id} data-testid={`products-row-${product.id}`}>
-                    <td>{product.product_number}</td>
-                    <td>{product.name}</td>
-                    <td>{product.group_name ?? "-"}</td>
-                    <td>{product.unit}</td>
-                    <td>
+                    <td data-label="Artikelnr.">{product.product_number}</td>
+                    <td data-label="Bezeichnung">{product.name}</td>
+                    <td data-label="Gruppe">{product.group_name ?? "-"}</td>
+                    <td data-label="Einheit">{product.unit}</td>
+                    <td data-label="Status">
                       <span className={`status status-${product.status}`}>{product.status}</span>
                     </td>
-                    <td className="actions-cell">
+                    <td className="actions-cell" data-label="Aktionen">
                       <Link className="btn" to={`/products/${product.id}`}>
                         Details
                       </Link>

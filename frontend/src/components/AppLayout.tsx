@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import OfflineSyncPanel from "./offline/OfflineSyncPanel";
 import PwaStatus from "./pwa/PwaStatus";
@@ -113,10 +113,85 @@ const navItems: NavItem[] = [
 export default function AppLayout() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const location = useLocation();
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileLayout, setIsMobileLayout] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 1100px)").matches : false
+  );
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 1100px)");
+    const onChange = (event: MediaQueryListEvent) => {
+      setIsMobileLayout(event.matches);
+    };
+
+    mediaQuery.addEventListener("change", onChange);
+    setIsMobileLayout(mediaQuery.matches);
+
+    return () => {
+      mediaQuery.removeEventListener("change", onChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileLayout) {
+      setIsMobileNavOpen(false);
+    }
+  }, [isMobileLayout]);
+
+  useEffect(() => {
+    if (isMobileLayout) {
+      setIsMobileNavOpen(false);
+    }
+  }, [isMobileLayout, location.pathname]);
+
+  useEffect(() => {
+    if (!(isMobileLayout && isMobileNavOpen)) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileNavOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isMobileLayout, isMobileNavOpen]);
+
+  const onToggleNavigation = () => {
+    if (isMobileLayout) {
+      setIsMobileNavOpen((value) => !value);
+      return;
+    }
+
+    setIsSidebarCollapsed((value) => !value);
+  };
+
+  const shellClassName = [
+    "shell",
+    !isMobileLayout && isSidebarCollapsed ? "sidebar-collapsed" : "",
+    isMobileLayout ? "mobile-layout" : "",
+    isMobileLayout && isMobileNavOpen ? "mobile-nav-open" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className={`shell ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`} data-testid="app-shell">
+    <div className={shellClassName} data-testid="app-shell">
+      {isMobileLayout ? (
+        <button
+          className="sidebar-overlay"
+          onClick={() => setIsMobileNavOpen(false)}
+          aria-label="Navigation schließen"
+          type="button"
+        />
+      ) : null}
       <aside className="sidebar">
         <div className="brand">DirectStock</div>
         <nav>
@@ -129,13 +204,28 @@ export default function AppLayout() {
               className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
               aria-label={item.label}
               title={item.label}
+              onClick={() => {
+                if (isMobileLayout) {
+                  setIsMobileNavOpen(false);
+                }
+              }}
             >
               <span className="nav-link-short">{item.shortLabel}</span>
               <span className="nav-link-label">{item.label}</span>
             </NavLink>
           ))}
           {user?.roles.includes("admin") ? (
-            <NavLink to="/users" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`} aria-label="Benutzerverwaltung" title="Benutzerverwaltung">
+            <NavLink
+              to="/users"
+              className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+              aria-label="Benutzerverwaltung"
+              title="Benutzerverwaltung"
+              onClick={() => {
+                if (isMobileLayout) {
+                  setIsMobileNavOpen(false);
+                }
+              }}
+            >
               <span className="nav-link-short">BU</span>
               <span className="nav-link-label">Benutzerverwaltung</span>
             </NavLink>
@@ -144,20 +234,30 @@ export default function AppLayout() {
       </aside>
       <div className="content-area">
         <header className="topbar">
-          <button
-            className="btn sidebar-toggle"
-            onClick={() => setIsSidebarCollapsed((value) => !value)}
-            data-testid="sidebar-toggle"
-            aria-label={isSidebarCollapsed ? "Sidebar erweitern" : "Sidebar einklappen"}
-          >
-            {isSidebarCollapsed ? "»" : "«"}
-          </button>
-          <div className="topbar-user">
-            <strong>{user?.username ?? "-"}</strong>
+          <div className="topbar-left">
+            <button
+              className="btn sidebar-toggle"
+              onClick={onToggleNavigation}
+              data-testid="sidebar-toggle"
+              aria-label={
+                isMobileLayout
+                  ? isMobileNavOpen
+                    ? "Navigation schließen"
+                    : "Navigation öffnen"
+                  : isSidebarCollapsed
+                    ? "Sidebar erweitern"
+                    : "Sidebar einklappen"
+              }
+            >
+              {isMobileLayout ? (isMobileNavOpen ? "×" : "☰") : isSidebarCollapsed ? "»" : "«"}
+            </button>
+            <div className="topbar-user">
+              <strong className="topbar-user-name">{user?.username ?? "-"}</strong>
+            </div>
           </div>
-          <div className="topbar-actions">
-            <PwaStatus />
-            <OfflineSyncPanel />
+          <div className="topbar-right" data-testid="topbar-right">
+            <PwaStatus compact={isMobileLayout} />
+            <OfflineSyncPanel compact={isMobileLayout} />
             <button className="btn" onClick={() => void logout()} data-testid="logout-btn">
               Logout
             </button>

@@ -381,7 +381,7 @@ export default function PurchasingPage() {
             </button>
           </div>
           <div className="table-wrap">
-            <table className="products-table" data-testid="abc-table">
+            <table className="products-table mobile-cards-table" data-testid="abc-table">
               <thead>
                 <tr>
                   <th>Rank</th>
@@ -395,12 +395,12 @@ export default function PurchasingPage() {
               <tbody>
                 {(abcQuery.data?.items ?? []).map((row) => (
                   <tr key={row.id}>
-                    <td>{row.rank}</td>
-                    <td>{row.product_number}</td>
-                    <td>{row.outbound_quantity}</td>
-                    <td>{row.share_percent}%</td>
-                    <td>{row.cumulative_share_percent}%</td>
-                    <td>{row.category}</td>
+                    <td data-label="Rank">{row.rank}</td>
+                    <td data-label="Produkt">{row.product_number}</td>
+                    <td data-label="Outbound">{row.outbound_quantity}</td>
+                    <td data-label="Share">{row.share_percent}%</td>
+                    <td data-label="Kumulativ">{row.cumulative_share_percent}%</td>
+                    <td data-label="Klasse">{row.category}</td>
                   </tr>
                 ))}
               </tbody>
@@ -423,7 +423,7 @@ export default function PurchasingPage() {
           </div>
 
           <div className="table-wrap">
-            <table className="products-table" data-testid="purchase-recommendations-table">
+            <table className="products-table mobile-cards-table" data-testid="purchase-recommendations-table">
               <thead>
                 <tr>
                   <th>ID</th>
@@ -437,12 +437,12 @@ export default function PurchasingPage() {
               <tbody>
                 {(recommendationsQuery.data?.items ?? []).map((item) => (
                   <tr key={item.id}>
-                    <td>{item.id}</td>
-                    <td>{item.product_id}</td>
-                    <td>{item.deficit_quantity}</td>
-                    <td>{item.recommended_quantity}</td>
-                    <td>{item.status}</td>
-                    <td>
+                    <td data-label="ID">{item.id}</td>
+                    <td data-label="Produkt">{item.product_id}</td>
+                    <td data-label="Defizit">{item.deficit_quantity}</td>
+                    <td data-label="Empfehlung">{item.recommended_quantity}</td>
+                    <td data-label="Status">{item.status}</td>
+                    <td data-label="Aktion">
                       <div className="actions-cell">
                         <button
                           className="btn"
