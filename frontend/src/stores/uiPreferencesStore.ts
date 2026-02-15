@@ -21,6 +21,7 @@ function applyTheme(theme: ThemePreference["theme"]) {
       : theme;
 
   document.documentElement.setAttribute("data-theme", resolved);
+  document.documentElement.classList.toggle("dark", resolved === "dark");
   document.documentElement.style.colorScheme = resolved;
 }
 

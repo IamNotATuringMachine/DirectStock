@@ -1,10 +1,38 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  Package,
+  Save,
+  Truck,
+  Warehouse,
+  Check,
+  AlertCircle,
+  Hash,
+  FileText,
+  Tag,
+  Layers,
+  Info,
+  DollarSign,
+  Clock,
+  ShoppingCart,
+  Trash2,
+  Star,
+  Plus,
+  ChevronDown,
+  X,
+  Loader2,
+} from "lucide-react";
 
-import { deleteProductWarehouseSetting, fetchProductWarehouseSettings, upsertProductWarehouseSetting } from "../services/productSettingsApi";
+import {
+  deleteProductWarehouseSetting,
+  fetchProductWarehouseSettings,
+  upsertProductWarehouseSetting,
+} from "../services/productSettingsApi";
 import {
   createProduct,
+  createProductGroup,
   fetchProductById,
   fetchProductGroups,
   updateProduct,
@@ -40,7 +68,12 @@ type WarehouseSettingFormState = {
   leadTimeDays: string;
 };
 
-const productStatuses: ProductStatus[] = ["active", "blocked", "deprecated", "archived"];
+const productStatusOptions: Array<{ value: ProductStatus; label: string }> = [
+  { value: "active", label: "Aktiv" },
+  { value: "blocked", label: "Gesperrt" },
+  { value: "deprecated", label: "Veraltet" },
+  { value: "archived", label: "Archiviert" },
+];
 
 function emptyProductForm(): ProductFormState {
   return {
@@ -48,7 +81,7 @@ function emptyProductForm(): ProductFormState {
     name: "",
     description: "",
     groupId: "",
-    unit: "piece",
+    unit: "Stück",
     status: "active",
   };
 }
@@ -78,6 +111,183 @@ function toNullableDecimal(value: string): string | null {
   return normalized ? normalized : null;
 }
 
+function toDisplayUnit(unit: string): string {
+  const normalized = unit.trim().toLowerCase();
+  if (
+    normalized === "piece" ||
+    normalized === "pieces" ||
+    normalized === "pc" ||
+    normalized === "pcs"
+  ) {
+    return "Stück";
+  }
+  return unit;
+}
+
+function toApiUnit(unit: string): string {
+  const normalized = unit.trim().toLowerCase();
+  if (normalized === "stück" || normalized === "stueck") {
+    return "piece";
+  }
+  return unit.trim();
+}
+
+function ProductGroupSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const queryClient = useQueryClient();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const groupsQuery = useQuery({
+    queryKey: ["product-groups"],
+    queryFn: fetchProductGroups,
+  });
+
+  const createGroupMutation = useMutation({
+    mutationFn: createProductGroup,
+    onSuccess: async (newGroup) => {
+      await queryClient.invalidateQueries({ queryKey: ["product-groups"] });
+      onChange(String(newGroup.id));
+      setIsCreating(false);
+      setNewGroupName("");
+      setIsOpen(false);
+    },
+  });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+        setIsCreating(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownRef]);
+
+  const selectedGroup = groupsQuery.data?.find(
+    (g) => String(g.id) === value
+  );
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+    await createGroupMutation.mutateAsync({ name: newGroupName.trim() });
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="input !pl-10 w-full text-left flex items-center justify-between transition-all focus:ring-2 ring-[var(--accent)]/20"
+      >
+        <span className={value ? "text-[var(--ink)]" : "text-[var(--muted)]"}>
+          {selectedGroup ? selectedGroup.name : "Keine Gruppe"}
+        </span>
+        <ChevronDown size={16} className={`text-[var(--muted)] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--panel)] border border-[var(--line)] rounded-lg shadow-lg z-50 overflow-hidden max-h-80 flex flex-col animate-in fade-in zoom-in-95 duration-100">
+          {!isCreating ? (
+            <>
+              <div className="overflow-y-auto flex-1 py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange("");
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg)] text-sm text-[var(--muted)] transition-colors"
+                >
+                  Keine Gruppe
+                </button>
+                {(groupsQuery.data ?? []).map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(String(group.id));
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 hover:bg-[var(--bg)] text-sm transition-colors ${String(group.id) === value
+                      ? "text-[var(--accent)] font-medium bg-[var(--bg)]"
+                      : "text-[var(--ink)]"
+                      }`}
+                  >
+                    {group.name}
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-[var(--line)] p-2 bg-[var(--panel-soft)]">
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(true)}
+                  className="w-full btn btn-sm btn-ghost justify-start text-[var(--accent)] hover:bg-[var(--bg)]"
+                >
+                  <Plus size={14} />
+                  Neue Gruppe erstellen
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="p-3 space-y-3 bg-[var(--panel)]">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-[var(--muted)] uppercase">
+                  Neue Gruppe
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(false)}
+                  className="text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <input
+                autoFocus
+                className="input input-sm w-full"
+                placeholder="Name der Gruppe"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleCreate(e);
+                  } else if (e.key === "Escape") {
+                    setIsCreating(false);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={(e) => void handleCreate(e)}
+                disabled={createGroupMutation.isPending || !newGroupName.trim()}
+                className="btn btn-sm btn-primary w-full justify-center"
+              >
+                {createGroupMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : "Erstellen"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProductFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -89,8 +299,12 @@ export default function ProductFormPage() {
   const isEditMode = productId !== null;
 
   const [activeTab, setActiveTab] = useState<ProductTab>("master");
-  const [productForm, setProductForm] = useState<ProductFormState>(emptyProductForm());
-  const [warehouseFormById, setWarehouseFormById] = useState<Record<number, WarehouseSettingFormState>>({});
+  const [productForm, setProductForm] = useState<ProductFormState>(
+    emptyProductForm()
+  );
+  const [warehouseFormById, setWarehouseFormById] = useState<
+    Record<number, WarehouseSettingFormState>
+  >({});
 
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [supplierProductNumber, setSupplierProductNumber] = useState("");
@@ -98,11 +312,6 @@ export default function ProductFormPage() {
   const [supplierLeadTimeDays, setSupplierLeadTimeDays] = useState("");
   const [supplierMinOrderQuantity, setSupplierMinOrderQuantity] = useState("");
   const [supplierPreferred, setSupplierPreferred] = useState(false);
-
-  const groupsQuery = useQuery({
-    queryKey: ["product-groups"],
-    queryFn: fetchProductGroups,
-  });
 
   const productQuery = useQuery({
     queryKey: ["product", productId],
@@ -141,8 +350,10 @@ export default function ProductFormPage() {
       productNumber: product.product_number,
       name: product.name,
       description: product.description ?? "",
-      groupId: product.product_group_id ? String(product.product_group_id) : "",
-      unit: product.unit,
+      groupId: product.product_group_id
+        ? String(product.product_group_id)
+        : "",
+      unit: toDisplayUnit(product.unit),
       status: product.status,
     });
   }, [productQuery.data]);
@@ -153,7 +364,10 @@ export default function ProductFormPage() {
     }
 
     const settingByWarehouse = new Map(
-      (settingsQuery.data ?? []).map((setting) => [setting.warehouse_id, setting])
+      (settingsQuery.data ?? []).map((setting) => [
+        setting.warehouse_id,
+        setting,
+      ])
     );
 
     const nextState: Record<number, WarehouseSettingFormState> = {};
@@ -165,7 +379,9 @@ export default function ProductFormPage() {
         reorderPoint: setting?.reorder_point ?? "",
         maxStock: setting?.max_stock ?? "",
         safetyStock: setting?.safety_stock ?? "",
-        leadTimeDays: setting?.lead_time_days ? String(setting.lead_time_days) : "",
+        leadTimeDays: setting?.lead_time_days
+          ? String(setting.lead_time_days)
+          : "",
       };
     }
 
@@ -203,20 +419,34 @@ export default function ProductFormPage() {
     }: {
       warehouseId: number;
       payload: Parameters<typeof upsertProductWarehouseSetting>[2];
-    }) => upsertProductWarehouseSetting(productId as number, warehouseId, payload),
+    }) =>
+      upsertProductWarehouseSetting(productId as number, warehouseId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["product-warehouse-settings", productId] });
-      await queryClient.invalidateQueries({ queryKey: ["inventory-low-stock"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-low-stock"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["product-warehouse-settings", productId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["inventory-low-stock"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["dashboard-low-stock"],
+      });
     },
   });
 
   const deleteWarehouseSettingMutation = useMutation({
-    mutationFn: (warehouseId: number) => deleteProductWarehouseSetting(productId as number, warehouseId),
+    mutationFn: (warehouseId: number) =>
+      deleteProductWarehouseSetting(productId as number, warehouseId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["product-warehouse-settings", productId] });
-      await queryClient.invalidateQueries({ queryKey: ["inventory-low-stock"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-low-stock"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["product-warehouse-settings", productId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["inventory-low-stock"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["dashboard-low-stock"],
+      });
     },
   });
 
@@ -224,7 +454,9 @@ export default function ProductFormPage() {
     mutationFn: (payload: Parameters<typeof createProductSupplier>[1]) =>
       createProductSupplier(productId as number, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["product-suppliers", productId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["product-suppliers", productId],
+      });
       setSupplierProductNumber("");
       setSupplierPrice("");
       setSupplierLeadTimeDays("");
@@ -242,14 +474,19 @@ export default function ProductFormPage() {
       payload: Parameters<typeof updateProductSupplier>[2];
     }) => updateProductSupplier(productId as number, relation.id, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["product-suppliers", productId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["product-suppliers", productId],
+      });
     },
   });
 
   const deleteProductSupplierMutation = useMutation({
-    mutationFn: (relationId: number) => deleteProductSupplier(productId as number, relationId),
+    mutationFn: (relationId: number) =>
+      deleteProductSupplier(productId as number, relationId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["product-suppliers", productId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["product-suppliers", productId],
+      });
     },
   });
 
@@ -263,14 +500,17 @@ export default function ProductFormPage() {
     deleteProductSupplierMutation.isPending;
 
   const title = useMemo(
-    () => (isEditMode ? `Artikel bearbeiten #${productId}` : "Neuer Artikel"),
-    [isEditMode, productId]
+    () => (isEditMode ? `Artikel bearbeiten` : "Neuer Artikel"),
+    [isEditMode]
   );
 
   const supplierNameById = useMemo(
     () =>
       new Map(
-        (suppliersQuery.data?.items ?? []).map((supplier) => [supplier.id, `${supplier.supplier_number} - ${supplier.company_name}`])
+        (suppliersQuery.data?.items ?? []).map((supplier) => [
+          supplier.id,
+          `${supplier.supplier_number} - ${supplier.company_name}`,
+        ])
       ),
     [suppliersQuery.data]
   );
@@ -288,8 +528,10 @@ export default function ProductFormPage() {
         payload: {
           name: productForm.name,
           description: productForm.description || null,
-          product_group_id: productForm.groupId ? Number(productForm.groupId) : null,
-          unit: productForm.unit,
+          product_group_id: productForm.groupId
+            ? Number(productForm.groupId)
+            : null,
+          unit: toApiUnit(productForm.unit),
           status: productForm.status,
         },
       });
@@ -300,8 +542,10 @@ export default function ProductFormPage() {
       product_number: productForm.productNumber,
       name: productForm.name,
       description: productForm.description || null,
-      product_group_id: productForm.groupId ? Number(productForm.groupId) : null,
-      unit: productForm.unit,
+      product_group_id: productForm.groupId
+        ? Number(productForm.groupId)
+        : null,
+      unit: toApiUnit(productForm.unit),
       status: productForm.status,
     });
   };
@@ -341,432 +585,758 @@ export default function ProductFormPage() {
     });
   };
 
+  if (isEditMode && productQuery.isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto space-y-6 animate-pulse">
+        <div className="h-20 bg-[var(--panel-soft)] rounded-lg"></div>
+        <div className="h-12 w-64 bg-[var(--panel-soft)] rounded-lg"></div>
+        <div className="h-96 bg-[var(--panel)] rounded-xl border border-[var(--line)]"></div>
+      </div>
+    );
+  }
+
   return (
-    <section className="panel" data-testid="product-form-page">
-      <header className="panel-header">
-        <div>
-          <h2>{title}</h2>
-          <p className="panel-subtitle">Tabs: Stammdaten, Lagerdaten, Lieferanten.</p>
-        </div>
-        <div className="actions-cell">
-          <Link className="btn" to="/products">
-            Zur Liste
+    <div className="max-w-5xl mx-auto space-y-8" data-testid="product-form-page">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <Link
+            to="/products"
+            className="p-2.5 rounded-xl text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--panel-strong)] border border-transparent hover:border-[var(--line)] transition-all shadow-sm hover:shadow"
+            title="Zurück zur Liste"
+          >
+            <ArrowLeft size={20} />
           </Link>
-          {isEditMode ? (
-            <Link className="btn" to={`/products/${productId}`}>
-              Zur Detailseite
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-[var(--ink)] tracking-tight">
+                {title}
+              </h1>
+              {isEditMode && (
+                <span className="px-2.5 py-0.5 rounded-md bg-[var(--panel-strong)] border border-[var(--line)] text-xs font-mono text-[var(--muted)]">
+                  ID: {productId}
+                </span>
+              )}
+            </div>
+            <p className="text-[var(--muted)] mt-1.5">
+              {isEditMode
+                ? "Verwalten Sie hier alle Stammdaten, Lagerbestände und Lieferantenbeziehungen."
+                : "Füllen Sie das Formular aus, um einen neuen Artikel im System zu registrieren."}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {isEditMode && (
+            <Link
+              to={`/products/${productId}`}
+              className="btn bg-[var(--panel)] shadow-sm"
+            >
+              <FileText size={18} className="text-[var(--accent)]" />
+              Zur Detailansicht
             </Link>
-          ) : null}
+          )}
         </div>
       </header>
 
-      {!isAdmin ? <p className="error">Nur Admins duerfen Artikel bearbeiten.</p> : null}
-      {isEditMode && productQuery.isLoading ? <p>Lade Artikeldaten...</p> : null}
-      {isEditMode && productQuery.isError ? <p className="error">Fehler beim Laden des Artikels.</p> : null}
+      {/* States & Errors */}
+      {!isAdmin && (
+        <div className="p-4 rounded-xl bg-red-50/50 border border-red-200 text-red-700 flex items-start gap-3 shadow-sm">
+          <AlertCircle className="shrink-0 mt-0.5" size={18} />
+          <p className="text-sm font-medium">Nur Administratoren sind berechtigt, Artikeldaten zu bearbeiten.</p>
+        </div>
+      )}
+      {isEditMode && productQuery.isError && (
+        <div className="p-4 rounded-xl bg-red-50/50 border border-red-200 text-red-700 flex items-start gap-3 shadow-sm">
+          <AlertCircle className="shrink-0 mt-0.5" size={18} />
+          <p className="text-sm font-medium">Es gab ein Problem beim Laden der Artikeldaten. Bitte versuchen Sie es erneut.</p>
+        </div>
+      )}
 
-      <div className="tab-strip" role="tablist" aria-label="Produktformular Tabs">
-        <button
-          className={`btn ${activeTab === "master" ? "btn-tab-active" : ""}`}
-          onClick={() => setActiveTab("master")}
-          type="button"
-        >
-          Stammdaten
-        </button>
-        <button
-          className={`btn ${activeTab === "warehouse" ? "btn-tab-active" : ""}`}
-          onClick={() => setActiveTab("warehouse")}
-          type="button"
-        >
-          Lagerdaten
-        </button>
-        <button
-          className={`btn ${activeTab === "suppliers" ? "btn-tab-active" : ""}`}
-          onClick={() => setActiveTab("suppliers")}
-          type="button"
-        >
-          Lieferanten
-        </button>
+      {/* Tabs */}
+      <div className="border-b border-[var(--line)]">
+        <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
+          {[
+            { id: "master", label: "Stammdaten", icon: Package },
+            { id: "warehouse", label: "Lagerdaten", icon: Warehouse },
+            { id: "suppliers", label: "Lieferanten", icon: Truck },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as ProductTab)}
+              type="button"
+              className={`group pb-4 px-1 text-sm font-semibold flex items-center gap-2.5 transition-all relative whitespace-nowrap ${activeTab === tab.id
+                  ? "text-[var(--accent)]"
+                  : "text-[var(--muted)] hover:text-[var(--ink)]"
+                }`}
+            >
+              <tab.icon
+                size={18}
+                className={`transition-colors ${activeTab === tab.id
+                    ? "text-[var(--accent)]"
+                    : "text-[var(--muted)] group-hover:text-[var(--ink)]"
+                  }`}
+              />
+              {tab.label}
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent)] rounded-t-full shadow-[0_-2px_6px_rgba(21,128,61,0.2)]" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <form className="form-grid" onSubmit={(event) => void handleSubmit(event)}>
-        {activeTab === "master" ? (
-          <>
-            <label>
-              Artikelnummer
-              <input
-                className="input"
-                value={productForm.productNumber}
-                onChange={(event) =>
-                  setProductForm((prev) => ({ ...prev, productNumber: event.target.value }))
-                }
-                required
-                disabled={isEditMode}
-                data-testid="product-form-number"
-              />
-            </label>
-            <label>
-              Bezeichnung
-              <input
-                className="input"
-                value={productForm.name}
-                onChange={(event) => setProductForm((prev) => ({ ...prev, name: event.target.value }))}
-                required
-                data-testid="product-form-name"
-              />
-            </label>
-            <label>
-              Beschreibung
-              <textarea
-                className="input textarea"
-                value={productForm.description}
-                onChange={(event) =>
-                  setProductForm((prev) => ({ ...prev, description: event.target.value }))
-                }
-                data-testid="product-form-description"
-              />
-            </label>
-            <label>
-              Gruppe
-              <select
-                className="input"
-                value={productForm.groupId}
-                onChange={(event) => setProductForm((prev) => ({ ...prev, groupId: event.target.value }))}
-                data-testid="product-form-group"
-              >
-                <option value="">Keine Gruppe</option>
-                {(groupsQuery.data ?? []).map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="split-grid">
-              <label>
-                Einheit
-                <input
-                  className="input"
-                  value={productForm.unit}
-                  onChange={(event) => setProductForm((prev) => ({ ...prev, unit: event.target.value }))}
-                  required
-                  data-testid="product-form-unit"
-                />
-              </label>
-              <label>
-                Status
-                <select
-                  className="input"
-                  value={productForm.status}
-                  onChange={(event) =>
-                    setProductForm((prev) => ({ ...prev, status: event.target.value as ProductStatus }))
-                  }
-                  data-testid="product-form-status"
-                >
-                  {productStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="actions-cell">
-              <button className="btn btn-primary" type="submit" disabled={pending || !isAdmin} data-testid="product-form-submit">
-                {isEditMode ? "Artikel speichern" : "Artikel anlegen"}
-              </button>
-            </div>
-          </>
-        ) : null}
-      </form>
-
-      {activeTab === "warehouse" ? (
-        <article className="subpanel" data-testid="product-form-warehouse-tab">
-          <h3>Lagerdaten</h3>
-          {!isEditMode ? <p>Bitte zuerst den Artikel anlegen, um Lagerdaten je Standort zu pflegen.</p> : null}
-
-          {isEditMode ? (
-            <div className="list-stack">
-              {(warehousesQuery.data ?? []).map((warehouse) => {
-                const form = warehouseFormById[warehouse.id] ?? emptyWarehouseSettingForm();
-
-                return (
-                  <div key={warehouse.id} className="list-item static-item" data-testid={`product-warehouse-setting-${warehouse.id}`}>
-                    <strong>
-                      {warehouse.code} - {warehouse.name}
-                    </strong>
-                    <div className="split-grid">
-                      <label>
-                        EAN
+      {/* Content */}
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {activeTab === "master" && (
+          <div className="card p-8 border border-[var(--line)] bg-[var(--panel)] shadow-sm rounded-xl">
+            <form
+              onSubmit={(event) => void handleSubmit(event)}
+              className="space-y-8 max-w-4xl"
+            >
+              {/* Primary Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-wider flex items-center gap-2">
+                    <Info size={14} /> Grundinformationen
+                  </h3>
+                  
+                  <div className="space-y-5">
+                    <label className="space-y-1.5 block">
+                      <span className="text-sm font-medium text-[var(--ink)]">
+                        Artikelnummer <span className="text-[var(--danger)]">*</span>
+                      </span>
+                      <div className="relative group">
+                        <Hash
+                          size={16}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] group-focus-within:text-[var(--accent)] transition-colors"
+                        />
                         <input
-                          className="input"
-                          value={form.ean}
+                          className="input !pl-10 w-full transition-all focus:ring-2 ring-[var(--accent)]/20"
+                          value={productForm.productNumber}
                           onChange={(event) =>
-                            setWarehouseFormById((prev) => ({
+                            setProductForm((prev) => ({
                               ...prev,
-                              [warehouse.id]: { ...form, ean: event.target.value },
+                              productNumber: event.target.value,
+                            }))
+                          }
+                          required
+                          disabled={isEditMode}
+                          data-testid="product-form-number"
+                          placeholder="z.B. AR-10001"
+                        />
+                      </div>
+                    </label>
+
+                    <label className="space-y-1.5 block">
+                      <span className="text-sm font-medium text-[var(--ink)]">
+                        Bezeichnung <span className="text-[var(--danger)]">*</span>
+                      </span>
+                      <div className="relative group">
+                        <Tag
+                          size={16}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] group-focus-within:text-[var(--accent)] transition-colors"
+                        />
+                        <input
+                          className="input !pl-10 w-full transition-all focus:ring-2 ring-[var(--accent)]/20"
+                          value={productForm.name}
+                          onChange={(event) =>
+                            setProductForm((prev) => ({
+                              ...prev,
+                              name: event.target.value,
+                            }))
+                          }
+                          required
+                          data-testid="product-form-name"
+                          placeholder="Produktbezeichnung"
+                        />
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-wider flex items-center gap-2">
+                    <Layers size={14} /> Kategorisierung
+                  </h3>
+                  
+                  <div className="space-y-5">
+                    <label className="space-y-1.5 block">
+                      <span className="text-sm font-medium text-[var(--ink)]">
+                        Produktgruppe
+                      </span>
+                      <div className="relative group">
+                        <Layers
+                          size={16}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] group-focus-within:text-[var(--accent)] transition-colors"
+                        />
+                        <ProductGroupSelect
+                          value={productForm.groupId}
+                          onChange={(newValue) =>
+                            setProductForm((prev) => ({
+                              ...prev,
+                              groupId: newValue,
                             }))
                           }
                         />
+                      </div>
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="space-y-1.5 block">
+                        <span className="text-sm font-medium text-[var(--ink)]">
+                          Einheit <span className="text-[var(--danger)]">*</span>
+                        </span>
+                        <div className="relative group">
+                          <Package size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] group-focus-within:text-[var(--accent)] transition-colors" />
+                          <input
+                            className="input !pl-10 w-full transition-all focus:ring-2 ring-[var(--accent)]/20"
+                            value={productForm.unit}
+                            onChange={(event) =>
+                              setProductForm((prev) => ({
+                                ...prev,
+                                unit: event.target.value,
+                              }))
+                            }
+                            required
+                            data-testid="product-form-unit"
+                            placeholder="Stück"
+                          />
+                        </div>
                       </label>
-                      <label>
-                        Lead Time (Tage)
+
+                      <label className="space-y-1.5 block">
+                        <span className="text-sm font-medium text-[var(--ink)]">
+                          Status
+                        </span>
+                        <div className="relative group">
+                          <Info size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] group-focus-within:text-[var(--accent)] transition-colors" />
+                          <select
+                            className="input !pl-10 w-full appearance-none transition-all focus:ring-2 ring-[var(--accent)]/20"
+                            value={productForm.status}
+                            onChange={(event) =>
+                              setProductForm((prev) => ({
+                                ...prev,
+                                status: event.target.value as ProductStatus,
+                              }))
+                            }
+                            data-testid="product-form-status"
+                          >
+                            {productStatusOptions.map((status) => (
+                              <option key={status.value} value={status.value}>
+                                {status.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 pb-2">
+                <div className="h-px bg-[var(--line)] w-full"></div>
+              </div>
+
+              <label className="space-y-1.5 block">
+                <span className="text-sm font-medium text-[var(--ink)]">
+                  Beschreibung
+                </span>
+                <textarea
+                  className="input min-h-[120px] w-full transition-all focus:ring-2 ring-[var(--accent)]/20 resize-y"
+                  value={productForm.description}
+                  onChange={(event) =>
+                    setProductForm((prev) => ({
+                      ...prev,
+                      description: event.target.value,
+                    }))
+                  }
+                  data-testid="product-form-description"
+                  placeholder="Detaillierte Produktbeschreibung..."
+                />
+              </label>
+
+              <div className="pt-6 flex justify-end">
+                <button
+                  className="btn btn-primary w-full md:w-auto min-w-[180px] shadow-lg shadow-[var(--accent)]/20"
+                  type="submit"
+                  disabled={pending || !isAdmin}
+                  data-testid="product-form-submit"
+                >
+                  {pending ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                  {isEditMode ? "Änderungen speichern" : "Artikel anlegen"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {activeTab === "warehouse" && (
+          <div className="space-y-8" data-testid="product-form-warehouse-tab">
+            {!isEditMode && (
+              <div className="flex items-center gap-4 p-5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 shadow-sm">
+                <Info size={24} className="shrink-0 text-amber-600" />
+                <div>
+                  <h4 className="font-semibold">Artikel noch nicht erstellt</h4>
+                  <p className="text-sm opacity-90 mt-1">
+                    Bitte speichern Sie den Artikel zuerst, um spezifische Lagerdaten verwalten zu können.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isEditMode && (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {(warehousesQuery.data ?? []).map((warehouse) => {
+                  const form =
+                    warehouseFormById[warehouse.id] ??
+                    emptyWarehouseSettingForm();
+
+                  return (
+                    <div
+                      key={warehouse.id}
+                      className="card border border-[var(--line)] bg-[var(--panel)] shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden"
+                      data-testid={`product-warehouse-setting-${warehouse.id}`}
+                    >
+                      <div className="bg-[var(--panel-soft)] border-b border-[var(--line)] px-6 py-4 flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-[var(--panel)] border border-[var(--line)] flex items-center justify-center text-[var(--accent)] shadow-sm">
+                              <Warehouse size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-[var(--ink)] text-lg leading-tight">
+                                {warehouse.name}
+                                </h3>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-xs font-mono bg-[var(--line)] px-1.5 py-0.5 rounded text-[var(--muted)]">
+                                    {warehouse.code}
+                                    </span>
+                                    <span className="text-xs text-[var(--muted)]">Lager #{warehouse.id}</span>
+                                </div>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+                          {/* Row 1 - Main Info */}
+                          <label className="space-y-1.5">
+                            <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                              EAN Code
+                            </span>
+                            <div className="relative">
+                                <input
+                                className="input w-full text-sm h-10"
+                                value={form.ean}
+                                onChange={(event) =>
+                                    setWarehouseFormById((prev) => ({
+                                    ...prev,
+                                    [warehouse.id]: {
+                                        ...form,
+                                        ean: event.target.value,
+                                    },
+                                    }))
+                                }
+                                placeholder="-"
+                                />
+                            </div>
+                          </label>
+                          <label className="space-y-1.5">
+                            <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                              Lead Time (Tage)
+                            </span>
+                            <input
+                              className="input w-full text-sm h-10"
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={form.leadTimeDays}
+                              onChange={(event) =>
+                                setWarehouseFormById((prev) => ({
+                                  ...prev,
+                                  [warehouse.id]: {
+                                    ...form,
+                                    leadTimeDays: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="0"
+                            />
+                          </label>
+                          <div className="hidden md:block" />
+
+                          {/* Row 2 - Stock Levels */}
+                          <div className="md:col-span-3 border-t border-[var(--line)] my-2"></div>
+
+                          <label className="space-y-1.5">
+                            <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide flex items-center gap-1">
+                                <div className="w-2 h-2 rounded-full bg-red-500"></div> Min. Bestand
+                            </span>
+                            <input
+                              className="input w-full text-sm h-10"
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={form.minStock}
+                              onChange={(event) =>
+                                setWarehouseFormById((prev) => ({
+                                  ...prev,
+                                  [warehouse.id]: {
+                                    ...form,
+                                    minStock: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="0.000"
+                            />
+                          </label>
+                          <label className="space-y-1.5">
+                            <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide flex items-center gap-1">
+                                <div className="w-2 h-2 rounded-full bg-amber-500"></div> Meldebestand
+                            </span>
+                            <input
+                              className="input w-full text-sm h-10"
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={form.reorderPoint}
+                              onChange={(event) =>
+                                setWarehouseFormById((prev) => ({
+                                  ...prev,
+                                  [warehouse.id]: {
+                                    ...form,
+                                    reorderPoint: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="0.000"
+                            />
+                          </label>
+                           <label className="space-y-1.5">
+                            <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide flex items-center gap-1">
+                                <div className="w-2 h-2 rounded-full bg-blue-500"></div> Sicherheitsbest.
+                            </span>
+                            <input
+                              className="input w-full text-sm h-10"
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={form.safetyStock}
+                              onChange={(event) =>
+                                setWarehouseFormById((prev) => ({
+                                  ...prev,
+                                  [warehouse.id]: {
+                                    ...form,
+                                    safetyStock: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="0.000"
+                            />
+                          </label>
+
+                           <label className="space-y-1.5">
+                            <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                                Maximalbestand
+                            </span>
+                            <input
+                              className="input w-full text-sm h-10"
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={form.maxStock}
+                              onChange={(event) =>
+                                setWarehouseFormById((prev) => ({
+                                  ...prev,
+                                  [warehouse.id]: {
+                                    ...form,
+                                    maxStock: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="0.000"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-[var(--line)]">
+                           <button
+                            className="btn btn-sm text-sm text-[var(--danger)] hover:bg-red-50 hover:border-red-200"
+                            type="button"
+                            onClick={() =>
+                              void onClearWarehouseSetting(warehouse.id)
+                            }
+                            disabled={pending || !isAdmin}
+                            data-testid={`product-warehouse-clear-${warehouse.id}`}
+                          >
+                            <Trash2 size={14} />
+                            Zurücksetzen
+                          </button>
+                          <button
+                            className="btn btn-sm text-sm btn-primary shadow-sm"
+                            type="button"
+                            onClick={() => void onSaveWarehouseSetting(warehouse.id)}
+                            disabled={pending || !isAdmin}
+                            data-testid={`product-warehouse-save-${warehouse.id}`}
+                          >
+                            <Save size={14} />
+                            Speichern
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "suppliers" && (
+          <div className="space-y-8" data-testid="product-form-suppliers-tab">
+            {!isEditMode && (
+              <div className="flex items-center gap-4 p-5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 shadow-sm">
+                 <Info size={24} className="shrink-0 text-amber-600" />
+                 <div>
+                   <h4 className="font-semibold">Artikel noch nicht erstellt</h4>
+                   <p className="text-sm opacity-90 mt-1">
+                     Bitte speichern Sie den Artikel zuerst, um Lieferanten zuordnen zu können.
+                   </p>
+                 </div>
+               </div>
+            )}
+
+            {isEditMode && (
+              <>
+                <section className="card p-6 border border-[var(--line)] bg-[var(--panel)] shadow-sm rounded-xl">
+                  <h3 className="text-lg font-semibold text-[var(--ink)] mb-6 flex items-center gap-2">
+                    <div className="p-1.5 rounded-md bg-[var(--accent)]/10 text-[var(--accent)]">
+                         <Plus size={18} />
+                    </div>
+                    Neuen Lieferanten zuordnen
+                  </h3>
+                  <form
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+                    onSubmit={(event) => void onCreateSupplierRelation(event)}
+                    data-testid="product-supplier-form"
+                  >
+                    <label className="md:col-span-2 lg:col-span-4 space-y-1.5">
+                      <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                        Lieferant auswählen <span className="text-[var(--danger)]">*</span>
+                      </span>
+                      <select
+                        className="input w-full h-11"
+                        value={selectedSupplierId}
+                        onChange={(event) =>
+                          setSelectedSupplierId(event.target.value)
+                        }
+                        data-testid="product-supplier-select"
+                        required
+                      >
+                        <option value="">-- Bitte wählen --</option>
+                        {(suppliersQuery.data?.items ?? []).map((supplier) => (
+                          <option key={supplier.id} value={supplier.id}>
+                            {supplier.supplier_number} - {supplier.company_name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                        Lieferanten Art.-Nr.
+                      </span>
+                      <div className="relative">
+                        <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                         <input
-                          className="input"
+                          className="input w-full pl-9 text-sm h-11"
+                          value={supplierProductNumber}
+                          onChange={(event) =>
+                            setSupplierProductNumber(event.target.value)
+                          }
+                          data-testid="product-supplier-product-number"
+                          placeholder="Optional"
+                        />
+                      </div>
+                    </label>
+
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                        Einkaufspreis
+                      </span>
+                      <div className="relative">
+                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+                        <input
+                          className="input w-full pl-9 text-sm h-11"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={supplierPrice}
+                          onChange={(event) =>
+                            setSupplierPrice(event.target.value)
+                          }
+                          data-testid="product-supplier-price"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </label>
+
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                        Lieferzeit (Tage)
+                      </span>
+                      <div className="relative">
+                        <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+                        <input
+                          className="input w-full pl-9 text-sm h-11"
                           type="number"
                           min="0"
                           step="1"
-                          value={form.leadTimeDays}
+                          value={supplierLeadTimeDays}
                           onChange={(event) =>
-                            setWarehouseFormById((prev) => ({
-                              ...prev,
-                              [warehouse.id]: { ...form, leadTimeDays: event.target.value },
-                            }))
+                            setSupplierLeadTimeDays(event.target.value)
                           }
+                          data-testid="product-supplier-lead-time"
+                          placeholder="0"
                         />
-                      </label>
-                    </div>
+                      </div>
+                    </label>
 
-                    <div className="split-grid">
-                      <label>
-                        Mindestbestand
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                        Mindestbestellmenge
+                      </span>
+                      <div className="relative">
+                        <ShoppingCart size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                         <input
-                          className="input"
+                          className="input w-full pl-9 text-sm h-11"
                           type="number"
                           min="0"
                           step="0.001"
-                          value={form.minStock}
+                          value={supplierMinOrderQuantity}
                           onChange={(event) =>
-                            setWarehouseFormById((prev) => ({
-                              ...prev,
-                              [warehouse.id]: { ...form, minStock: event.target.value },
-                            }))
+                            setSupplierMinOrderQuantity(event.target.value)
                           }
+                          data-testid="product-supplier-min-order"
+                          placeholder="0"
                         />
-                      </label>
-                      <label>
-                        Meldebestand
-                        <input
-                          className="input"
-                          type="number"
-                          min="0"
-                          step="0.001"
-                          value={form.reorderPoint}
-                          onChange={(event) =>
-                            setWarehouseFormById((prev) => ({
-                              ...prev,
-                              [warehouse.id]: { ...form, reorderPoint: event.target.value },
-                            }))
-                          }
-                        />
-                      </label>
-                    </div>
+                      </div>
+                    </label>
 
-                    <div className="split-grid">
-                      <label>
-                        Maximalbestand
-                        <input
-                          className="input"
-                          type="number"
-                          min="0"
-                          step="0.001"
-                          value={form.maxStock}
-                          onChange={(event) =>
-                            setWarehouseFormById((prev) => ({
-                              ...prev,
-                              [warehouse.id]: { ...form, maxStock: event.target.value },
-                            }))
-                          }
-                        />
+                    <div className="md:col-span-2 lg:col-span-4 flex items-center justify-between pt-4 border-t border-[var(--line)]">
+                      <label className="flex items-center gap-3 cursor-pointer group">
+                        <div className="relative flex items-center">
+                            <input
+                            type="checkbox"
+                            className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-[var(--line)] checked:border-[var(--accent)] checked:bg-[var(--accent)] transition-all"
+                            checked={supplierPreferred}
+                            onChange={(event) =>
+                                setSupplierPreferred(event.target.checked)
+                            }
+                            data-testid="product-supplier-preferred"
+                            />
+                             <Check size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" />
+                        </div>
+                        <span className="text-sm font-medium text-[var(--ink)] group-hover:text-[var(--accent)] transition-colors">Als bevorzugter Lieferant markieren</span>
                       </label>
-                      <label>
-                        Sicherheitsbestand
-                        <input
-                          className="input"
-                          type="number"
-                          min="0"
-                          step="0.001"
-                          value={form.safetyStock}
-                          onChange={(event) =>
-                            setWarehouseFormById((prev) => ({
-                              ...prev,
-                              [warehouse.id]: { ...form, safetyStock: event.target.value },
-                            }))
-                          }
-                        />
-                      </label>
-                    </div>
 
-                    <div className="actions-cell">
                       <button
-                        className="btn"
-                        type="button"
-                        onClick={() => void onSaveWarehouseSetting(warehouse.id)}
+                        className="btn btn-primary min-w-[140px]"
+                        type="submit"
                         disabled={pending || !isAdmin}
-                        data-testid={`product-warehouse-save-${warehouse.id}`}
+                        data-testid="product-supplier-add-btn"
                       >
-                        Lagerdaten speichern
-                      </button>
-                      <button
-                        className="btn"
-                        type="button"
-                        onClick={() => void onClearWarehouseSetting(warehouse.id)}
-                        disabled={pending || !isAdmin}
-                        data-testid={`product-warehouse-clear-${warehouse.id}`}
-                      >
-                        Lagerdaten löschen
+                         {createProductSupplierMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                        Hinzufügen
                       </button>
                     </div>
+                  </form>
+                </section>
+
+                <div className="space-y-4">
+                  <h3 className="font-bold text-[var(--muted)] uppercase tracking-wider text-sm px-1">Zugeordnete Lieferanten</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                  {(productSuppliersQuery.data ?? []).map((relation) => (
+                    <div
+                      key={relation.id}
+                      className={`group flex flex-col md:flex-row md:items-center justify-between gap-6 p-5 rounded-xl border transition-all duration-200 ${relation.is_preferred 
+                          ? "border-[var(--accent)] bg-green-50/40 shadow-sm" 
+                          : "border-[var(--line)] bg-[var(--panel)] hover:border-[var(--line-strong)] hover:shadow-sm"
+                        }`}
+                      data-testid={`product-supplier-relation-${relation.id}`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-[var(--ink)] text-lg">
+                            {supplierNameById.get(relation.supplier_id) ??
+                              `Lieferant #${relation.supplier_id}`}
+                          </span>
+                          {relation.is_preferred && (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold text-[var(--accent-strong)] bg-green-100 px-2 py-0.5 rounded-full border border-green-200">
+                              <Star size={10} fill="currentColor" /> Preferred
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--muted)]">
+                          <span className="flex items-center gap-1.5"><Hash size={14}/> Art.-Nr: <span className="font-medium text-[var(--ink)]">{relation.supplier_product_number || "-"}</span></span>
+                          <span className="flex items-center gap-1.5"><DollarSign size={14}/> Preis: <span className="font-medium text-[var(--ink)]">{relation.price ?? "-"}</span></span>
+                          <span className="flex items-center gap-1.5"><Clock size={14}/> Lead Time: <span className="font-medium text-[var(--ink)]">{relation.lead_time_days ?? "-"} Tage</span></span>
+                          <span className="flex items-center gap-1.5"><ShoppingCart size={14}/> MOQ: <span className="font-medium text-[var(--ink)]">{relation.min_order_quantity ?? "-"}</span></span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-4 md:pt-0 border-t md:border-0 border-[var(--line)]/50">
+                        <button
+                          className={`btn btn-sm ${relation.is_preferred ? "text-[var(--muted)] hover:bg-[var(--line)]" : "text-[var(--accent)] bg-green-50 hover:bg-green-100 border-green-200"}`}
+                          type="button"
+                          onClick={() =>
+                            void updateProductSupplierMutation.mutateAsync({
+                              relation,
+                              payload: {
+                                is_preferred: !relation.is_preferred,
+                              },
+                            })
+                          }
+                          disabled={pending || !isAdmin}
+                          data-testid={`product-supplier-toggle-preferred-${relation.id}`}
+                          title={relation.is_preferred ? "Markierung entfernen" : "Als bevorzugt markieren"}
+                        >
+                          <Star size={16} fill={relation.is_preferred ? "none" : "currentColor"} />
+                          {relation.is_preferred ? "Unmark" : "Preferred"}
+                        </button>
+                        <button
+                          className="btn btn-sm text-red-600 hover:bg-red-50 border-transparent hover:border-red-200"
+                          type="button"
+                          onClick={() =>
+                            void deleteProductSupplierMutation.mutateAsync(
+                              relation.id
+                            )
+                          }
+                          disabled={pending || !isAdmin}
+                          data-testid={`product-supplier-delete-${relation.id}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                   </div>
-                );
-              })}
-            </div>
-          ) : null}
-        </article>
-      ) : null}
 
-      {activeTab === "suppliers" ? (
-        <article className="subpanel" data-testid="product-form-suppliers-tab">
-          <h3>Lieferanten</h3>
-          {!isEditMode ? <p>Bitte zuerst den Artikel anlegen, um Lieferanten zuzuordnen.</p> : null}
-
-          {isEditMode ? (
-            <>
-              <form className="form-grid" onSubmit={(event) => void onCreateSupplierRelation(event)} data-testid="product-supplier-form">
-                <label>
-                  Lieferant
-                  <select
-                    className="input"
-                    value={selectedSupplierId}
-                    onChange={(event) => setSelectedSupplierId(event.target.value)}
-                    data-testid="product-supplier-select"
-                    required
-                  >
-                    <option value="">Lieferant wählen</option>
-                    {(suppliersQuery.data?.items ?? []).map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>
-                        {supplier.supplier_number} - {supplier.company_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <div className="split-grid">
-                  <label>
-                    Lieferanten-Artikelnr.
-                    <input
-                      className="input"
-                      value={supplierProductNumber}
-                      onChange={(event) => setSupplierProductNumber(event.target.value)}
-                      data-testid="product-supplier-product-number"
-                    />
-                  </label>
-                  <label>
-                    Preis
-                    <input
-                      className="input"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={supplierPrice}
-                      onChange={(event) => setSupplierPrice(event.target.value)}
-                      data-testid="product-supplier-price"
-                    />
-                  </label>
+                  {!productSuppliersQuery.isLoading &&
+                    (productSuppliersQuery.data?.length ?? 0) === 0 && (
+                      <div className="flex flex-col items-center justify-center py-12 text-[var(--muted)] bg-[var(--panel-soft)] rounded-xl border border-dashed border-[var(--line)]">
+                        <Truck size={48} className="opacity-20 mb-3" />
+                        <p className="font-medium">Noch keine Lieferanten zugeordnet.</p>
+                        <p className="text-sm">Verwenden Sie das Formular oben, um Lieferanten hinzuzufügen.</p>
+                      </div>
+                    )}
                 </div>
-
-                <div className="split-grid">
-                  <label>
-                    Lieferzeit (Tage)
-                    <input
-                      className="input"
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={supplierLeadTimeDays}
-                      onChange={(event) => setSupplierLeadTimeDays(event.target.value)}
-                      data-testid="product-supplier-lead-time"
-                    />
-                  </label>
-                  <label>
-                    Mindestbestellmenge
-                    <input
-                      className="input"
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      value={supplierMinOrderQuantity}
-                      onChange={(event) => setSupplierMinOrderQuantity(event.target.value)}
-                      data-testid="product-supplier-min-order"
-                    />
-                  </label>
-                </div>
-
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={supplierPreferred}
-                    onChange={(event) => setSupplierPreferred(event.target.checked)}
-                    data-testid="product-supplier-preferred"
-                  />{" "}
-                  Bevorzugter Lieferant
-                </label>
-
-                <button
-                  className="btn"
-                  type="submit"
-                  disabled={pending || !isAdmin}
-                  data-testid="product-supplier-add-btn"
-                >
-                  Lieferant zuordnen
-                </button>
-              </form>
-
-              <div className="list-stack">
-                {(productSuppliersQuery.data ?? []).map((relation) => (
-                  <div key={relation.id} className="list-item static-item" data-testid={`product-supplier-relation-${relation.id}`}>
-                    <strong>{supplierNameById.get(relation.supplier_id) ?? `Lieferant #${relation.supplier_id}`}</strong>
-                    <span>
-                      Preis: {relation.price ?? "-"} | Lead Time: {relation.lead_time_days ?? "-"} | MOQ: {relation.min_order_quantity ?? "-"}
-                    </span>
-                    <span>
-                      Lieferanten-Artikelnr.: {relation.supplier_product_number ?? "-"} | Preferred: {relation.is_preferred ? "ja" : "nein"}
-                    </span>
-                    <div className="actions-cell">
-                      <button
-                        className="btn"
-                        type="button"
-                        onClick={() =>
-                          void updateProductSupplierMutation.mutateAsync({
-                            relation,
-                            payload: { is_preferred: !relation.is_preferred },
-                          })
-                        }
-                        disabled={pending || !isAdmin}
-                        data-testid={`product-supplier-toggle-preferred-${relation.id}`}
-                      >
-                        Preferred umschalten
-                      </button>
-                      <button
-                        className="btn"
-                        type="button"
-                        onClick={() => void deleteProductSupplierMutation.mutateAsync(relation.id)}
-                        disabled={pending || !isAdmin}
-                        data-testid={`product-supplier-delete-${relation.id}`}
-                      >
-                        Entfernen
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {!productSuppliersQuery.isLoading && (productSuppliersQuery.data?.length ?? 0) === 0 ? (
-                  <p>Noch keine Lieferanten zugeordnet.</p>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-        </article>
-      ) : null}
-    </section>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

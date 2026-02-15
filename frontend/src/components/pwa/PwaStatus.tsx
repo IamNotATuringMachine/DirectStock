@@ -55,13 +55,6 @@ export default function PwaStatus({ compact = false }: PwaStatusProps) {
 
   return (
     <div className={`pwa-status ${compact ? "compact" : ""}`} data-testid="pwa-status">
-      <span
-        className={`pwa-chip ${isOnline ? "pwa-chip-online" : "pwa-chip-offline"}`}
-        data-testid="pwa-online-indicator"
-        aria-label={isOnline ? "Online" : "Offline"}
-      >
-        {onlineLabel}
-      </span>
 
       {deferredPrompt ? (
         <button className="btn pwa-install-btn" onClick={() => void onInstall()} data-testid="pwa-install-btn">

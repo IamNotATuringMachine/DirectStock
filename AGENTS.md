@@ -148,3 +148,7 @@ Jeder Agent liefert am Ende:
 
 ---
 Bei Konflikten gilt: Sicherheit und Datenintegritaet vor Geschwindigkeit.
+
+## 15. Projektzugang
+- **Benutzername**: admin
+- **Passwort**: DirectStock2026!

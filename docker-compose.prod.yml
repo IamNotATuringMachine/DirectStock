@@ -2,13 +2,13 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-directstock}
+      POSTGRES_DB: ${POSTGRES_DB:-directstock_clean}
       POSTGRES_USER: ${POSTGRES_USER:-directstock}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-directstock}
     volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
+      - postgres_prod_clean_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-directstock} -d ${POSTGRES_DB:-directstock}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-directstock} -d ${POSTGRES_DB:-directstock_clean}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -18,8 +18,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile.prod
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://directstock:directstock@postgres:5432/directstock}
-      ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL:-postgresql+asyncpg://directstock:directstock@postgres:5432/directstock}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://directstock:directstock@postgres:5432/directstock_clean}
+      ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL:-postgresql+asyncpg://directstock:directstock@postgres:5432/directstock_clean}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
@@ -52,4 +52,4 @@ services:
       - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
-  postgres_prod_data:
+  postgres_prod_clean_data:

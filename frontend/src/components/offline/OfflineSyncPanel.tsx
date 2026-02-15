@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Cloud, CloudOff, RefreshCw } from "lucide-react";
 
 import {
   discardOfflineMutation,
@@ -137,19 +138,42 @@ export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelPr
   };
 
   const chipLabel = compact
-    ? `Warteschlange ${stats.total}`
-    : `${isOnline ? "Online" : "Offline"} | Warteschlange ${stats.total}`;
+    ? stats.total > 0 ? `${stats.total}` : ""
+    : isOnline ? "Online" : "Offline";
+
 
   return (
     <div className={`offline-sync ${compact ? "compact" : ""}`}>
       <button
-        className={`pwa-chip offline-sync-chip ${isOnline ? "pwa-chip-online" : "pwa-chip-offline"} ${compact ? "compact" : ""}`}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all border ${isOnline
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
+          : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+          }`}
         onClick={() => setIsPanelOpen((value) => !value)}
         data-testid="offline-sync-chip"
-        aria-label={`${isOnline ? "Online" : "Offline"} Warteschlange: ${stats.total}`}
+        title={isOnline ? "Verbindung hergestellt" : "Keine Verbindung"}
         type="button"
       >
-        {chipLabel}
+        {isOnline ? (
+          <>
+            <div className="relative">
+              <Cloud className="w-4 h-4" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+            </div>
+            {!compact && <span className="text-xs font-semibold">Online</span>}
+          </>
+        ) : (
+          <>
+            <CloudOff className="w-4 h-4 opacity-70" />
+            {!compact && <span className="text-xs font-semibold">Offline</span>}
+          </>
+        )}
+
+        {stats.total > 0 && (
+          <span className="ml-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+            {stats.total}
+          </span>
+        )}
       </button>
       {isPanelOpen ? (
         <div className="offline-sync-panel" data-testid="offline-sync-panel">

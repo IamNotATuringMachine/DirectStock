@@ -158,16 +158,43 @@ cp .env.example .env
 
 Wichtige zusätzliche Variablen:
 
-- `SEED_ON_START` (nur Prod-Compose, optional)
+- `SEED_ON_START` (optional, Standard `false`; gilt für Default/Dev/Prod-Stack)
 - `EINVOICE_EN16931_VALIDATION_MODE` (`strict` oder `builtin_fallback`, Default: `strict`)
 - `EINVOICE_KOSIT_VALIDATOR_JAR` (Pfad zur KoSIT-Validator-JAR)
 - `EINVOICE_KOSIT_SCENARIO` (Pfad zur KoSIT-Szenario-Datei)
 
-## Starten (Dev/Default Stack)
+## Clean-Slate DB Umstellung (neue DB, alte DB bleibt erhalten)
+
+Der Standard ist auf `directstock_clean` umgestellt. Bestehende alte Docker-Volumes werden absichtlich nicht gelöscht und nicht mehr aktiv genutzt.
+
+Einmaliger Umstieg für lokale Umgebungen mit bestehender DB:
+
+```bash
+docker compose down
+docker compose -f docker-compose.dev.yml down
+```
+
+Danach in `.env` sicherstellen:
+
+- `POSTGRES_DB=directstock_clean`
+- `DATABASE_URL=postgresql+psycopg://directstock:directstock@postgres:5432/directstock_clean`
+- `ASYNC_DATABASE_URL=postgresql+asyncpg://directstock:directstock@postgres:5432/directstock_clean`
+
+Dann Stack neu starten:
 
 ```bash
 docker compose up --build
 ```
+
+Erwartung: neue `*_clean_*` Volumes werden angelegt, alte Volumes bleiben parallel vorhanden.
+
+## Starten (Default Stack mit Frontend-Live-Reload)
+
+```bash
+docker compose up --build
+```
+
+Der Default-Stack mountet `./frontend` in den Frontend-Container. Damit liefert `http://localhost:8080` immer den aktuellen lokalen Frontend-Stand ohne manuelles Rebuild bei jeder UI-Aenderung.
 
 Danach verfügbar:
 
@@ -187,9 +214,11 @@ docker compose -f docker-compose.dev.yml up --build
 docker compose -f docker-compose.prod.yml up --build
 ```
 
-Optional Seed für lokale Prod-Verifikation:
+Optionaler Seed für Default/Dev/Prod-Stack:
 
 ```bash
+SEED_ON_START=true docker compose up --build
+SEED_ON_START=true docker compose -f docker-compose.dev.yml up --build
 SEED_ON_START=true docker compose -f docker-compose.prod.yml up --build
 ```
 
@@ -271,7 +300,7 @@ docker compose -f docker-compose.prod.yml up --build
 - `http://localhost:8080/api/health`
 - `http://localhost:8080/api/docs`
 
-3. Login-Smoketest mit Default-Admin.
+3. Login-Smoketest nur bei aktiviertem Seed (`SEED_ON_START=true`).
 
 4. Lighthouse PWA Audit (automatisiert, Score >= 0.90):
 
@@ -295,6 +324,8 @@ Artefakte:
 5. Offline-Fallback ist erreichbar (`/offline.html`).
 
 ## Default Admin
+
+Nur vorhanden, wenn Seed aktiviert wurde (`SEED_ON_START=true` oder manuell `python3 scripts/seed_data.py --mode mvp`).
 
 - Username: `admin` (oder `DIRECTSTOCK_ADMIN_USERNAME`)
 - Passwort: `DIRECTSTOCK_ADMIN_PASSWORD`

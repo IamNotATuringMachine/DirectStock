@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext } from "@playwright/test";
+import { expect, type APIRequestContext, type APIResponse } from "@playwright/test";
 
 const ADMIN_USERNAME = process.env.E2E_ADMIN_USERNAME ?? "admin";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "DirectStock2026!";
@@ -21,6 +21,28 @@ type InventoryListResponse = {
   }>;
 };
 
+function has2xxStatus(response: APIResponse): boolean {
+  return response.status() >= 200 && response.status() < 300;
+}
+
+export async function assertOkJson<T>(response: APIResponse, schemaHint: string): Promise<T> {
+  const status = response.status();
+  const bodyText = await response.text();
+
+  expect(status, `${schemaHint}: expected HTTP 2xx but got ${status}. Body: ${bodyText}`).toBeGreaterThanOrEqual(200);
+  expect(status, `${schemaHint}: expected HTTP 2xx but got ${status}. Body: ${bodyText}`).toBeLessThan(300);
+
+  if (!bodyText.trim()) {
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(bodyText) as T;
+  } catch (error) {
+    throw new Error(`${schemaHint}: response was not valid JSON. Body: ${bodyText}. Error: ${String(error)}`);
+  }
+}
+
 export async function loginAsAdminApi(request: APIRequestContext): Promise<string> {
   const response = await request.post("/api/auth/login", {
     data: {
@@ -28,8 +50,8 @@ export async function loginAsAdminApi(request: APIRequestContext): Promise<strin
       password: ADMIN_PASSWORD,
     },
   });
-  expect(response.ok()).toBeTruthy();
-  const payload = (await response.json()) as { access_token: string };
+  const payload = await assertOkJson<{ access_token: string }>(response, "login as admin");
+  expect(payload.access_token, "login as admin: access_token is missing").toBeDefined();
   return payload.access_token;
 }
 
@@ -55,7 +77,7 @@ export async function createE2EUserWithRoles(
       is_active: true,
     },
   });
-  expect(createUser.ok()).toBeTruthy();
+  await assertOkJson(createUser, "create e2e user with roles");
 
   return { username, password };
 }
@@ -68,10 +90,9 @@ export async function ensureDashboardCardVisible(
   const current = await request.get("/api/dashboard/config/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
-  expect(current.ok()).toBeTruthy();
-  const payload = (await current.json()) as {
+  const payload = await assertOkJson<{
     cards: Array<{ card_key: string; visible: boolean; display_order: number }>;
-  };
+  }>(current, "get dashboard config");
 
   const cards = payload.cards.map((card) =>
     card.card_key === cardKey ? { ...card, visible: true } : card,
@@ -81,28 +102,27 @@ export async function ensureDashboardCardVisible(
     headers: { Authorization: `Bearer ${token}` },
     data: { cards },
   });
-  expect(update.ok()).toBeTruthy();
+  await assertOkJson(update, "update dashboard config");
 }
 
 export async function ensureE2EProduct(
   request: APIRequestContext,
   token: string,
-  productNumber = E2E_PRODUCT_NUMBER
+  productNumber = E2E_PRODUCT_NUMBER,
 ): Promise<string> {
   const headers = { Authorization: `Bearer ${token}` };
 
   const existing = await request.get(`/api/products?search=${encodeURIComponent(productNumber)}&page_size=200`, {
     headers,
   });
-  expect(existing.ok()).toBeTruthy();
-  const existingPayload = (await existing.json()) as ProductListResponse;
+  const existingPayload = await assertOkJson<ProductListResponse>(existing, "lookup e2e product");
+
   if (existingPayload.items.some((item) => item.product_number === productNumber)) {
     return productNumber;
   }
 
   const groupsResponse = await request.get("/api/product-groups", { headers });
-  expect(groupsResponse.ok()).toBeTruthy();
-  const groups = (await groupsResponse.json()) as Array<{ id: number; name: string }>;
+  const groups = await assertOkJson<Array<{ id: number; name: string }>>(groupsResponse, "list product groups");
 
   let groupId = groups.find((group) => group.name === E2E_GROUP_NAME)?.id;
   if (!groupId) {
@@ -113,19 +133,23 @@ export async function ensureE2EProduct(
         description: "Playwright E2E test group",
       },
     });
-    if (createGroup.ok()) {
-      groupId = ((await createGroup.json()) as { id: number }).id;
+
+    if (has2xxStatus(createGroup)) {
+      const createdGroup = await assertOkJson<{ id: number }>(createGroup, "create product group");
+      groupId = createdGroup.id;
     } else if (createGroup.status() === 409) {
       const refreshGroups = await request.get("/api/product-groups", { headers });
-      expect(refreshGroups.ok()).toBeTruthy();
-      const refreshed = (await refreshGroups.json()) as Array<{ id: number; name: string }>;
+      const refreshed = await assertOkJson<Array<{ id: number; name: string }>>(
+        refreshGroups,
+        "refresh product groups after conflict",
+      );
       groupId = refreshed.find((group) => group.name === E2E_GROUP_NAME)?.id;
     } else {
-      expect(createGroup.ok()).toBeTruthy();
+      await assertOkJson(createGroup, "create product group unexpected status");
     }
   }
 
-  expect(groupId).toBeTruthy();
+  expect(groupId, "ensure e2e product: group id is missing").toBeDefined();
 
   const createProduct = await request.post("/api/products", {
     headers,
@@ -138,8 +162,9 @@ export async function ensureE2EProduct(
       status: "active",
     },
   });
-  if (!createProduct.ok() && createProduct.status() !== 409) {
-    expect(createProduct.ok()).toBeTruthy();
+
+  if (!has2xxStatus(createProduct) && createProduct.status() !== 409) {
+    await assertOkJson(createProduct, "create e2e product unexpected status");
   }
 
   return productNumber;
@@ -148,17 +173,16 @@ export async function ensureE2EProduct(
 export async function getInventoryQuantityForProduct(
   request: APIRequestContext,
   token: string,
-  productNumber: string
+  productNumber: string,
 ): Promise<{ raw: string; numeric: number }> {
   const response = await request.get(
     `/api/inventory?search=${encodeURIComponent(productNumber)}&page_size=200`,
     {
       headers: { Authorization: `Bearer ${token}` },
-    }
+    },
   );
-  expect(response.ok()).toBeTruthy();
 
-  const payload = (await response.json()) as InventoryListResponse;
+  const payload = await assertOkJson<InventoryListResponse>(response, "get inventory quantity for product");
   const row = payload.items.find((item) => item.product_number === productNumber);
 
   if (!row) {
@@ -174,17 +198,16 @@ export async function getInventoryQuantityForProduct(
 export async function ensureE2ESupplier(
   request: APIRequestContext,
   token: string,
-  supplierNumber = E2E_SUPPLIER_NUMBER
+  supplierNumber = E2E_SUPPLIER_NUMBER,
 ): Promise<{ id: number; supplier_number: string }> {
   const headers = { Authorization: `Bearer ${token}` };
 
   const existing = await request.get(`/api/suppliers?search=${encodeURIComponent(supplierNumber)}&page_size=200`, {
     headers,
   });
-  expect(existing.ok()).toBeTruthy();
-  const existingPayload = (await existing.json()) as {
+  const existingPayload = await assertOkJson<{
     items: Array<{ id: number; supplier_number: string }>;
-  };
+  }>(existing, "lookup e2e supplier");
   const found = existingPayload.items.find((item) => item.supplier_number === supplierNumber);
   if (found) {
     return found;
@@ -200,15 +223,13 @@ export async function ensureE2ESupplier(
       is_active: true,
     },
   });
-  expect(created.ok()).toBeTruthy();
-  const payload = (await created.json()) as { id: number; supplier_number: string };
-  return payload;
+  return assertOkJson<{ id: number; supplier_number: string }>(created, "create e2e supplier");
 }
 
 export async function ensureE2EInventoryStock(
   request: APIRequestContext,
   token: string,
-  productNumber = E2E_PRODUCT_NUMBER
+  productNumber = E2E_PRODUCT_NUMBER,
 ): Promise<{ productNumber: string; binId: number; warehouseId: number }> {
   const headers = { Authorization: `Bearer ${token}` };
   const ensuredProductNumber = await ensureE2EProduct(request, token, productNumber);
@@ -216,10 +237,9 @@ export async function ensureE2EInventoryStock(
   const products = await request.get(`/api/products?search=${encodeURIComponent(ensuredProductNumber)}&page_size=200`, {
     headers,
   });
-  expect(products.ok()).toBeTruthy();
-  const productPayload = (await products.json()) as ProductListResponse;
+  const productPayload = await assertOkJson<ProductListResponse>(products, "lookup product for inventory stock");
   const product = productPayload.items.find((item) => item.product_number === ensuredProductNumber);
-  expect(product).toBeTruthy();
+  expect(product, "ensure e2e inventory stock: seeded product not found").toBeDefined();
 
   let warehouse: { id: number; code: string } | null = null;
   let unique = "";
@@ -235,15 +255,18 @@ export async function ensureE2EInventoryStock(
         is_active: true,
       },
     });
-    if (createWarehouse.ok()) {
-      warehouse = (await createWarehouse.json()) as { id: number; code: string };
+
+    if (has2xxStatus(createWarehouse)) {
+      warehouse = await assertOkJson<{ id: number; code: string }>(createWarehouse, "create e2e warehouse");
       break;
     }
+
     if (createWarehouse.status() !== 409) {
-      expect(createWarehouse.ok()).toBeTruthy();
+      await assertOkJson(createWarehouse, "create e2e warehouse unexpected status");
     }
   }
-  expect(warehouse).toBeTruthy();
+
+  expect(warehouse, "ensure e2e inventory stock: warehouse could not be created").not.toBeNull();
 
   const createZone = await request.post(`/api/warehouses/${warehouse!.id}/zones`, {
     headers,
@@ -254,8 +277,7 @@ export async function ensureE2EInventoryStock(
       is_active: true,
     },
   });
-  expect(createZone.ok()).toBeTruthy();
-  const zone = (await createZone.json()) as { id: number; code: string };
+  const zone = await assertOkJson<{ id: number; code: string }>(createZone, "create e2e zone");
 
   const createBin = await request.post(`/api/zones/${zone.id}/bins`, {
     headers,
@@ -265,8 +287,7 @@ export async function ensureE2EInventoryStock(
       is_active: true,
     },
   });
-  expect(createBin.ok()).toBeTruthy();
-  const bin = (await createBin.json()) as { id: number; code: string };
+  const bin = await assertOkJson<{ id: number; code: string }>(createBin, "create e2e bin");
 
   const receipt = await request.post("/api/goods-receipts", {
     headers,
@@ -274,8 +295,7 @@ export async function ensureE2EInventoryStock(
       notes: `E2E inventory count seed ${Date.now()}`,
     },
   });
-  expect(receipt.ok()).toBeTruthy();
-  const receiptPayload = (await receipt.json()) as { id: number };
+  const receiptPayload = await assertOkJson<{ id: number }>(receipt, "create goods receipt for e2e stock seed");
 
   const item = await request.post(`/api/goods-receipts/${receiptPayload.id}/items`, {
     headers,
@@ -286,12 +306,12 @@ export async function ensureE2EInventoryStock(
       target_bin_id: bin.id,
     },
   });
-  expect(item.ok()).toBeTruthy();
+  await assertOkJson(item, "create goods receipt item for e2e stock seed");
 
   const complete = await request.post(`/api/goods-receipts/${receiptPayload.id}/complete`, {
     headers,
   });
-  expect(complete.ok()).toBeTruthy();
+  await assertOkJson(complete, "complete goods receipt for e2e stock seed");
 
   return { productNumber: ensuredProductNumber, binId: bin.id, warehouseId: warehouse!.id };
 }
