@@ -136,7 +136,9 @@ export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelPr
     await loadQueueState();
   };
 
-  const chipLabel = compact ? `Queue ${stats.total}` : `${isOnline ? "Online" : "Offline"} | Queue ${stats.total}`;
+  const chipLabel = compact
+    ? `Warteschlange ${stats.total}`
+    : `${isOnline ? "Online" : "Offline"} | Warteschlange ${stats.total}`;
 
   return (
     <div className={`offline-sync ${compact ? "compact" : ""}`}>
@@ -144,7 +146,7 @@ export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelPr
         className={`pwa-chip offline-sync-chip ${isOnline ? "pwa-chip-online" : "pwa-chip-offline"} ${compact ? "compact" : ""}`}
         onClick={() => setIsPanelOpen((value) => !value)}
         data-testid="offline-sync-chip"
-        aria-label={`${isOnline ? "Online" : "Offline"} Queue: ${stats.total}`}
+        aria-label={`${isOnline ? "Online" : "Offline"} Warteschlange: ${stats.total}`}
         type="button"
       >
         {chipLabel}
@@ -152,7 +154,7 @@ export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelPr
       {isPanelOpen ? (
         <div className="offline-sync-panel" data-testid="offline-sync-panel">
           <div className="offline-sync-panel-header">
-            <strong>Offline Queue</strong>
+            <strong>Offline-Warteschlange</strong>
             <button
               className="btn offline-sync-btn"
               onClick={() => void runSync()}
@@ -164,7 +166,7 @@ export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelPr
             </button>
           </div>
           <p className="offline-sync-meta" data-testid="offline-sync-count">
-            Offen: {stats.total} | queued: {stats.queued} | failed: {stats.failed}
+            Offen: {stats.total} | wartend: {stats.queued} | fehlerhaft: {stats.failed}
           </p>
           {lastSyncMessage ? <p className="offline-sync-meta">{lastSyncMessage}</p> : null}
           <div className="offline-sync-list">
@@ -178,7 +180,7 @@ export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelPr
                       {item.method} {item.url}
                     </strong>
                     <p>
-                      Status: {item.status} | Attempts: {item.attempts}
+                      Status: {item.status} | Versuche: {item.attempts}
                     </p>
                     {item.last_error ? <p className="offline-sync-error">{item.last_error}</p> : null}
                   </div>
@@ -189,7 +191,7 @@ export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelPr
                       type="button"
                       data-testid={`offline-sync-retry-${index}`}
                     >
-                      Retry
+                      Erneut senden
                     </button>
                     <button
                       className="btn offline-sync-btn"
@@ -197,7 +199,7 @@ export default function OfflineSyncPanel({ compact = false }: OfflineSyncPanelPr
                       type="button"
                       data-testid={`offline-sync-discard-${index}`}
                     >
-                      Discard
+                      Verwerfen
                     </button>
                   </div>
                 </div>

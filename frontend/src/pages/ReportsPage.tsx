@@ -297,7 +297,7 @@ export default function ReportsPage() {
     <section className="panel" data-testid="reports-page">
       <header className="panel-header">
         <div>
-          <h2>Reports & KPI</h2>
+          <h2>Berichte & KPI</h2>
           <p className="panel-subtitle">Filterbare Analysen mit CSV-Export.</p>
         </div>
       </header>
@@ -312,27 +312,27 @@ export default function ReportsPage() {
           <strong>{kpisQuery.data?.dock_to_stock_hours ?? "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="reports-kpi-accuracy">
-          <span>Inventory Accuracy</span>
+          <span>Bestandsgenauigkeit</span>
           <strong>{kpisQuery.data ? `${kpisQuery.data.inventory_accuracy_percent}%` : "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="reports-kpi-alerts">
-          <span>Alert Count</span>
+          <span>Warnungsanzahl</span>
           <strong>{kpisQuery.data?.alert_count ?? "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="reports-kpi-pick-accuracy">
-          <span>Pick Accuracy</span>
+          <span>Pick-Genauigkeit</span>
           <strong>{kpisQuery.data ? `${kpisQuery.data.pick_accuracy_rate}%` : "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="reports-kpi-returns-rate">
-          <span>Returns Rate</span>
+          <span>Retourenquote</span>
           <strong>{kpisQuery.data ? `${kpisQuery.data.returns_rate}%` : "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="reports-kpi-approval-cycle">
-          <span>Approval Cycle (h)</span>
+          <span>Genehmigungszyklus (h)</span>
           <strong>{kpisQuery.data?.approval_cycle_hours ?? "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="reports-kpi-iwt-transfers">
-          <span>IWT in Transit</span>
+          <span>IWT im Transit</span>
           <strong>{kpisQuery.data?.inter_warehouse_transfers_in_transit ?? "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="reports-kpi-iwt-quantity">
@@ -351,16 +351,16 @@ export default function ReportsPage() {
           }}
           data-testid="reports-type-select"
         >
-          <option value="stock">Stock</option>
-          <option value="movements">Movements</option>
-          <option value="inbound-outbound">Inbound/Outbound</option>
-          <option value="inventory-accuracy">Inventory Accuracy</option>
+          <option value="stock">Bestand</option>
+          <option value="movements">Bewegungen</option>
+          <option value="inbound-outbound">Warenein-/ausgang</option>
+          <option value="inventory-accuracy">Bestandsgenauigkeit</option>
           <option value="abc">ABC</option>
-          <option value="returns">Returns</option>
-          <option value="picking-performance">Picking Performance</option>
-          <option value="purchase-recommendations">Purchase Recommendations</option>
+          <option value="returns">Retouren</option>
+          <option value="picking-performance">Pick-Leistung</option>
+          <option value="purchase-recommendations">Einkaufsempfehlungen</option>
           <option value="trends">Trends</option>
-          <option value="demand-forecast">Demand Forecast</option>
+          <option value="demand-forecast">Bedarfsprognose</option>
         </select>
         <input
           className="input"
@@ -420,7 +420,7 @@ export default function ReportsPage() {
               className="input"
               type="number"
               min="1"
-              placeholder="Warehouse-ID"
+              placeholder="Lager-ID"
               value={trendWarehouseId}
               onChange={(event) => setTrendWarehouseId(event.target.value)}
               data-testid="reports-trend-warehouse-id"
@@ -457,7 +457,7 @@ export default function ReportsPage() {
               className="input"
               type="number"
               min="1"
-              placeholder="Warehouse-ID"
+              placeholder="Lager-ID"
               value={forecastWarehouseId}
               onChange={(event) => {
                 setForecastWarehouseId(event.target.value);

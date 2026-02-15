@@ -300,14 +300,14 @@ export default function InterWarehouseTransferPage() {
     <section className="panel" data-testid="inter-warehouse-transfer-page">
       <header className="panel-header">
         <div>
-          <h2>Inter-Warehouse Transfer</h2>
+          <h2>Zwischenlager-Transfer</h2>
           <p className="panel-subtitle">Standortübergreifende Umlagerungen mit Transit-Status steuern.</p>
         </div>
       </header>
 
       <div className="kpi-grid" style={{ marginBottom: "1rem" }}>
         <div className="kpi-card" data-testid="iwt-transit-count">
-          <span>Transfers in Transit</span>
+          <span>Transfers im Transit</span>
           <strong>{dispatchedTransferCount}</strong>
         </div>
       </div>

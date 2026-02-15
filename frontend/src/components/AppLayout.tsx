@@ -21,26 +21,26 @@ const navItems: NavItem[] = [
   { to: "/inventory", label: "Bestandsübersicht", shortLabel: "BS", requiredPermissions: ["page.inventory.view"] },
   { to: "/inventory-counts", label: "Inventur", shortLabel: "IV", requiredPermissions: ["page.inventory-counts.view"] },
   { to: "/purchasing", label: "Einkauf", shortLabel: "EK", requiredPermissions: ["page.purchasing.view"] },
-  { to: "/picking", label: "Picking", shortLabel: "PK", requiredPermissions: ["page.picking.view"] },
+  { to: "/picking", label: "Kommissionierung", shortLabel: "PK", requiredPermissions: ["page.picking.view"] },
   { to: "/returns", label: "Retouren", shortLabel: "RT", requiredPermissions: ["page.returns.view"] },
   { to: "/approvals", label: "Genehmigungen", shortLabel: "GN", requiredPermissions: ["page.approvals.view"] },
   { to: "/documents", label: "Dokumente", shortLabel: "DM", requiredPermissions: ["page.documents.view"] },
-  { to: "/audit-trail", label: "Audit Trail", shortLabel: "AT", requiredPermissions: ["page.audit-trail.view"] },
-  { to: "/reports", label: "Reports", shortLabel: "RP", requiredPermissions: ["page.reports.view"] },
-  { to: "/alerts", label: "Alerts", shortLabel: "AL", requiredPermissions: ["page.alerts.view"] },
+  { to: "/audit-trail", label: "Audit-Trail", shortLabel: "AT", requiredPermissions: ["page.audit-trail.view"] },
+  { to: "/reports", label: "Berichte", shortLabel: "RP", requiredPermissions: ["page.reports.view"] },
+  { to: "/alerts", label: "Warnungen", shortLabel: "AL", requiredPermissions: ["page.alerts.view"] },
   { to: "/goods-receipt", label: "Wareneingang", shortLabel: "WE", requiredPermissions: ["page.goods-receipt.view"] },
   { to: "/goods-issue", label: "Warenausgang", shortLabel: "WA", requiredPermissions: ["page.goods-issue.view"] },
   { to: "/stock-transfer", label: "Umlagerung", shortLabel: "UM", requiredPermissions: ["page.stock-transfer.view"] },
   {
     to: "/inter-warehouse-transfer",
-    label: "Inter-Warehouse",
+    label: "Zwischenlager",
     shortLabel: "IW",
     requiredPermissions: ["page.inter-warehouse-transfer.view"],
   },
-  { to: "/shipping", label: "Shipping", shortLabel: "SH", requiredPermissions: ["page.shipping.view"] },
+  { to: "/shipping", label: "Versand", shortLabel: "SH", requiredPermissions: ["page.shipping.view"] },
   { to: "/scanner", label: "Scanner", shortLabel: "SC", requiredPermissions: ["page.scanner.view"] },
-  { to: "/services", label: "Services", shortLabel: "SV", requiredPermissions: ["page.services.view"] },
-  { to: "/sales-orders", label: "Sales Orders", shortLabel: "SO", requiredPermissions: ["page.sales-orders.view"] },
+  { to: "/services", label: "Dienstleistungen", shortLabel: "SV", requiredPermissions: ["page.services.view"] },
+  { to: "/sales-orders", label: "Verkaufsaufträge", shortLabel: "SO", requiredPermissions: ["page.sales-orders.view"] },
   { to: "/invoices", label: "Rechnungen", shortLabel: "RE", requiredPermissions: ["page.invoices.view"] },
   { to: "/users", label: "Benutzerverwaltung", shortLabel: "BU", requiredPermissions: ["page.users.view"] },
 ];
@@ -217,6 +217,19 @@ export default function AppLayout() {
               </NavLink>
             ))}
         </nav>
+        {isMobileLayout ? (
+          <div className="sidebar-utilities" data-testid="sidebar-utilities">
+            <button
+              className="btn"
+              type="button"
+              onClick={() => void onToggleTheme()}
+              data-testid="theme-toggle-btn"
+            >
+              Design: {theme}
+            </button>
+            <OfflineSyncPanel />
+          </div>
+        ) : null}
       </aside>
       <div className="content-area">
         <header className="topbar">
@@ -242,13 +255,15 @@ export default function AppLayout() {
             </div>
           </div>
           <div className="topbar-right" data-testid="topbar-right">
-            <button className="btn" type="button" onClick={() => void onToggleTheme()} data-testid="theme-toggle-btn">
-              Theme: {theme}
-            </button>
+            {!isMobileLayout ? (
+              <button className="btn" type="button" onClick={() => void onToggleTheme()} data-testid="theme-toggle-btn">
+                Design: {theme}
+              </button>
+            ) : null}
             <PwaStatus compact={isMobileLayout} />
-            <OfflineSyncPanel compact={isMobileLayout} />
+            {!isMobileLayout ? <OfflineSyncPanel /> : null}
             <button className="btn" onClick={() => void logout()} data-testid="logout-btn">
-              Logout
+              Abmelden
             </button>
           </div>
         </header>

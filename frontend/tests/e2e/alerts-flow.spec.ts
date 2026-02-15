@@ -80,7 +80,7 @@ test("alerts page shows and acknowledges generated alerts", async ({ page, reque
 
   const openRow = page.locator("#root tr", { hasText: seeded.productNumber }).first();
   await expect(openRow).toBeVisible();
-  await openRow.getByRole("button", { name: "Ack" }).click();
+  await openRow.getByRole("button", { name: /Ack|Quittieren/i }).click();
 
   await page.getByTestId("alerts-status-filter").selectOption("acknowledged");
   const acknowledgedRow = page.locator("#root tr", { hasText: seeded.productNumber }).first();

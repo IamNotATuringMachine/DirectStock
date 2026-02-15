@@ -106,7 +106,7 @@ export default function ShippingPage() {
     <section className="panel" data-testid="shipping-page">
       <header className="panel-header">
         <div>
-          <h2>Shipping</h2>
+          <h2>Versand</h2>
           <p className="panel-subtitle">Versandaufträge anlegen, Label erzeugen und Tracking überwachen.</p>
         </div>
       </header>
@@ -140,10 +140,10 @@ export default function ShippingPage() {
 
       <div className="warehouse-grid">
         <article className="subpanel">
-          <h3>1. Shipment anlegen</h3>
+          <h3>1. Sendung anlegen</h3>
           <form className="form-grid" onSubmit={(event) => void onCreateShipment(event)} data-testid="shipping-create-form">
             <label>
-              Carrier
+              Versanddienstleister
               <select
                 className="input"
                 value={carrier}
@@ -183,7 +183,7 @@ export default function ShippingPage() {
               />
             </label>
             <button className="btn" type="submit" disabled={createMutation.isPending} data-testid="shipping-create-btn">
-              Shipment anlegen
+              Sendung anlegen
             </button>
           </form>
 
@@ -209,7 +209,7 @@ export default function ShippingPage() {
 
         <article className="subpanel">
           <h3>2. Label + Tracking</h3>
-          {!selectedShipment ? <p>Bitte Shipment auswählen.</p> : null}
+          {!selectedShipment ? <p>Bitte Sendung auswählen.</p> : null}
           {selectedShipment ? (
             <>
               <p data-testid="shipping-selected-status">
@@ -242,7 +242,7 @@ export default function ShippingPage() {
                   disabled={cancelMutation.isPending || selectedShipment.status === "cancelled"}
                   data-testid="shipping-cancel-btn"
                 >
-                  Shipment stornieren
+                  Sendung stornieren
                 </button>
                 <button
                   className="btn"

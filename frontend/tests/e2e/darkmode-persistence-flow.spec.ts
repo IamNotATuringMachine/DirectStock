@@ -10,8 +10,13 @@ test("darkmode persistence flow keeps theme preference across reload", async ({ 
   await page.getByTestId("login-submit").click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
+  const isMobileLayout = await page.evaluate(() => window.matchMedia("(max-width: 1100px)").matches);
+  if (isMobileLayout) {
+    await page.getByTestId("sidebar-toggle").click();
+  }
 
   const themeButton = page.getByTestId("theme-toggle-btn");
+  await expect(themeButton).toBeVisible();
   const before = (await themeButton.textContent())?.trim() ?? "";
   let after = before;
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -24,5 +29,8 @@ test("darkmode persistence flow keeps theme preference across reload", async ({ 
   }
   expect(after).not.toBe(before);
   await page.reload();
+  if (isMobileLayout) {
+    await page.getByTestId("sidebar-toggle").click();
+  }
   await expect(themeButton).toHaveText(after);
 });

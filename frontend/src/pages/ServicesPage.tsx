@@ -76,7 +76,7 @@ export default function ServicesPage() {
       <article className="subpanel">
         <h3>Services</h3>
         <div className="table-wrap">
-          <table className="inventory-table">
+          <table className="products-table mobile-cards-table" data-testid="services-table">
             <thead>
               <tr>
                 <th>Nr</th>
@@ -90,17 +90,15 @@ export default function ServicesPage() {
             <tbody>
               {(servicesQuery.data?.items ?? []).map((service) => (
                 <tr key={service.id}>
-                  <td>{service.service_number}</td>
-                  <td>{service.name}</td>
-                  <td>{service.net_price}</td>
-                  <td>{service.gross_price}</td>
-                  <td>{service.status}</td>
-                  <td>
-                    <div className="actions-cell">
-                      <button className="btn" type="button" onClick={() => void updateMutation.mutateAsync({ serviceId: service.id, status: "blocked" })}>Sperren</button>
-                      <button className="btn" type="button" onClick={() => void updateMutation.mutateAsync({ serviceId: service.id, status: "active" })}>Aktiv</button>
-                      <button className="btn" type="button" onClick={() => void deleteMutation.mutateAsync(service.id)}>Löschen</button>
-                    </div>
+                  <td data-label="Nr">{service.service_number}</td>
+                  <td data-label="Name">{service.name}</td>
+                  <td data-label="Netto">{service.net_price}</td>
+                  <td data-label="Brutto">{service.gross_price}</td>
+                  <td data-label="Status">{service.status}</td>
+                  <td data-label="Aktion" className="actions-cell">
+                    <button className="btn" type="button" onClick={() => void updateMutation.mutateAsync({ serviceId: service.id, status: "blocked" })}>Sperren</button>
+                    <button className="btn" type="button" onClick={() => void updateMutation.mutateAsync({ serviceId: service.id, status: "active" })}>Aktiv</button>
+                    <button className="btn" type="button" onClick={() => void deleteMutation.mutateAsync(service.id)}>Löschen</button>
                   </td>
                 </tr>
               ))}

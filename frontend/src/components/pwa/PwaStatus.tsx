@@ -51,7 +51,7 @@ export default function PwaStatus({ compact = false }: PwaStatusProps) {
     setDeferredPrompt(null);
   };
 
-  const onlineLabel = compact ? (isOnline ? "On" : "Off") : isOnline ? "Online" : "Offline";
+  const onlineLabel = isOnline ? "Online" : "Offline";
 
   return (
     <div className={`pwa-status ${compact ? "compact" : ""}`} data-testid="pwa-status">

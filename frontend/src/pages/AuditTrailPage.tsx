@@ -23,7 +23,7 @@ export default function AuditTrailPage() {
     <section className="panel" data-testid="audit-trail-page">
       <header className="panel-header">
         <div>
-          <h2>Audit Trail</h2>
+          <h2>Audit-Trail</h2>
           <p className="panel-subtitle">Filterbare Einsicht in mutierende API-Aktionen.</p>
         </div>
       </header>
@@ -31,7 +31,7 @@ export default function AuditTrailPage() {
       <div className="products-toolbar">
         <input
           className="input"
-          placeholder="Entity"
+          placeholder="Entität"
           value={entity}
           onChange={(event) => {
             setEntity(event.target.value);
@@ -41,7 +41,7 @@ export default function AuditTrailPage() {
         />
         <input
           className="input"
-          placeholder="Action"
+          placeholder="Aktion"
           value={action}
           onChange={(event) => {
             setAction(event.target.value);
@@ -52,13 +52,13 @@ export default function AuditTrailPage() {
       </div>
 
       <div className="table-wrap">
-        <table className="products-table" data-testid="audit-table">
+        <table className="products-table mobile-cards-table" data-testid="audit-table">
           <thead>
             <tr>
               <th>Zeit</th>
-              <th>Action</th>
-              <th>Entity</th>
-              <th>Endpoint</th>
+              <th>Aktion</th>
+              <th>Entität</th>
+              <th>Endpunkt</th>
               <th>Status</th>
               <th>Request ID</th>
             </tr>
@@ -66,15 +66,15 @@ export default function AuditTrailPage() {
           <tbody>
             {(auditQuery.data?.items ?? []).map((row) => (
               <tr key={row.id}>
-                <td>{new Date(row.created_at).toLocaleString()}</td>
-                <td>{row.action}</td>
-                <td>
+                <td data-label="Zeit">{new Date(row.created_at).toLocaleString()}</td>
+                <td data-label="Aktion">{row.action}</td>
+                <td data-label="Entität">
                   {row.entity}
                   {row.entity_id ? `/${row.entity_id}` : ""}
                 </td>
-                <td>{row.endpoint ?? "-"}</td>
-                <td>{row.status_code}</td>
-                <td>{row.request_id}</td>
+                <td data-label="Endpunkt">{row.endpoint ?? "-"}</td>
+                <td data-label="Status">{row.status_code}</td>
+                <td data-label="Request ID">{row.request_id}</td>
               </tr>
             ))}
           </tbody>

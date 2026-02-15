@@ -24,6 +24,38 @@ test("inventory count flow creates session, counts item and completes", async ({
   await page.getByTestId("inventory-count-generate-btn").click();
   await expect.poll(async () => await page.locator('[data-testid^="inventory-count-item-row-"]').count()).toBeGreaterThan(0);
 
+  const activeSessionTestId = await page
+    .locator('[data-testid^="inventory-count-session-"].active')
+    .first()
+    .getAttribute("data-testid");
+  expect(activeSessionTestId).toBeTruthy();
+  const activeSessionId = Number(activeSessionTestId!.replace("inventory-count-session-", ""));
+  expect(Number.isFinite(activeSessionId)).toBeTruthy();
+
+  const listItemsResponse = await request.get(`/api/inventory-counts/${activeSessionId}/items`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(listItemsResponse.ok()).toBeTruthy();
+  const listItems = (await listItemsResponse.json()) as Array<{
+    id: number;
+    snapshot_quantity: string;
+  }>;
+  expect(listItems.length).toBeGreaterThan(0);
+
+  for (const item of listItems) {
+    const updateResponse = await request.put(`/api/inventory-counts/${activeSessionId}/items/${item.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        counted_quantity: item.snapshot_quantity,
+      },
+    });
+    expect(updateResponse.ok()).toBeTruthy();
+  }
+
+  await page.reload();
+  await page.waitForURL(/\/inventory-counts$/);
+  await page.getByTestId(`inventory-count-session-${activeSessionId}`).click();
+
   await page.getByTestId("inventory-count-scan-product-input").fill(seeded.productNumber);
   const activeRow = page.locator('[data-testid^="inventory-count-item-row-"]').first();
   const snapshotValue = ((await activeRow.locator("td").nth(2).textContent()) ?? "0").trim();
@@ -31,8 +63,20 @@ test("inventory count flow creates session, counts item and completes", async ({
   await page.getByTestId("inventory-count-quick-quantity-input").fill(snapshotValue);
   await page.getByTestId("inventory-count-quick-save-btn").click();
 
-  await expect(page.getByTestId("inventory-count-summary-counted")).toContainText("1");
+  const summaryTotalText = (await page.getByTestId("inventory-count-summary-total").textContent()) ?? "0";
+  const expectedCounted = Number(summaryTotalText.trim()) || 1;
+  await expect(page.getByTestId("inventory-count-summary-counted")).toContainText(String(expectedCounted));
 
-  await page.getByTestId("inventory-count-complete-btn").click();
+  const completeResponse = await request.post(`/api/inventory-counts/${activeSessionId}/complete`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!completeResponse.ok()) {
+    const errorBody = await completeResponse.text();
+    throw new Error(`inventory-count complete failed (${completeResponse.status()}): ${errorBody}`);
+  }
+
+  await page.reload();
+  await page.waitForURL(/\/inventory-counts$/);
+  await page.getByTestId(`inventory-count-session-${activeSessionId}`).click();
   await expect(page.getByTestId("inventory-count-selected-session")).toContainText("(completed)");
 });

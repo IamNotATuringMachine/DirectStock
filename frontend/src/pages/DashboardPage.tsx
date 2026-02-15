@@ -81,7 +81,7 @@ export default function DashboardPage() {
       </header>
 
       <article className="subpanel">
-        <h3>Cards konfigurieren</h3>
+        <h3>Karten konfigurieren</h3>
         <div className="checkbox-grid">
           {cardsCatalog.map((card) => (
             <label key={card.card_key} className="checkbox">
@@ -128,11 +128,11 @@ export default function DashboardPage() {
             <strong>{kpiQuery.data?.dock_to_stock_hours ?? "-"}</strong>
           </div>
           <div className="kpi-card" data-testid="dashboard-kpi-accuracy">
-            <span>Inventory Accuracy</span>
+            <span>Bestandsgenauigkeit</span>
             <strong>{kpiQuery.data ? `${kpiQuery.data.inventory_accuracy_percent}%` : "-"}</strong>
           </div>
           <div className="kpi-card" data-testid="dashboard-kpi-alert-count">
-            <span>Alert Count</span>
+            <span>Warnungsanzahl</span>
             <strong>{kpiQuery.data?.alert_count ?? "-"}</strong>
           </div>
           <div className="kpi-card" data-testid="dashboard-kpi-iwt-transit">
@@ -153,7 +153,7 @@ export default function DashboardPage() {
 
       {visibleCardKeys.has("quick-actions") ? (
         <article className="subpanel">
-          <h3>Quick Actions</h3>
+          <h3>Schnellaktionen</h3>
           <div className="actions-cell">
             {quickActions.map((action) => (
               <Link key={action.to} className="btn" to={action.to} data-testid={`dashboard-quick-action-${action.to.replace("/", "")}`}>
@@ -212,7 +212,7 @@ export default function DashboardPage() {
 
       {visibleCardKeys.has("critical-alerts") ? (
         <article className="subpanel" data-testid="dashboard-critical-alerts">
-          <h3>Kritische Alerts</h3>
+          <h3>Kritische Warnungen</h3>
           <div className="list-stack small">
             {(criticalAlertsQuery.data?.items ?? []).map((alert) => (
               <div key={alert.id} className="list-item static-item">
@@ -223,7 +223,7 @@ export default function DashboardPage() {
           </div>
           <div className="actions-cell">
             <Link className="btn" to="/alerts" data-testid="dashboard-open-alerts-link">
-              Alerts öffnen
+              Warnungen öffnen
             </Link>
           </div>
         </article>

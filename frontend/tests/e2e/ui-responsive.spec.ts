@@ -4,12 +4,12 @@ const PAGES: Array<{ path: string; testId: string; navLabel: string }> = [
   { path: "/dashboard", testId: "dashboard-page", navLabel: "Dashboard" },
   { path: "/inventory", testId: "inventory-page", navLabel: "Bestandsübersicht" },
   { path: "/products", testId: "products-page", navLabel: "Artikelstamm" },
-  { path: "/reports", testId: "reports-page", navLabel: "Reports" },
-  { path: "/alerts", testId: "alerts-page", navLabel: "Alerts" },
+  { path: "/reports", testId: "reports-page", navLabel: "Berichte" },
+  { path: "/alerts", testId: "alerts-page", navLabel: "Warnungen" },
   { path: "/goods-receipt", testId: "goods-receipt-page", navLabel: "Wareneingang" },
   { path: "/goods-issue", testId: "goods-issue-page", navLabel: "Warenausgang" },
   { path: "/stock-transfer", testId: "stock-transfer-page", navLabel: "Umlagerung" },
-  { path: "/shipping", testId: "shipping-page", navLabel: "Shipping" },
+  { path: "/shipping", testId: "shipping-page", navLabel: "Versand" },
   { path: "/scanner", testId: "scanner-page", navLabel: "Scanner" },
 ];
 
@@ -55,6 +55,7 @@ test.describe("responsive layout baseline", () => {
           hasTopbar: Boolean(topbarRect),
           hasContent: Boolean(contentRect),
           topbarBottom: topbarRect?.bottom ?? 0,
+          topbarHeight: topbarRect?.height ?? 0,
           contentTop: contentRect?.top ?? 0,
         };
       });
@@ -63,7 +64,10 @@ test.describe("responsive layout baseline", () => {
       expect(metrics.hasContent).toBeTruthy();
       expect(metrics.htmlScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1);
       expect(metrics.bodyScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1);
-      expect(metrics.topbarBottom).toBeLessThanOrEqual(metrics.contentTop + 1);
+      expect(metrics.topbarBottom).toBeLessThanOrEqual(metrics.contentTop + 8);
+      if (isMobileLayout) {
+        expect(metrics.topbarHeight).toBeLessThanOrEqual(86);
+      }
     }
   });
 

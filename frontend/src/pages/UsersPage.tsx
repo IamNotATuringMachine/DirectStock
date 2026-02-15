@@ -296,7 +296,7 @@ export default function UsersPage() {
         <article className="subpanel">
           <h3>Benutzerliste</h3>
           <div className="table-wrap">
-            <table className="inventory-table" data-testid="users-table">
+            <table className="products-table mobile-cards-table" data-testid="users-table">
               <thead>
                 <tr>
                   <th>Benutzer</th>
@@ -308,39 +308,37 @@ export default function UsersPage() {
               <tbody>
                 {(usersQuery.data ?? []).map((user) => (
                   <tr key={user.id}>
-                    <td>
+                    <td data-label="Benutzer">
                       <strong>{user.username}</strong>
                       <div>{user.email ?? "-"}</div>
                       <div>{user.full_name ?? "-"}</div>
                     </td>
-                    <td>{user.roles.join(", ") || "-"}</td>
-                    <td>{user.is_active ? "aktiv" : "gesperrt"}</td>
-                    <td>
-                      <div className="actions-cell">
-                        <button className="btn" type="button" onClick={() => setEditForm(toEditState(user))}>
-                          Bearbeiten
-                        </button>
-                        <button
-                          className="btn"
-                          type="button"
-                          onClick={() =>
-                            void updateMutation.mutateAsync({
-                              userId: user.id,
-                              payload: { is_active: !user.is_active },
-                            })
-                          }
-                        >
-                          {user.is_active ? "Sperren" : "Aktivieren"}
-                        </button>
-                        <button
-                          className="btn danger"
-                          type="button"
-                          disabled={user.id === currentUser?.id}
-                          onClick={() => void onDelete(user)}
-                        >
-                          Löschen
-                        </button>
-                      </div>
+                    <td data-label="Rollen">{user.roles.join(", ") || "-"}</td>
+                    <td data-label="Status">{user.is_active ? "aktiv" : "gesperrt"}</td>
+                    <td data-label="Aktionen" className="actions-cell">
+                      <button className="btn" type="button" onClick={() => setEditForm(toEditState(user))}>
+                        Bearbeiten
+                      </button>
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() =>
+                          void updateMutation.mutateAsync({
+                            userId: user.id,
+                            payload: { is_active: !user.is_active },
+                          })
+                        }
+                      >
+                        {user.is_active ? "Sperren" : "Aktivieren"}
+                      </button>
+                      <button
+                        className="btn danger"
+                        type="button"
+                        disabled={user.id === currentUser?.id}
+                        onClick={() => void onDelete(user)}
+                      >
+                        Löschen
+                      </button>
                     </td>
                   </tr>
                 ))}

@@ -11,6 +11,11 @@ const TABLE_TARGETS: TableTarget[] = [
   { path: "/products", tableTestId: "products-table", requiredRows: true },
   { path: "/inventory", tableTestId: "inventory-table", requiredRows: true },
   { path: "/alerts", tableTestId: "alerts-table", requiredRows: false },
+  { path: "/users", tableTestId: "users-table", requiredRows: true },
+  { path: "/sales-orders", tableTestId: "sales-orders-table", requiredRows: false },
+  { path: "/invoices", tableTestId: "invoices-table", requiredRows: false },
+  { path: "/services", tableTestId: "services-table", requiredRows: false },
+  { path: "/audit-trail", tableTestId: "audit-table", requiredRows: true },
   {
     path: "/purchasing",
     tableTestId: "abc-table",

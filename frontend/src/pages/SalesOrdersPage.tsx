@@ -108,7 +108,7 @@ export default function SalesOrdersPage() {
     <section className="panel" data-testid="sales-orders-page">
       <header className="panel-header">
         <div>
-          <h2>Sales Orders</h2>
+          <h2>Verkaufsaufträge</h2>
           <p className="panel-subtitle">Aufträge mit Produkt- und Servicepositionen.</p>
         </div>
       </header>
@@ -129,7 +129,7 @@ export default function SalesOrdersPage() {
       <article className="subpanel">
         <h3>Aufträge</h3>
         <div className="table-wrap">
-          <table className="inventory-table">
+          <table className="products-table mobile-cards-table" data-testid="sales-orders-table">
             <thead>
               <tr>
                 <th>Nummer</th>
@@ -141,15 +141,13 @@ export default function SalesOrdersPage() {
             <tbody>
               {(ordersQuery.data?.items ?? []).map((order) => (
                 <tr key={order.id}>
-                  <td>{order.order_number}</td>
-                  <td>{order.status}</td>
-                  <td>{order.customer_id ?? "-"}</td>
-                  <td>
-                    <div className="actions-cell">
-                      <button className="btn" type="button" onClick={() => setSelectedOrderId(order.id)}>Öffnen</button>
-                      <button className="btn" type="button" onClick={() => void updateMutation.mutateAsync({ orderId: order.id, status: "confirmed" })}>Bestätigen</button>
-                      <button className="btn" type="button" onClick={() => void deliveryNoteMutation.mutateAsync(order.id)}>Lieferschein</button>
-                    </div>
+                  <td data-label="Nummer">{order.order_number}</td>
+                  <td data-label="Status">{order.status}</td>
+                  <td data-label="Kunde">{order.customer_id ?? "-"}</td>
+                  <td data-label="Aktion" className="actions-cell">
+                    <button className="btn" type="button" onClick={() => setSelectedOrderId(order.id)}>Öffnen</button>
+                    <button className="btn" type="button" onClick={() => void updateMutation.mutateAsync({ orderId: order.id, status: "confirmed" })}>Bestätigen</button>
+                    <button className="btn" type="button" onClick={() => void deliveryNoteMutation.mutateAsync(order.id)}>Lieferschein</button>
                   </td>
                 </tr>
               ))}
@@ -193,7 +191,7 @@ export default function SalesOrdersPage() {
           </div>
 
           <div className="table-wrap">
-            <table className="inventory-table">
+            <table className="products-table mobile-cards-table" data-testid="sales-order-items-table">
               <thead>
                 <tr>
                   <th>#</th>
@@ -206,11 +204,11 @@ export default function SalesOrdersPage() {
               <tbody>
                 {selectedOrder.items.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.line_no}</td>
-                    <td>{item.item_type}</td>
-                    <td>{item.item_type === "product" ? item.product_id : item.service_id}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.invoiced_quantity}</td>
+                    <td data-label="#">{item.line_no}</td>
+                    <td data-label="Typ">{item.item_type}</td>
+                    <td data-label="Referenz">{item.item_type === "product" ? item.product_id : item.service_id}</td>
+                    <td data-label="Menge">{item.quantity}</td>
+                    <td data-label="Invoiced">{item.invoiced_quantity}</td>
                   </tr>
                 ))}
               </tbody>

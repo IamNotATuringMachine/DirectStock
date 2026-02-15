@@ -47,14 +47,14 @@ export default function AlertsPage() {
     <section className="panel" data-testid="alerts-page">
       <header className="panel-header">
         <div>
-          <h2>Alerts</h2>
+          <h2>Warnungen</h2>
           <p className="panel-subtitle">Kritische Lagerereignisse mit Quittierung und Filterung.</p>
         </div>
       </header>
 
       <div className="kpi-grid">
         <div className="kpi-card" data-testid="alerts-kpi-open-count">
-          <span>Offene Alerts</span>
+          <span>Offene Warnungen</span>
           <strong>{alertsQuery.data?.total ?? "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="alerts-kpi-active-rules">
@@ -115,7 +115,7 @@ export default function AlertsPage() {
           <thead>
             <tr>
               <th>Zeit</th>
-              <th>Severity</th>
+              <th>Priorität</th>
               <th>Typ</th>
               <th>Titel</th>
               <th>Status</th>
@@ -126,7 +126,7 @@ export default function AlertsPage() {
             {(alertsQuery.data?.items ?? []).map((alert) => (
               <tr key={alert.id} data-testid={`alerts-row-${alert.id}`}>
                 <td data-label="Zeit">{new Date(alert.triggered_at).toLocaleString()}</td>
-                <td data-label="Severity">{alert.severity}</td>
+                <td data-label="Priorität">{alert.severity}</td>
                 <td data-label="Typ">{alert.alert_type}</td>
                 <td data-label="Titel">
                   <strong>{alert.title}</strong>
@@ -140,14 +140,14 @@ export default function AlertsPage() {
                     disabled={ackMutation.isPending || alert.status !== "open"}
                     data-testid={`alerts-ack-${alert.id}`}
                   >
-                    Ack
+                    Quittieren
                   </button>
                 </td>
               </tr>
             ))}
             {!alertsQuery.isLoading && (alertsQuery.data?.items.length ?? 0) === 0 ? (
               <tr>
-                <td colSpan={6}>Keine Alerts vorhanden.</td>
+                <td colSpan={6}>Keine Warnungen vorhanden.</td>
               </tr>
             ) : null}
           </tbody>

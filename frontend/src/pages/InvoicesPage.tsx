@@ -92,7 +92,7 @@ export default function InvoicesPage() {
       <article className="subpanel">
         <h3>Rechnungsliste</h3>
         <div className="table-wrap">
-          <table className="inventory-table">
+          <table className="products-table mobile-cards-table" data-testid="invoices-table">
             <thead>
               <tr>
                 <th>Nummer</th>
@@ -105,16 +105,14 @@ export default function InvoicesPage() {
             <tbody>
               {(invoicesQuery.data?.items ?? []).map((invoice) => (
                 <tr key={invoice.id}>
-                  <td>{invoice.invoice_number}</td>
-                  <td>{invoice.status}</td>
-                  <td>{invoice.sales_order_id}</td>
-                  <td>{invoice.total_gross}</td>
-                  <td>
-                    <div className="actions-cell">
-                      <button className="btn" type="button" onClick={() => setSelectedInvoiceId(invoice.id)}>Öffnen</button>
-                      <button className="btn" type="button" onClick={() => void exportXMutation.mutateAsync(invoice.id)}>XRechnung</button>
-                      <button className="btn" type="button" onClick={() => void exportZMutation.mutateAsync(invoice.id)}>ZUGFeRD</button>
-                    </div>
+                  <td data-label="Nummer">{invoice.invoice_number}</td>
+                  <td data-label="Status">{invoice.status}</td>
+                  <td data-label="Order">{invoice.sales_order_id}</td>
+                  <td data-label="Brutto">{invoice.total_gross}</td>
+                  <td data-label="Aktion" className="actions-cell">
+                    <button className="btn" type="button" onClick={() => setSelectedInvoiceId(invoice.id)}>Öffnen</button>
+                    <button className="btn" type="button" onClick={() => void exportXMutation.mutateAsync(invoice.id)}>XRechnung</button>
+                    <button className="btn" type="button" onClick={() => void exportZMutation.mutateAsync(invoice.id)}>ZUGFeRD</button>
                   </td>
                 </tr>
               ))}
@@ -157,7 +155,7 @@ export default function InvoicesPage() {
           </div>
 
           <div className="table-wrap">
-            <table className="inventory-table">
+            <table className="products-table mobile-cards-table" data-testid="invoice-items-table">
               <thead>
                 <tr>
                   <th>#</th>
@@ -170,11 +168,11 @@ export default function InvoicesPage() {
               <tbody>
                 {invoiceDetailQuery.data.items.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.line_no}</td>
-                    <td>{item.sales_order_item_id ?? "-"}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.net_total}</td>
-                    <td>{item.gross_total}</td>
+                    <td data-label="#">{item.line_no}</td>
+                    <td data-label="SalesItem">{item.sales_order_item_id ?? "-"}</td>
+                    <td data-label="Menge">{item.quantity}</td>
+                    <td data-label="Netto">{item.net_total}</td>
+                    <td data-label="Brutto">{item.gross_total}</td>
                   </tr>
                 ))}
               </tbody>

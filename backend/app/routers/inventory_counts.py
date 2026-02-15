@@ -362,14 +362,22 @@ async def complete_inventory_count_session(
             if diff == 0:
                 continue
 
-            inventory = (
-                await db.execute(
-                    select(Inventory).where(
-                        Inventory.product_id == count_item.product_id,
-                        Inventory.bin_location_id == count_item.bin_location_id,
+            inventory = None
+            if count_item.inventory_id is not None:
+                inventory = await db.get(Inventory, count_item.inventory_id)
+
+            if inventory is None:
+                inventory = (
+                    await db.execute(
+                        select(Inventory)
+                        .where(
+                            Inventory.product_id == count_item.product_id,
+                            Inventory.bin_location_id == count_item.bin_location_id,
+                        )
+                        .order_by(Inventory.id.asc())
+                        .limit(1)
                     )
-                )
-            ).scalar_one_or_none()
+                ).scalar_one_or_none()
             if inventory is None:
                 inventory = Inventory(
                     product_id=count_item.product_id,

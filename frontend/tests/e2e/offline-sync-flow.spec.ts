@@ -7,9 +7,13 @@ test("offline queue captures goods receipt mutation and syncs after reconnect", 
   await page.getByTestId("login-submit").click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
+  const isMobileLayout = await page.evaluate(() => window.matchMedia("(max-width: 1100px)").matches);
+  if (isMobileLayout) {
+    await page.getByTestId("sidebar-toggle").click();
+  }
   await page.getByTestId("offline-sync-chip").click();
   await expect(page.getByTestId("offline-sync-panel")).toBeVisible();
-  await expect(page.getByTestId("offline-sync-count")).toContainText("Offen: 0 | queued: 0 | failed: 0");
+  await expect(page.getByTestId("offline-sync-count")).toContainText("Offen: 0 | wartend: 0 | fehlerhaft: 0");
 
   await page.context().setOffline(true);
   await page.evaluate(async () => {
@@ -67,5 +71,5 @@ test("offline queue captures goods receipt mutation and syncs after reconnect", 
     window.dispatchEvent(new Event("online"));
   });
 
-  await expect(page.getByTestId("offline-sync-count")).toContainText("Offen: 0 | queued: 0 | failed: 0");
+  await expect(page.getByTestId("offline-sync-count")).toContainText("Offen: 0 | wartend: 0 | fehlerhaft: 0");
 });

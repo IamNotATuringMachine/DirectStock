@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "./stores/authStore";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("change-me-admin-password");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const login = useAuthStore((state) => state.login);
   const loading = useAuthStore((state) => state.isLoading);
