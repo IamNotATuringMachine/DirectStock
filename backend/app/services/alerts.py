@@ -236,7 +236,7 @@ async def _is_duplicate_candidate(db: AsyncSession, candidate: AlertCandidate) -
                 AlertEvent.alert_type == candidate.alert_type,
                 AlertEvent.source_key == candidate.source_key,
                 AlertEvent.status == "open",
-            )
+            ).limit(1)
         )
     ).scalar_one_or_none()
     if open_exists is not None:
@@ -250,7 +250,7 @@ async def _is_duplicate_candidate(db: AsyncSession, candidate: AlertCandidate) -
                 AlertEvent.alert_type == candidate.alert_type,
                 AlertEvent.source_key == candidate.source_key,
                 AlertEvent.triggered_at >= window_start,
-            )
+            ).limit(1)
         )
     ).scalar_one_or_none()
     return recent_exists is not None

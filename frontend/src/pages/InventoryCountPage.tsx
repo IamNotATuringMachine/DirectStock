@@ -103,6 +103,9 @@ export default function InventoryCountPage() {
     },
   });
 
+  const countActionsDisabled =
+    countItemMutation.isPending || !selectedSessionId || generateItemsMutation.isPending || itemsQuery.isFetching;
+
   const completeMutation = useMutation({
     mutationFn: completeInventoryCountSession,
     onSuccess: async () => {
@@ -322,12 +325,13 @@ export default function InventoryCountPage() {
                 step="0.001"
                 value={quickQuantity}
                 onChange={(event) => setQuickQuantity(event.target.value)}
+                disabled={countActionsDisabled}
                 data-testid="inventory-count-quick-quantity-input"
               />
               <button
                 className="btn"
                 onClick={() => void saveQuickCount()}
-                disabled={countItemMutation.isPending || !selectedSessionId}
+                disabled={countActionsDisabled}
                 data-testid="inventory-count-quick-save-btn"
               >
                 Schnell speichern
@@ -377,6 +381,7 @@ export default function InventoryCountPage() {
                           [item.id]: event.target.value,
                         }))
                       }
+                      disabled={countActionsDisabled}
                       data-testid={`inventory-count-item-qty-${item.id}`}
                     />
                   </td>
@@ -386,7 +391,7 @@ export default function InventoryCountPage() {
                     <button
                       className="btn"
                       onClick={() => void saveRowCount(item)}
-                      disabled={countItemMutation.isPending || !selectedSessionId}
+                      disabled={countActionsDisabled}
                       data-testid={`inventory-count-item-save-${item.id}`}
                     >
                       Speichern

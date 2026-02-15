@@ -381,6 +381,11 @@ select.input {
   padding: 9px 11px;
 }
 
+select.input {
+  height: 44px;
+  line-height: 1.2;
+}
+
 .textarea {
   min-height: 96px;
   resize: vertical;
@@ -559,6 +564,15 @@ select.input {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+[data-testid="picking-page"] .warehouse-grid > .subpanel {
+  min-width: 0;
+}
+
+[data-testid="pick-task-table"] th,
+[data-testid="pick-task-table"] td {
+  overflow-wrap: anywhere;
+}
+
 .two-col-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -567,18 +581,51 @@ select.input {
 
 .list-stack.small {
   max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
 .list-item {
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: var(--radius-sm);
-}
-
-.static-item {
+  width: 100%;
   padding: 10px;
   display: grid;
   gap: 4px;
+  align-content: start;
+  text-align: left;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+button.list-item {
+  cursor: pointer;
+}
+
+button.list-item:hover {
+  border-color: color-mix(in srgb, var(--line) 62%, var(--accent) 38%);
+}
+
+button.list-item.active {
+  border-color: color-mix(in srgb, var(--line-strong) 46%, var(--accent) 54%);
+  background: color-mix(in srgb, var(--panel-soft) 70%, var(--accent) 30%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 45%, var(--accent) 55%);
+}
+
+.list-item strong,
+.list-item span {
+  display: block;
+  line-height: 1.25;
+}
+
+.list-item span {
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.static-item {
+  cursor: default;
 }
 
 .bin-grid {
@@ -1089,6 +1136,14 @@ select.input {
   .two-col-grid {
     grid-template-columns: 1fr;
   }
+
+  .batch-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .batch-grid .btn {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1139,6 +1194,10 @@ select.input {
     grid-template-columns: 1fr;
   }
 
+  [data-testid="reports-page"] .products-toolbar {
+    grid-template-columns: 1fr;
+  }
+
   .panel-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1160,6 +1219,11 @@ select.input {
   .products-table,
   .inventory-table {
     min-width: 540px;
+  }
+
+  [data-testid="pick-task-table"] {
+    min-width: 100%;
+    table-layout: fixed;
   }
 
   .mobile-cards-table {

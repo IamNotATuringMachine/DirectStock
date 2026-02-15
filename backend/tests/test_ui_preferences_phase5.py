@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from httpx import AsyncClient
 
@@ -21,6 +23,21 @@ async def test_ui_preferences_get_and_put(client: AsyncClient, admin_token: str)
     assert update.json()["theme"] == "dark"
     assert update.json()["compact_mode"] is True
     assert update.json()["show_help"] is False
+
+
+@pytest.mark.asyncio
+async def test_ui_preferences_parallel_get_is_race_safe(client: AsyncClient, admin_token: str):
+    headers = auth_headers(admin_token)
+
+    responses = await asyncio.gather(
+        client.get("/api/ui-preferences/me", headers=headers),
+        client.get("/api/ui-preferences/me", headers=headers),
+        client.get("/api/ui-preferences/me", headers=headers),
+    )
+
+    assert all(response.status_code == 200 for response in responses)
+    payloads = [response.json() for response in responses]
+    assert all(payload["theme"] in {"system", "light", "dark"} for payload in payloads)
 
 
 @pytest.mark.asyncio
@@ -68,4 +85,3 @@ async def test_dashboard_validation_for_unknown_and_locked_cards(client: AsyncCl
         json={"cards": [{"card_key": "summary", "visible": False, "display_order": 1}]},
     )
     assert hide_locked.status_code == 422
-

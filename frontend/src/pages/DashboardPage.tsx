@@ -49,6 +49,7 @@ export default function DashboardPage() {
 
   const summary = summaryQuery.data;
   const configItems = dashboardConfigQuery.data?.cards ?? [];
+  const isSavingDashboardConfig = saveConfigMutation.isPending;
   const visibleCardKeys = new Set(
     [...configItems]
       .sort((a, b) => a.display_order - b.display_order)
@@ -89,6 +90,7 @@ export default function DashboardPage() {
                 type="checkbox"
                 checked={visibleCardKeys.has(card.card_key)}
                 onChange={() => toggleCard(card.card_key)}
+                disabled={isSavingDashboardConfig}
                 data-testid={`dashboard-card-toggle-${card.card_key}`}
               />
               {card.title}

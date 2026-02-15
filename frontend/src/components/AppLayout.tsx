@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import OfflineSyncPanel from "./offline/OfflineSyncPanel";
@@ -71,14 +71,23 @@ export default function AppLayout() {
     typeof window !== "undefined" ? window.matchMedia("(max-width: 1100px)").matches : false
   );
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const hasLoadedUiPreferencesRef = useRef(false);
 
   const grantedPermissions = useMemo(() => new Set(user?.permissions ?? []), [user?.permissions]);
 
   useEffect(() => {
+    if (!accessToken) {
+      hasLoadedUiPreferencesRef.current = false;
+      return;
+    }
+    if (hasLoadedUiPreferencesRef.current) {
+      return;
+    }
+    hasLoadedUiPreferencesRef.current = true;
     void fetchMyUiPreferences()
       .then((payload) => setPreferences(payload))
       .catch(() => undefined);
-  }, [setPreferences]);
+  }, [accessToken, setPreferences]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 1100px)");

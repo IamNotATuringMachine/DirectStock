@@ -25,6 +25,19 @@ export default function AlertsPage() {
     refetchInterval: 60000,
   });
 
+  const openAlertsCountQuery = useQuery({
+    queryKey: ["alerts-open-count", severityFilter, typeFilter],
+    queryFn: () =>
+      fetchAlerts({
+        page: 1,
+        pageSize: 1,
+        status: "open",
+        severity: severityFilter || undefined,
+        alertType: typeFilter || undefined,
+      }),
+    refetchInterval: 60000,
+  });
+
   const rulesQuery = useQuery({
     queryKey: ["alert-rules", "active-count"],
     queryFn: () => fetchAlertRules({ page: 1, pageSize: 1, isActive: true }),
@@ -35,6 +48,7 @@ export default function AlertsPage() {
     mutationFn: acknowledgeAlert,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["alerts"] });
+      await queryClient.invalidateQueries({ queryKey: ["alerts-open-count"] });
     },
   });
 
@@ -55,7 +69,7 @@ export default function AlertsPage() {
       <div className="kpi-grid">
         <div className="kpi-card" data-testid="alerts-kpi-open-count">
           <span>Offene Warnungen</span>
-          <strong>{alertsQuery.data?.total ?? "-"}</strong>
+          <strong>{openAlertsCountQuery.data?.total ?? "-"}</strong>
         </div>
         <div className="kpi-card" data-testid="alerts-kpi-active-rules">
           <span>Aktive Regeln</span>

@@ -3,6 +3,10 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import AlertEvent, AlertRule
+from app.services.alerts import AlertCandidate, _is_duplicate_candidate
 
 
 def _suffix() -> str:
@@ -347,3 +351,60 @@ async def test_expiry_window_alert_trigger(client: AsyncClient, admin_token: str
     assert alerts.status_code == 200
     assert alerts.json()["total"] == 1
     assert alerts.json()["items"][0]["batch_id"] is not None
+
+
+@pytest.mark.asyncio
+async def test_alert_dedupe_handles_duplicate_open_rows_without_error(db_session: AsyncSession):
+    source_key = f"low_stock:dup:{_suffix()}"
+    rule = AlertRule(
+        name=f"Deduplicate {_suffix()}",
+        rule_type="low_stock",
+        severity="medium",
+        is_active=True,
+        dedupe_window_minutes=60,
+    )
+    db_session.add(rule)
+    await db_session.flush()
+
+    now = datetime.now(UTC)
+    db_session.add_all(
+        [
+            AlertEvent(
+                rule_id=rule.id,
+                alert_type="low_stock",
+                severity="medium",
+                status="open",
+                title="Duplicate alert 1",
+                message="duplicate open row",
+                source_key=source_key,
+                triggered_at=now,
+            ),
+            AlertEvent(
+                rule_id=rule.id,
+                alert_type="low_stock",
+                severity="medium",
+                status="open",
+                title="Duplicate alert 2",
+                message="duplicate open row",
+                source_key=source_key,
+                triggered_at=now,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    candidate = AlertCandidate(
+        rule_id=rule.id,
+        alert_type="low_stock",
+        severity="medium",
+        title="Candidate",
+        message="Candidate",
+        source_key=source_key,
+        product_id=None,
+        warehouse_id=None,
+        bin_location_id=None,
+        batch_id=None,
+        metadata_json=None,
+        dedupe_window_minutes=60,
+    )
+    assert await _is_duplicate_candidate(db_session, candidate) is True

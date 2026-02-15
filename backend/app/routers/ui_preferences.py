@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, require_permissions
@@ -15,8 +16,14 @@ async def _get_or_create_preferences(db: AsyncSession, user_id: int) -> UserUiPr
     if row is None:
         row = UserUiPreference(user_id=user_id, theme="system", compact_mode=False, show_help=True)
         db.add(row)
-        await db.commit()
-        await db.refresh(row)
+        try:
+            await db.commit()
+            await db.refresh(row)
+        except IntegrityError:
+            # Parallel first-access requests may attempt the same insert.
+            # Roll back and read the already-created row.
+            await db.rollback()
+            row = (await db.execute(select(UserUiPreference).where(UserUiPreference.user_id == user_id))).scalar_one()
     return row
 
 
