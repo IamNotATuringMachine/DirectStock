@@ -392,6 +392,10 @@ select.input {
   padding: 9px 11px;
 }
 
+.input.input-leading-icon {
+  padding-left: 2.25rem;
+}
+
 select.input {
   height: 44px;
   line-height: 1.2;
@@ -563,6 +567,16 @@ select.input {
   margin-top: 14px;
 }
 
+[data-testid="inventory-page"] .products-toolbar .inventory-toolbar-search-input {
+  padding-left: 2.25rem;
+  padding-right: 1rem;
+}
+
+[data-testid="inventory-page"] .products-toolbar .inventory-toolbar-warehouse-select {
+  padding-left: 2.25rem;
+  padding-right: 2.1rem;
+}
+
 [data-testid="scanner-page"] .scan-controls label {
   width: min(320px, 100%);
 }
@@ -573,6 +587,18 @@ select.input {
 
 [data-testid="reports-page"] .products-toolbar {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.reports-type-select {
+  padding-left: 0.75rem;
+  padding-right: 2.5rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.reports-type-select-chevron {
+  pointer-events: none;
 }
 
 [data-testid="picking-page"] .warehouse-grid>.subpanel {

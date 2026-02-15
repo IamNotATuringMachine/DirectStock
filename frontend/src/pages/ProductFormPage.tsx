@@ -234,7 +234,11 @@ function ProductGroupSelect({
               <div className="border-t border-[var(--line)] p-2 bg-[var(--panel-soft)]">
                 <button
                   type="button"
-                  onClick={() => setIsCreating(true)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setIsCreating(true);
+                  }}
                   className="w-full btn btn-sm btn-ghost justify-start text-[var(--accent)] hover:bg-[var(--bg)]"
                 >
                   <Plus size={14} />
@@ -760,7 +764,7 @@ export default function ProductFormPage() {
                   </h3>
                   
                   <div className="space-y-5">
-                    <label className="space-y-1.5 block">
+                    <div className="space-y-1.5 block">
                       <span className="text-sm font-medium text-[var(--ink)]">
                         Produktgruppe
                       </span>
@@ -779,7 +783,7 @@ export default function ProductFormPage() {
                           }
                         />
                       </div>
-                    </label>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <label className="space-y-1.5 block">
@@ -875,11 +879,11 @@ export default function ProductFormPage() {
         {activeTab === "warehouse" && (
           <div className="space-y-8" data-testid="product-form-warehouse-tab">
             {!isEditMode && (
-              <div className="flex items-center gap-4 p-5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 shadow-sm">
+              <div className="flex items-center gap-4 p-5 rounded-xl bg-amber-50 text-black border border-amber-200 shadow-sm">
                 <Info size={24} className="shrink-0 text-amber-600" />
                 <div>
                   <h4 className="font-semibold">Artikel noch nicht erstellt</h4>
-                  <p className="text-sm opacity-90 mt-1">
+                  <p className="text-sm text-black mt-1">
                     Bitte speichern Sie den Artikel zuerst, um spezifische Lagerdaten verwalten zu können.
                   </p>
                 </div>
@@ -1096,11 +1100,11 @@ export default function ProductFormPage() {
         {activeTab === "suppliers" && (
           <div className="space-y-8" data-testid="product-form-suppliers-tab">
             {!isEditMode && (
-              <div className="flex items-center gap-4 p-5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 shadow-sm">
+              <div className="flex items-center gap-4 p-5 rounded-xl bg-amber-50 text-black border border-amber-200 shadow-sm">
                  <Info size={24} className="shrink-0 text-amber-600" />
                  <div>
                    <h4 className="font-semibold">Artikel noch nicht erstellt</h4>
-                   <p className="text-sm opacity-90 mt-1">
+                   <p className="text-sm text-black mt-1">
                      Bitte speichern Sie den Artikel zuerst, um Lieferanten zuordnen zu können.
                    </p>
                  </div>
@@ -1150,7 +1154,7 @@ export default function ProductFormPage() {
                       <div className="relative">
                         <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                         <input
-                          className="input w-full pl-9 text-sm h-11"
+                          className="input w-full !pl-10 text-sm h-11"
                           value={supplierProductNumber}
                           onChange={(event) =>
                             setSupplierProductNumber(event.target.value)
@@ -1168,7 +1172,7 @@ export default function ProductFormPage() {
                       <div className="relative">
                         <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                         <input
-                          className="input w-full pl-9 text-sm h-11"
+                          className="input w-full !pl-10 text-sm h-11"
                           type="number"
                           min="0"
                           step="0.01"
@@ -1189,7 +1193,7 @@ export default function ProductFormPage() {
                       <div className="relative">
                         <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                         <input
-                          className="input w-full pl-9 text-sm h-11"
+                          className="input w-full !pl-10 text-sm h-11"
                           type="number"
                           min="0"
                           step="1"
@@ -1210,7 +1214,7 @@ export default function ProductFormPage() {
                       <div className="relative">
                         <ShoppingCart size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                         <input
-                          className="input w-full pl-9 text-sm h-11"
+                          className="input w-full !pl-10 text-sm h-11"
                           type="number"
                           min="0"
                           step="0.001"
@@ -1225,21 +1229,27 @@ export default function ProductFormPage() {
                     </label>
 
                     <div className="md:col-span-2 lg:col-span-4 flex items-center justify-between pt-4 border-t border-[var(--line)]">
-                      <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="flex items-center gap-3 min-w-0 group">
                         <div className="relative flex items-center">
-                            <input
+                          <input
+                            id="product-supplier-preferred-checkbox"
                             type="checkbox"
                             className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-[var(--line)] checked:border-[var(--accent)] checked:bg-[var(--accent)] transition-all"
                             checked={supplierPreferred}
                             onChange={(event) =>
-                                setSupplierPreferred(event.target.checked)
+                              setSupplierPreferred(event.target.checked)
                             }
                             data-testid="product-supplier-preferred"
-                            />
-                             <Check size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" />
+                          />
+                          <Check size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" />
                         </div>
-                        <span className="text-sm font-medium text-[var(--ink)] group-hover:text-[var(--accent)] transition-colors">Als bevorzugter Lieferant markieren</span>
-                      </label>
+                        <label
+                          htmlFor="product-supplier-preferred-checkbox"
+                          className="cursor-pointer text-sm font-medium text-[var(--ink)] transition-colors group-hover:text-[var(--accent)]"
+                        >
+                          Als bevorzugter Lieferant markieren
+                        </label>
+                      </div>
 
                       <button
                         className="btn btn-primary min-w-[140px]"
