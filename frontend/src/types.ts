@@ -65,6 +65,7 @@ export type Product = {
   group_name: string | null;
   unit: string;
   status: ProductStatus;
+  requires_item_tracking: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -93,6 +94,7 @@ export type ProductCreatePayload = {
   product_group_id?: number | null;
   unit: string;
   status: ProductStatus;
+  requires_item_tracking?: boolean;
 };
 
 export type ProductUpdatePayload = Partial<Omit<ProductCreatePayload, "product_number">>;
@@ -179,6 +181,50 @@ export type CustomerListResponse = {
   total: number;
   page: number;
   page_size: number;
+};
+
+export type CustomerLocation = {
+  id: number;
+  customer_id: number;
+  location_code: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  street: string | null;
+  house_number: string | null;
+  address_line2: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country_code: string;
+  is_primary: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomerLocationListResponse = {
+  items: CustomerLocation[];
+};
+
+export type CustomerContact = {
+  id: number;
+  customer_id: number;
+  customer_location_id: number | null;
+  job_title: string | null;
+  salutation: string | null;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  email: string | null;
+  is_primary: boolean;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomerContactListResponse = {
+  items: CustomerContact[];
 };
 
 export type Warehouse = {
@@ -322,6 +368,7 @@ export type GoodsReceipt = {
   id: number;
   receipt_number: string;
   supplier_id: number | null;
+  purchase_order_id: number | null;
   status: string;
   received_at: string | null;
   completed_at: string | null;
@@ -352,6 +399,7 @@ export type GoodsIssue = {
   id: number;
   issue_number: string;
   customer_id: number | null;
+  customer_location_id: number | null;
   customer_reference: string | null;
   status: string;
   issued_at: string | null;
@@ -409,6 +457,8 @@ export type Shipment = {
   carrier: "dhl" | "dpd" | "ups";
   status: string;
   goods_issue_id: number | null;
+  customer_id: number | null;
+  customer_location_id: number | null;
   tracking_number: string | null;
   recipient_name: string | null;
   shipping_address: string | null;
@@ -635,6 +685,8 @@ export type ReturnOrder = {
   customer_id: number | null;
   goods_issue_id: number | null;
   status: string;
+  source_type: "customer" | "technician" | null;
+  source_reference: string | null;
   notes: string | null;
   registered_at: string | null;
   received_at: string | null;
@@ -652,10 +704,24 @@ export type ReturnOrderItem = {
   quantity: string;
   unit: string;
   decision: string | null;
+  repair_mode: "internal" | "external" | null;
+  external_status:
+    | "waiting_external_provider"
+    | "at_external_provider"
+    | "ready_for_use"
+    | null;
+  external_partner: string | null;
+  external_dispatched_at: string | null;
+  external_returned_at: string | null;
   target_bin_id: number | null;
   reason: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type ReturnOrderExternalDispatchResponse = {
+  item: ReturnOrderItem;
+  document_id: number;
 };
 
 export type ApprovalRule = {
@@ -927,6 +993,8 @@ export type ReportReturnsRow = {
   total_items: number;
   total_quantity: string;
   restock_items: number;
+  internal_repair_items: number;
+  external_repair_items: number;
   scrap_items: number;
   return_supplier_items: number;
   created_at: string;
@@ -1119,6 +1187,7 @@ export type SalesOrder = {
   id: number;
   order_number: string;
   customer_id: number | null;
+  customer_location_id: number | null;
   status: string;
   ordered_at: string | null;
   completed_at: string | null;

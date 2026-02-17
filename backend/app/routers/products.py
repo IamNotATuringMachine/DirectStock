@@ -29,6 +29,7 @@ def _to_product_response(product: Product) -> ProductResponse:
         group_name=product.group.name if product.group else None,
         unit=product.unit,
         status=product.status,
+        requires_item_tracking=product.requires_item_tracking,
         created_at=product.created_at,
         updated_at=product.updated_at,
     )

@@ -25,6 +25,7 @@ export async function fetchSalesOrder(orderId: number): Promise<SalesOrderDetail
 export async function createSalesOrder(payload: {
   order_number?: string;
   customer_id?: number | null;
+  customer_location_id?: number | null;
   currency?: string;
   notes?: string | null;
   items: Array<{
@@ -46,6 +47,7 @@ export async function updateSalesOrder(
   orderId: number,
   payload: {
     customer_id?: number | null;
+    customer_location_id?: number | null;
     status?: string;
     currency?: string;
     notes?: string | null;

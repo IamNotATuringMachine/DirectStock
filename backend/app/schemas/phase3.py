@@ -129,12 +129,16 @@ class ReturnOrderCreate(BaseModel):
     return_number: str | None = Field(default=None, max_length=64)
     customer_id: int | None = None
     goods_issue_id: int | None = None
+    source_type: Literal["customer", "technician"] | None = None
+    source_reference: str | None = Field(default=None, max_length=255)
     notes: str | None = None
 
 
 class ReturnOrderUpdate(BaseModel):
     customer_id: int | None = None
     goods_issue_id: int | None = None
+    source_type: Literal["customer", "technician"] | None = None
+    source_reference: str | None = Field(default=None, max_length=255)
     notes: str | None = None
 
 
@@ -148,6 +152,8 @@ class ReturnOrderResponse(BaseModel):
     customer_id: int | None
     goods_issue_id: int | None
     status: str
+    source_type: str | None
+    source_reference: str | None
     notes: str | None
     registered_at: datetime | None
     received_at: datetime | None
@@ -163,6 +169,9 @@ class ReturnOrderItemCreate(BaseModel):
     quantity: Decimal = Field(gt=Decimal("0"))
     unit: str = Field(default="piece", min_length=1, max_length=20)
     decision: Literal["restock", "repair", "scrap", "return_supplier"] | None = None
+    repair_mode: Literal["internal", "external"] | None = None
+    external_status: Literal["waiting_external_provider", "at_external_provider", "ready_for_use"] | None = None
+    external_partner: str | None = Field(default=None, max_length=255)
     target_bin_id: int | None = None
     reason: str | None = None
 
@@ -171,6 +180,9 @@ class ReturnOrderItemUpdate(BaseModel):
     quantity: Decimal | None = Field(default=None, gt=Decimal("0"))
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     decision: Literal["restock", "repair", "scrap", "return_supplier"] | None = None
+    repair_mode: Literal["internal", "external"] | None = None
+    external_status: Literal["waiting_external_provider", "at_external_provider", "ready_for_use"] | None = None
+    external_partner: str | None = Field(default=None, max_length=255)
     target_bin_id: int | None = None
     reason: str | None = None
 
@@ -182,10 +194,28 @@ class ReturnOrderItemResponse(BaseModel):
     quantity: Decimal
     unit: str
     decision: str | None
+    repair_mode: str | None
+    external_status: str | None
+    external_partner: str | None
+    external_dispatched_at: datetime | None
+    external_returned_at: datetime | None
     target_bin_id: int | None
     reason: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class ReturnOrderExternalDispatchPayload(BaseModel):
+    external_partner: str | None = Field(default=None, max_length=255)
+
+
+class ReturnOrderExternalReceivePayload(BaseModel):
+    target_bin_id: int
+
+
+class ReturnOrderExternalDispatchResponse(BaseModel):
+    item: ReturnOrderItemResponse
+    document_id: int
 
 
 class ApprovalRuleCreate(BaseModel):

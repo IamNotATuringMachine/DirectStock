@@ -11,7 +11,7 @@ from app.dependencies import (
     get_integration_auth_context,
     require_integration_scopes,
 )
-from app.models.catalog import Product
+from app.models.catalog import Customer, CustomerLocation, Product
 from app.models.inventory import GoodsIssue, GoodsIssueItem, Inventory, StockMovement
 from app.models.phase4 import IntegrationAccessLog, IntegrationClient, Shipment
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem
@@ -40,6 +40,36 @@ def _now() -> datetime:
 
 def _generate_number(prefix: str) -> str:
     return f"{prefix}-{_now().strftime('%Y%m%d%H%M%S')}-{token_hex(2).upper()}"
+
+
+async def _resolve_customer_scope(
+    db: AsyncSession,
+    *,
+    customer_id: int | None,
+    customer_location_id: int | None,
+) -> tuple[int | None, int | None]:
+    if customer_location_id is None:
+        if customer_id is None:
+            return None, None
+        customer = (await db.execute(select(Customer.id).where(Customer.id == customer_id))).scalar_one_or_none()
+        if customer is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+        return customer_id, None
+
+    location = (
+        await db.execute(select(CustomerLocation).where(CustomerLocation.id == customer_location_id))
+    ).scalar_one_or_none()
+    if location is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer location not found")
+
+    resolved_customer_id = int(location.customer_id)
+    if customer_id is not None and customer_id != resolved_customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Customer location does not belong to selected customer",
+        )
+
+    return resolved_customer_id, customer_location_id
 
 
 async def _log_access(
@@ -303,6 +333,8 @@ async def external_shipments(
             carrier=row.carrier,
             status=row.status,
             goods_issue_id=row.goods_issue_id,
+            customer_id=row.customer_id,
+            customer_location_id=row.customer_location_id,
             tracking_number=row.tracking_number,
             recipient_name=row.recipient_name,
             shipping_address=row.shipping_address,
@@ -363,9 +395,16 @@ async def external_create_goods_issue(
     db: AsyncSession = Depends(get_db),
     context: IntegrationAuthContext = Depends(require_integration_scopes("orders:write")),
 ) -> ExternalCommandGoodsIssueResponse:
+    customer_id, customer_location_id = await _resolve_customer_scope(
+        db,
+        customer_id=payload.customer_id,
+        customer_location_id=payload.customer_location_id,
+    )
+
     issue = GoodsIssue(
         issue_number=payload.issue_number or _generate_number("EGI"),
-        customer_id=payload.customer_id,
+        customer_id=customer_id,
+        customer_location_id=customer_location_id,
         customer_reference=payload.customer_reference,
         notes=payload.notes,
         status="draft",

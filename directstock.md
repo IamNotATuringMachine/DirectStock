@@ -73,12 +73,24 @@
 ### 2.2 Warenannahme
 - **QR-/Barcode-Scan** bei Warenannahme (Tablet-Kamera oder externer Scanner)
 - Abgleich Lieferschein ↔ Bestellung (Soll/Ist-Vergleich)
+- Verknüpfung WE-Beleg zu Bestellung (`purchase_order_id`) inkl. Positionsprüfung je WE-Position
 - Erfassung von Über-/Unterlieferungen und Abweichungen
 - Foto-Dokumentation bei Beschädigungen
 - Chargen-/Seriennummern-Erfassung bei Wareneingang
+- Ad-hoc-Artikelanlage direkt im WE-Dialog (RBAC-geschützt über `module.products.quick_create`)
 - MHD-Erfassung (Mindesthaltbarkeitsdatum) für verderbliche Waren
 - Lieferschein-Erfassung (manuell oder via Dokumenten-Upload)
 - Qualitätsprüfung auslösen (bei definierten Artikeln oder Lieferanten)
+
+### 2.2.1 Kleinteil- vs. Einzelteilverfolgung
+- Produktstamm enthält Flag `requires_item_tracking` (Einzelteilverfolgung / Seriennummernpflicht)
+- `requires_item_tracking = true`:
+  - Menge muss ganzzahlig sein
+  - Seriennummern sind beim WE Pflicht
+  - Anzahl Seriennummern muss zur Menge passen
+  - Serienlabel-PDF kann pro WE-Position erzeugt werden (QR-Payload `DS:SN:<serial_number>`)
+- `requires_item_tracking = false`:
+  - Mengenbuchung auf Ziel-Lagerplatz (Kleinteil-Flow) ohne Serienlabelpflicht
 
 ### 2.3 Einlagerung (Putaway)
 - Automatische Lagerplatz-Vorschläge basierend auf:
@@ -182,6 +194,7 @@
 - Abgleich mit Originalauftrag / Lieferschein
 - Foto-Dokumentation des Zustands
 - Chargen-/Seriennummern-Prüfung
+- Herkunftserfassung der Retoure: `source_type` (`customer` / `technician`) + `source_reference`
 
 ### 5.2 Retourenbearbeitung
 - Qualitätsprüfung / Zustandsbewertung
@@ -190,6 +203,12 @@
   - Nacharbeit / Reparatur
   - Verschrottung / Entsorgung
   - Rücksendung an Lieferant
+- Reparatur-Triage erweitert um `repair_mode` (`internal` / `external`)
+- Externer Reparaturpfad:
+  - Statusfolge `waiting_external_provider` -> `at_external_provider` -> `ready_for_use`
+  - Dispatch erzeugt Reparaturformular (Dokumenttyp `external_repair_form`)
+  - Bestand wird in virtuelles Lager "Lager Spanien / Reparatur extern" umgebucht
+  - Rücklauf bucht aus virtuellem Spanien-Bin in Ziel-Bin zurück
 - Gutschrift / Ersatzlieferung auslösen
 - Retourenquote-Tracking
 

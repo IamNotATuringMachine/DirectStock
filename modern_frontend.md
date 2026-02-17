@@ -18,18 +18,18 @@ This document lists all the pages currently available in the DirectStock fronten
 - **Alerts** (Benachrichtigungen): `/alerts` - Erledigt
 - **Reports** (Berichte): `/reports` - Erledigt
 - **Purchasing** (Einkauf): `/purchasing` - Erledigt
-- **Picking** (Kommissionierung): `/picking` - Offen
-- **Returns** (Retouren): `/returns` - Offen
-- **Approvals** (Genehmigungen): `/approvals` - Offen
-- **Documents** (Dokumente): `/documents` - Offen
-- **Audit Trail** (Audit Trail): `/audit-trail` - Offen
-- **Goods Receipt** (Wareneingang): `/goods-receipt` - Offen
-- **Goods Issue** (Warenausgang): `/goods-issue` - Offen
-- **Stock Transfer** (Umbuchung): `/stock-transfer` - Offen
-- **Shipping** (Versand): `/shipping` - Offen
-- **Inter-Warehouse Transfer** (Umlagerung): `/inter-warehouse-transfer` - Offen
-- **Scanner** (Scanner): `/scanner` - Offen
-- **Users** (Benutzer): `/users` - Offen
-- **Services** (Services): `/services` - Offen
-- **Sales Orders** (Kundenaufträge): `/sales-orders` - Offen
-- **Invoices** (Rechnungen): `/invoices` - Offen
+- **Picking** (Kommissionierung): `/picking` - Erledigt
+- **Returns** (Retouren): `/returns` - Erledigt
+- **Approvals** (Genehmigungen): `/approvals` - Erledigt
+- **Documents** (Dokumente): `/documents` - Erledigt
+- **Audit Trail** (Audit Trail): `/audit-trail` - Erledigt
+- **Goods Receipt** (Wareneingang): `/goods-receipt` - Erledigt
+- **Goods Issue** (Warenausgang): `/goods-issue` - Erledigt
+- **Stock Transfer** (Umbuchung): `/stock-transfer` - Erledigt
+- **Shipping** (Versand): `/shipping` - Erledigt
+- **Inter-Warehouse Transfer** (Umlagerung): `/inter-warehouse-transfer` - Erledigt
+- **Scanner** (Scanner): `/scanner` - Erledigt
+- **Users** (Benutzer): `/users` - Erledigt
+- **Services** (Services): `/services` - Erledigt
+- **Sales Orders** (Kundenaufträge): `/sales-orders` - Erledigt
+- **Invoices** (Rechnungen): `/invoices` - Erledigt

@@ -109,6 +109,7 @@ export async function ensureE2EProduct(
   request: APIRequestContext,
   token: string,
   productNumber = E2E_PRODUCT_NUMBER,
+  options?: { requiresItemTracking?: boolean },
 ): Promise<string> {
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -160,6 +161,7 @@ export async function ensureE2EProduct(
       product_group_id: groupId,
       unit: "piece",
       status: "active",
+      requires_item_tracking: options?.requiresItemTracking ?? false,
     },
   });
 

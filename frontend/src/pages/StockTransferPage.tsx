@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Search, ChevronRight, CheckCircle, Clock, Ban, Scan, ArrowRight, Save, X, Box } from "lucide-react";
 
 import ScanFeedback from "../components/scanner/ScanFeedback";
 import WorkflowScanInput from "../components/scanner/WorkflowScanInput";
@@ -20,10 +21,10 @@ import { parseScanValue } from "../utils/scannerUtils";
 type TransferFlowStep = "source_bin_scan" | "product_scan" | "quantity" | "target_bin_scan" | "confirm";
 
 const flowSteps: Array<{ id: TransferFlowStep; label: string }> = [
-  { id: "source_bin_scan", label: "Quelle scannen" },
-  { id: "product_scan", label: "Artikel scannen" },
+  { id: "source_bin_scan", label: "Quelle" },
+  { id: "product_scan", label: "Artikel" },
   { id: "quantity", label: "Menge" },
-  { id: "target_bin_scan", label: "Ziel scannen" },
+  { id: "target_bin_scan", label: "Ziel" },
   { id: "confirm", label: "Bestätigen" },
 ];
 
@@ -365,258 +366,323 @@ export default function StockTransferPage() {
   };
 
   return (
-    <section className="panel" data-testid="stock-transfer-page">
-      <header className="panel-header">
+    <section className="page flex flex-col gap-6" data-testid="stock-transfer-page">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2>Umlagerung</h2>
-          <p className="panel-subtitle">Transferbeleg anlegen, Positionen erfassen und atomar umbuchen.</p>
+          <h2 className="page-title">Umlagerung</h2>
+          <p className="section-subtitle mt-1">Transferbeleg anlegen und Warenbewegungen erfassen.</p>
         </div>
       </header>
 
-      <div className="warehouse-grid">
-        <article className="subpanel">
-          <h3>1. Beleg anlegen</h3>
-          <form className="form-grid" onSubmit={(event) => void onCreateTransfer(event)}>
-            <input
-              className="input"
-              placeholder="Notiz (optional)"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-            <button className="btn" type="submit" disabled={createTransferMutation.isPending}>
-              Umlagerung erstellen
-            </button>
-          </form>
-
-          <div className="list-stack small">
-            {(transfersQuery.data ?? []).map((transfer) => (
-              <button
-                key={transfer.id}
-                className={`list-item ${selectedTransferId === transfer.id ? "active" : ""}`}
-                onClick={() => setSelectedTransferId(transfer.id)}
-              >
-                <strong>{transfer.transfer_number}</strong>
-                <span>Status: {transfer.status}</span>
-              </button>
-            ))}
-          </div>
-        </article>
-
-        <article className="subpanel">
-          <h3>2. Scanner-Workflow</h3>
-
-          <div className="workflow-progress">
-            <div className="workflow-progress-track">
-              <div className="workflow-progress-value" style={{ width: `${flowProgress}%` }} />
-            </div>
-            <div className="workflow-step-list">
-              {flowSteps.map((step, index) => (
-                <span key={step.id} className={`workflow-step-chip ${index <= flowStepIndex ? "active" : ""}`}>
-                  {step.label}
-                </span>
-              ))}
-            </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Step 1: Document Management */}
+        <section className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] shadow-sm flex flex-col h-full overflow-hidden">
+          <div className="p-4 border-b border-[var(--line)] bg-[var(--panel-soft)]">
+            <h3 className="section-title flex items-center gap-2">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--accent)] text-white text-xs font-bold">1</div>
+              Belegverwaltung
+            </h3>
           </div>
 
-          {flowStep === "source_bin_scan" ? (
-            <WorkflowScanInput
-              enabled
-              isLoading={flowLoading}
-              label="Quell-Lagerplatz scannen"
-              placeholder="Quelle scannen"
-              onScan={(value) => onFlowSourceBinScan(value)}
-              testIdPrefix="stock-transfer-flow-source-scan"
-            />
-          ) : null}
-
-          {flowStep === "product_scan" ? (
-            <WorkflowScanInput
-              enabled
-              isLoading={flowLoading}
-              label="Artikel scannen"
-              placeholder="Artikel scannen"
-              onScan={(value) => onFlowProductScan(value)}
-              testIdPrefix="stock-transfer-flow-product-scan"
-            />
-          ) : null}
-
-          {flowStep === "quantity" ? (
-            <div className="workflow-block">
-              <p className="workflow-label">Menge erfassen</p>
-              <p>
-                Verfügbar in Quelle: <strong>{availableStock.toFixed(3)}</strong>
-              </p>
-              <input
-                className="input"
-                type="number"
-                min="0.001"
-                step="0.001"
-                value={flowQuantity}
-                onChange={(event) => setFlowQuantity(event.target.value)}
-              />
-              <button className="btn workflow-btn" onClick={() => setFlowStep("target_bin_scan")}>
-                Weiter zu Ziel-Scan
-              </button>
-            </div>
-          ) : null}
-
-          {flowStep === "target_bin_scan" ? (
-            <WorkflowScanInput
-              enabled
-              isLoading={flowLoading}
-              label="Ziel-Lagerplatz scannen"
-              placeholder="Ziel scannen"
-              onScan={(value) => onFlowTargetBinScan(value)}
-              testIdPrefix="stock-transfer-flow-target-scan"
-            />
-          ) : null}
-
-          {flowStep === "confirm" ? (
-            <div className="workflow-block">
-              <p className="workflow-label">Bestätigen</p>
-              <p>
-                <strong>Quelle:</strong> {flowSourceBin?.code}
-              </p>
-              <p>
-                <strong>Produkt:</strong> {flowProduct?.product_number} - {flowProduct?.name}
-              </p>
-              <p>
-                <strong>Menge:</strong> {flowQuantity}
-              </p>
-              <p>
-                <strong>Ziel:</strong> {flowTargetBin?.code}
-              </p>
-              <p>
-                <strong>Rest in Quelle danach:</strong> {remainingAfterTransfer.toFixed(3)}
-              </p>
-              <button className="btn workflow-btn" onClick={() => void onConfirmFlowItem()} disabled={createItemMutation.isPending}>
-                Position bestätigen
-              </button>
-            </div>
-          ) : null}
-
-          <ScanFeedback status={flowFeedbackStatus} message={flowFeedbackMessage} />
-
-          <hr className="workflow-divider" />
-
-          <h3>2b. Formular-Fallback</h3>
-          <form className="form-grid" onSubmit={(event) => void onAddItem(event)}>
-            <select
-              className="input"
-              value={selectedProductId}
-              onChange={(event) => setSelectedProductId(event.target.value)}
-              required
-            >
-              <option value="">Artikel wählen</option>
-              {(productsQuery.data?.items ?? []).map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.product_number} - {product.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="input"
-              value={selectedWarehouseId ?? ""}
-              onChange={(event) => {
-                setSelectedWarehouseId(Number(event.target.value));
-                setSelectedZoneId(null);
-                setFromBinId("");
-                setToBinId("");
-              }}
-            >
-              {(warehousesQuery.data ?? []).map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.code} - {warehouse.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="input"
-              value={selectedZoneId ?? ""}
-              onChange={(event) => {
-                setSelectedZoneId(Number(event.target.value));
-                setFromBinId("");
-                setToBinId("");
-              }}
-            >
-              {(zonesQuery.data ?? []).map((zone) => (
-                <option key={zone.id} value={zone.id}>
-                  {zone.code} - {zone.name}
-                </option>
-              ))}
-            </select>
-
-            <select className="input" value={fromBinId} onChange={(event) => setFromBinId(event.target.value)}>
-              {(binsQuery.data ?? []).map((bin) => (
-                <option key={bin.id} value={bin.id}>
-                  Quelle: {bin.code}
-                </option>
-              ))}
-            </select>
-
-            <select className="input" value={toBinId} onChange={(event) => setToBinId(event.target.value)}>
-              {(binsQuery.data ?? []).map((bin) => (
-                <option key={bin.id} value={bin.id}>
-                  Ziel: {bin.code}
-                </option>
-              ))}
-            </select>
-
-            <input
-              className="input"
-              type="number"
-              min="0.001"
-              step="0.001"
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-              required
-            />
-
-            <button
-              className="btn"
-              type="submit"
-              disabled={!selectedTransferId || selectedTransfer?.status !== "draft" || createItemMutation.isPending}
-            >
-              Position hinzufügen
-            </button>
-          </form>
-
-          <div className="actions-cell">
-            <button
-              className="btn"
-              disabled={!selectedTransferId || selectedTransfer?.status !== "draft" || completeMutation.isPending}
-              onClick={() => selectedTransferId && void completeMutation.mutateAsync(selectedTransferId)}
-            >
-              Umlagerung abschließen
-            </button>
-            <button
-              className="btn"
-              disabled={!selectedTransferId || selectedTransfer?.status !== "draft" || cancelMutation.isPending}
-              onClick={() => selectedTransferId && void cancelMutation.mutateAsync(selectedTransferId)}
-            >
-              Umlagerung stornieren
-            </button>
-          </div>
-        </article>
-
-        <article className="subpanel">
-          <h3>3. Erfasste Positionen</h3>
-          <div className="list-stack small">
-            {(transferItemsQuery.data ?? []).map((item) => (
-              <div key={item.id} className="list-item static-item">
-                <strong>Produkt #{item.product_id}</strong>
-                <span>
-                  Menge {item.quantity} | Bin {item.from_bin_id} → {item.to_bin_id}
-                </span>
+          <div className="p-4 space-y-6 flex-1 overflow-y-auto">
+            <form className="space-y-3" onSubmit={(event) => void onCreateTransfer(event)}>
+              <div className="space-y-1.5">
+                <label className="form-label-standard uppercase tracking-wider">Notiz (Optional)</label>
+                <input
+                  className="input w-full"
+                  placeholder="z.B. Monatliche Umlagerung"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
               </div>
-            ))}
-            {!transferItemsQuery.isLoading && (transferItemsQuery.data?.length ?? 0) === 0 ? (
-              <p>Noch keine Positionen.</p>
-            ) : null}
+              <button className="btn btn-primary w-full justify-center" type="submit" disabled={createTransferMutation.isPending}>
+                {createTransferMutation.isPending ? "Erstelle..." : "Neuen Beleg erstellen"}
+              </button>
+            </form>
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Offene Transfers</h4>
+              <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                {(transfersQuery.data ?? []).length === 0 ? (
+                  <p className="text-sm text-[var(--muted)] italic py-2">Keine offenen Transfers.</p>
+                ) : (
+                  (transfersQuery.data ?? []).map((transfer) => (
+                    <button
+                      key={transfer.id}
+                      className={`w-full text-left p-3 rounded-[var(--radius-sm)] border text-sm transition-all hover:shadow-sm ${selectedTransferId === transfer.id
+                        ? "bg-[var(--panel-strong)] border-[var(--accent)] ring-1 ring-[var(--accent)]"
+                        : "bg-[var(--panel)] border-[var(--line)] hover:bg-[var(--panel-soft)]"
+                        }`}
+                      onClick={() => setSelectedTransferId(transfer.id)}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-bold font-mono text-[var(--accent)] truncate min-w-0 flex-1 mr-2">
+                          {transfer.transfer_number}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider border
+                                   ${transfer.status === 'completed'
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
+                            : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                          }
+                                `}>
+                          {transfer.status}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-[var(--muted)]">
+                        <span className="truncate min-w-0">{transfer.notes || "Keine Notiz"}</span>
+                        <span>#{transfer.id}</span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {selectedTransfer && (
+              <div className="pt-4 border-t border-[var(--line)] mt-auto grid grid-cols-2 gap-3">
+                <button
+                  className="btn w-full justify-center text-xs hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 dark:hover:border-emerald-800"
+                  disabled={selectedTransfer.status !== "draft" || completeMutation.isPending}
+                  onClick={() => selectedTransferId && void completeMutation.mutateAsync(selectedTransferId)}
+                >
+                  <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                  Abschließen
+                </button>
+                <button
+                  className="btn w-full justify-center text-xs hover:bg-red-50 hover:text-red-700 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-800"
+                  disabled={selectedTransfer.status !== "draft" || cancelMutation.isPending}
+                  onClick={() => selectedTransferId && void cancelMutation.mutateAsync(selectedTransferId)}
+                >
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Stornieren
+                </button>
+              </div>
+            )}
           </div>
-        </article>
+        </section>
+
+        {/* Step 2: Scanner Workflow */}
+        <section className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] shadow-sm flex flex-col h-full overflow-hidden">
+          <div className="p-4 border-b border-[var(--line)] bg-[var(--panel-soft)]">
+            <h3 className="section-title flex items-center gap-2">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--accent)] text-white text-xs font-bold">2</div>
+              Scanner Workflow
+              {selectedTransferId && (
+                <span className="ml-auto text-xs font-mono bg-[var(--bg)] px-2 py-1 rounded border border-[var(--line)] text-[var(--muted)]">
+                  #{selectedTransferId}
+                </span>
+              )}
+            </h3>
+          </div>
+
+          <div className="p-4 space-y-6 flex-1 overflow-y-auto">
+            {!selectedTransferId ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center h-48 border-2 border-dashed border-[var(--line)] rounded-[var(--radius-md)] bg-[var(--bg)]">
+                <Box className="w-10 h-10 text-[var(--muted)] opacity-40 mb-3" />
+                <p className="text-[var(--muted)] font-medium">Kein Beleg ausgewählt</p>
+                <p className="text-xs text-[var(--muted)] mt-1 opacity-70">Wählen Sie links einen Beleg aus.</p>
+              </div>
+            ) : selectedTransfer?.status !== "draft" ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center h-48 border-2 border-dashed border-[var(--line)] rounded-[var(--radius-md)] bg-[var(--bg)]">
+                <CheckCircle className="w-10 h-10 text-emerald-500 mb-3" />
+                <p className="text-[var(--ink)] font-medium">Transfer abgeschlossen</p>
+              </div>
+            ) : (
+              <>
+                {/* Progress Bar */}
+                <div className="space-y-4">
+                  <div className="h-1.5 w-full bg-[var(--line)] rounded-full overflow-hidden">
+                    <div className="h-full bg-[var(--accent)] transition-all duration-300 ease-out" style={{ width: `${flowProgress}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-[var(--muted)] font-medium uppercase tracking-wider">
+                    <span>Start</span>
+                    <span>Bestätigung</span>
+                  </div>
+                </div>
+
+                <div className="bg-[var(--panel-soft)] rounded-[var(--radius-md)] p-4 min-h-[220px] flex flex-col justify-center border border-[var(--line)]">
+                  {flowStep === "source_bin_scan" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                      <WorkflowScanInput enabled isLoading={flowLoading} label="1. Quelle scannen" placeholder="Lagerplatz-Code..." onScan={onFlowSourceBinScan} testIdPrefix="stock-transfer-source-scan" />
+                      <p className="text-xs text-[var(--muted)] text-center">Scannen Sie den Lagerplatz zur Entnahme.</p>
+                    </div>
+                  )}
+
+                  {flowStep === "product_scan" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                      <WorkflowScanInput enabled isLoading={flowLoading} label="2. Artikel scannen" placeholder="EAN / Nummer..." onScan={onFlowProductScan} testIdPrefix="stock-transfer-product-scan" />
+                      <div className="p-3 bg-[var(--panel)] rounded border border-[var(--line)] text-sm shadow-sm">
+                        <span className="block text-xs text-[var(--muted)] mb-1 uppercase tracking-wider">Aktuelle Quelle</span>
+                        <span className="font-mono font-medium text-[var(--ink)] flex items-center gap-2">
+                          <Box className="w-3.5 h-3.5 text-[var(--accent)]" />
+                          {flowSourceBin?.code}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {flowStep === "quantity" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                      <div>
+                        <label className="block text-sm font-medium text-[var(--ink)] mb-2">3. Menge eingeben</label>
+                        <div className="flex gap-2">
+                          <input
+                            className="input text-lg font-mono flex-1 text-center font-bold"
+                            type="number" min="0.001" step="0.001"
+                            value={flowQuantity}
+                            onChange={(e) => setFlowQuantity(e.target.value)}
+                            autoFocus
+                          />
+                          <button className="btn btn-primary px-6" onClick={() => setFlowStep("target_bin_scan")}>
+                            <ArrowRight className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs px-1">
+                        <span className="text-[var(--muted)]">Verfügbar: <strong className="text-[var(--ink)]">{availableStock.toFixed(3)}</strong></span>
+                        <span className="text-[var(--muted)]">Einheit: Stk</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {flowStep === "target_bin_scan" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                      <WorkflowScanInput enabled isLoading={flowLoading} label="4. Ziel scannen" placeholder="Lagerplatz-Code..." onScan={onFlowTargetBinScan} testIdPrefix="stock-transfer-target-scan" />
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="p-2 border border-[var(--line)] rounded bg-[var(--panel)]">
+                          <span className="text-[var(--muted)] block uppercase tracking-wider text-[10px] mb-0.5">Menge</span>
+                          <strong className="font-mono text-sm text-[var(--ink)]">{flowQuantity}</strong>
+                        </div>
+                        <div className="p-2 border border-[var(--line)] rounded bg-[var(--panel)]">
+                          <span className="text-[var(--muted)] block uppercase tracking-wider text-[10px] mb-0.5">Artikel</span>
+                          <strong className="font-mono text-sm text-[var(--ink)] truncate block">{flowProduct?.product_number}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {flowStep === "confirm" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="space-y-2 bg-[var(--bg)] p-3 rounded border border-[var(--line)] text-sm">
+                        <div className="flex justify-between py-1 border-b border-[var(--line)]">
+                          <span className="text-[var(--muted)]">Von</span>
+                          <span className="font-mono font-medium">{flowSourceBin?.code}</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-[var(--line)]">
+                          <span className="text-[var(--muted)]">Nach</span>
+                          <span className="font-mono font-medium text-[var(--accent)]">{flowTargetBin?.code}</span>
+                        </div>
+                        <div className="flex justify-between py-1 pt-2">
+                          <span className="font-medium">Menge</span>
+                          <span className="font-mono font-bold text-lg">{flowQuantity}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <button className="btn flex-1 justify-center" onClick={resetFlow}>Abbrechen</button>
+                        <button
+                          className="btn btn-primary flex-1 justify-center shadow-lg shadow-emerald-500/20"
+                          onClick={() => void onConfirmFlowItem()}
+                          disabled={createItemMutation.isPending}
+                        >
+                          <Save className="w-4 h-4" /> Buchen
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <ScanFeedback status={flowFeedbackStatus} message={flowFeedbackMessage} />
+
+                {/* Manual Fallback Accordion */}
+                <details className="group">
+                  <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-[var(--muted)] uppercase tracking-wider p-2 hover:bg-[var(--panel-soft)] rounded select-none transition-colors">
+                    <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" />
+                    Manuelle Erfassung
+                  </summary>
+                  <form className="mt-3 space-y-3 p-3 bg-[var(--bg)] border border-[var(--line)] rounded-[var(--radius-sm)] animate-in slide-in-from-top-2" onSubmit={(e) => void onAddItem(e)}>
+                    <div className="space-y-1">
+                      <label className="text-xs text-[var(--muted)]">Artikel</label>
+                      <select className="input w-full text-sm py-1.5 h-9" value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)} required>
+                        <option value="">Wählen...</option>
+                        {(productsQuery.data?.items ?? []).map(p => (
+                          <option key={p.id} value={p.id}>{p.product_number} {p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs text-[var(--muted)]">Von</label>
+                        <select className="input w-full text-sm py-1.5 h-9" value={fromBinId} onChange={(e) => setFromBinId(e.target.value)}>
+                          {(binsQuery.data ?? []).map(b => <option key={b.id} value={b.id}>{b.code}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-[var(--muted)]">Nach</label>
+                        <select className="input w-full text-sm py-1.5 h-9" value={toBinId} onChange={(e) => setToBinId(e.target.value)}>
+                          {(binsQuery.data ?? []).map(b => <option key={b.id} value={b.id}>{b.code}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-[var(--muted)] block mb-1">Menge</label>
+                      <div className="flex gap-2">
+                        <input className="input flex-1 text-sm py-1.5 h-9" type="number" min="0.001" step="0.001" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
+                        <button className="btn btn-primary px-3 h-9" type="submit" disabled={createItemMutation.isPending}><Plus className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  </form>
+                </details>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Step 3: Items List */}
+        <section className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] shadow-sm flex flex-col h-full overflow-hidden">
+          <div className="p-4 border-b border-[var(--line)] bg-[var(--panel-soft)]">
+            <h3 className="section-title flex items-center gap-2">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--accent)] text-white text-xs font-bold">3</div>
+              Positionen
+              <span className="ml-auto text-xs font-mono bg-[var(--bg)] px-2 py-1 rounded border border-[var(--line)] text-[var(--muted)]">
+                {(transferItemsQuery.data ?? []).length}
+              </span>
+            </h3>
+          </div>
+
+          <div className="p-0 flex-1 overflow-y-auto bg-[var(--bg)] min-h-[300px]">
+            {(transferItemsQuery.data ?? []).length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-[var(--muted)] p-8 opacity-60">
+                <Box className="w-12 h-12 mb-3 stroke-1" />
+                <p className="text-sm">Noch keine Positionen gebucht.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--line)]">
+                {(transferItemsQuery.data ?? []).map((item) => (
+                  <div key={item.id} className="p-4 bg-[var(--panel)] hover:bg-[var(--panel-soft)] transition-colors">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-medium text-sm text-[var(--ink)] flex items-center gap-2">
+                        <Box className="w-4 h-4 text-[var(--accent)]" />
+                        Produkt #{item.product_id}
+                      </div>
+                      <div className="font-mono font-bold text-lg text-[var(--ink)]">{item.quantity}</div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+                      <div className="flex items-center gap-1 bg-[var(--bg)] px-2 py-1 rounded border border-[var(--line)]">
+                        <span className="uppercase text-[10px] tracking-wider opacity-70">Von</span>
+                        <span className="font-mono font-medium text-[var(--ink)]">{item.from_bin_id}</span>
+                      </div>
+                      <ArrowRight className="w-3 h-3 opacity-40" />
+                      <div className="flex items-center gap-1 bg-[var(--bg)] px-2 py-1 rounded border border-[var(--line)]">
+                        <span className="uppercase text-[10px] tracking-wider opacity-70">Nach</span>
+                        <span className="font-mono font-medium text-[var(--ink)]">{item.to_bin_id}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </section>
   );

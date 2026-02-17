@@ -149,6 +149,12 @@ class Shipment(TimestampMixin, Base):
     goods_issue_id: Mapped[int | None] = mapped_column(
         ForeignKey("goods_issues.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    customer_location_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customer_locations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     tracking_number: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True, index=True)
     recipient_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     shipping_address: Mapped[str | None] = mapped_column(Text(), nullable=True)

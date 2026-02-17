@@ -7,11 +7,13 @@ from pydantic import BaseModel, Field
 class GoodsReceiptCreate(BaseModel):
     receipt_number: str | None = Field(default=None, max_length=64)
     supplier_id: int | None = None
+    purchase_order_id: int | None = None
     notes: str | None = None
 
 
 class GoodsReceiptUpdate(BaseModel):
     supplier_id: int | None = None
+    purchase_order_id: int | None = None
     notes: str | None = None
 
 
@@ -19,6 +21,7 @@ class GoodsReceiptResponse(BaseModel):
     id: int
     receipt_number: str
     supplier_id: int | None
+    purchase_order_id: int | None
     status: str
     received_at: datetime | None
     completed_at: datetime | None
@@ -73,12 +76,14 @@ class GoodsReceiptItemResponse(BaseModel):
 class GoodsIssueCreate(BaseModel):
     issue_number: str | None = Field(default=None, max_length=64)
     customer_id: int | None = None
+    customer_location_id: int | None = None
     customer_reference: str | None = Field(default=None, max_length=100)
     notes: str | None = None
 
 
 class GoodsIssueUpdate(BaseModel):
     customer_id: int | None = None
+    customer_location_id: int | None = None
     customer_reference: str | None = Field(default=None, max_length=100)
     notes: str | None = None
 
@@ -87,6 +92,7 @@ class GoodsIssueResponse(BaseModel):
     id: int
     issue_number: str
     customer_id: int | None
+    customer_location_id: int | None
     customer_reference: str | None
     status: str
     issued_at: datetime | None

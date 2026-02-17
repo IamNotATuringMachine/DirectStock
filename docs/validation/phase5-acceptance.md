@@ -81,3 +81,20 @@ Frontend E2E aktualisiert:
 ## Artefakte
 1. `artifacts/lighthouse/lighthouse.report.json`
 2. `artifacts/lighthouse/lighthouse.report.html`
+
+## Erweiterung 2026-02-17 (Kundenhierarchie)
+1. Backend-Zieltests:
+   - Befehl: `cd backend && .venv/bin/python -m pytest -q tests/test_customers_hierarchy.py tests/test_customers.py tests/test_sales_orders_phase5.py tests/test_shipping_carriers.py`
+   - Ergebnis: `8 passed`
+2. Backend-Regressionsauszug:
+   - Befehl: `cd backend && .venv/bin/python -m pytest -q tests/test_external_api_contract.py tests/test_invoices_phase5.py tests/test_offline_idempotency_phase5.py`
+   - Ergebnis: `10 passed`
+3. Frontend Build:
+   - Befehl: `cd frontend && npm run build`
+   - Ergebnis: success
+4. Hinweis zu Frontend Unit:
+   - Befehl: `cd frontend && npm run test`
+   - Ergebnis: in dieser Umgebung `vitest` Worker-Timeouts beim Worker-Start (keine ausgefuehrten Tests).
+5. Hinweis zu Alembic-SQLite-Einzellauf:
+   - Befehl: `cd backend && DATABASE_URL=sqlite:////tmp/directstock_dbg.sqlite .venv/bin/alembic upgrade head`
+   - Ergebnis: in dieser Umgebung haengend ohne Abschluss (separat zu untersuchen).

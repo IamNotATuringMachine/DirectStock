@@ -25,6 +25,24 @@ import { useAuthStore } from "../stores/authStore";
 import type { ProductStatus } from "../types";
 
 const productStatuses: ProductStatus[] = ["active", "blocked", "deprecated", "archived"];
+const productStatusLabels: Record<ProductStatus, string> = {
+  active: "Aktiv",
+  blocked: "Gesperrt",
+  deprecated: "Veraltet",
+  archived: "Archiviert",
+};
+
+function toDisplayUnit(unit: string): string {
+  const normalized = unit.trim().toLowerCase();
+  if (normalized === "piece" || normalized === "pieces") {
+    return "Stück";
+  }
+  return unit;
+}
+
+function toDisplayStatus(status: ProductStatus): string {
+  return productStatusLabels[status];
+}
 
 const StatusIcon = ({ status }: { status: ProductStatus }) => {
   switch (status) {
@@ -95,12 +113,12 @@ export default function ProductsPage() {
   };
 
   return (
-    <section className="flex flex-col gap-6" data-testid="products-page">
+    <section className="page flex flex-col gap-6" data-testid="products-page">
       {/* Header Section */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--ink)]">Artikelstamm</h2>
-          <p className="text-[var(--muted)] mt-1">
+          <h2 className="page-title">Artikelstamm</h2>
+          <p className="section-subtitle mt-1">
             Verwalten Sie alle Produkte, Dienstleistungen und Lagerartikel zentral.
           </p>
         </div>
@@ -147,7 +165,7 @@ export default function ProductsPage() {
               <option value="">Alle Status</option>
               {productStatuses.map((status) => (
                 <option key={status} value={status}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {toDisplayStatus(status)}
                 </option>
               ))}
             </select>
@@ -211,9 +229,9 @@ export default function ProductsPage() {
                   <tr className="border-b border-[var(--line)] bg-[var(--panel-soft)] text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
                     <th className="px-6 py-4">Artikelnr.</th>
                     <th className="px-6 py-4">Bezeichnung</th>
-                    <th className="px-6 py-4">Gruppe</th>
-                    <th className="px-6 py-4">Einheit</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-center">Gruppe</th>
+                    <th className="px-6 py-4 text-center">Einheit</th>
+                    <th className="px-6 py-4 text-center">Status</th>
                     <th className="px-6 py-4 text-right">Aktionen</th>
                   </tr>
                 </thead>
@@ -239,37 +257,43 @@ export default function ProductsPage() {
                         </td>
                         <td className="px-6 py-4 text-[var(--ink)] font-semibold">{product.name}</td>
                         <td className="px-6 py-4 text-[var(--muted)] text-sm">
-                          {product.group_name ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--bg)] text-[var(--ink)] border border-[var(--line)] text-xs">
-                              <Layers className="w-3 h-3 opacity-60" />
-                              {product.group_name}
-                            </span>
-                          ) : (
-                            <span className="text-[var(--muted)] opacity-50">-</span>
-                          )}
+                          <div className="flex justify-center">
+                            {product.group_name ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--bg)] text-[var(--ink)] border border-[var(--line)] text-xs">
+                                <Layers className="w-3 h-3 opacity-60" />
+                                {product.group_name}
+                              </span>
+                            ) : (
+                              <span className="text-[var(--muted)] opacity-50">-</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-[var(--muted)] text-sm">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--bg)] text-[var(--muted)] border border-[var(--line)] text-xs font-mono">
-                            {product.unit}
-                          </span>
+                          <div className="flex justify-center">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--bg)] text-[var(--muted)] border border-[var(--line)] text-xs font-mono">
+                              {toDisplayUnit(product.unit)}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
-                              ${product.status === "active"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
-                                : product.status === "blocked" || product.status === "deprecated"
-                                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
-                                  : "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700"
-                              }
-                            `}
-                          >
-                            <StatusIcon status={product.status} />
-                            {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
-                          </span>
+                          <div className="flex justify-center">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
+                                ${product.status === "active"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
+                                  : product.status === "blocked" || product.status === "deprecated"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
+                                    : "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700"
+                                }
+                              `}
+                            >
+                              <StatusIcon status={product.status} />
+                              {toDisplayStatus(product.status)}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <div className="flex items-center justify-end gap-2 opacity-100">
                             <Link
                               to={`/products/${product.id}`}
                               className="p-2 text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--bg)] rounded-md transition-colors"

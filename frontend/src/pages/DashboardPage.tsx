@@ -139,8 +139,8 @@ export default function DashboardPage() {
     <section className="page" data-testid="dashboard-page">
       <header className="panel-header">
         <div>
-          <h2>Dashboard</h2>
-          <p className="panel-subtitle">Operativer Überblick</p>
+          <h2 className="page-title">Dashboard</h2>
+          <p className="panel-subtitle section-subtitle">Operativer Überblick</p>
         </div>
         <button className="btn" onClick={() => setShowConfig(!showConfig)}>
           <Layout size={18} />

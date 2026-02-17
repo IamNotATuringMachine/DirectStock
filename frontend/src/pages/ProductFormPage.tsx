@@ -55,6 +55,7 @@ type ProductFormState = {
   groupId: string;
   unit: string;
   status: ProductStatus;
+  requiresItemTracking: boolean;
 };
 
 type ProductTab = "master" | "warehouse" | "suppliers";
@@ -83,6 +84,7 @@ function emptyProductForm(): ProductFormState {
     groupId: "",
     unit: "Stück",
     status: "active",
+    requiresItemTracking: false,
   };
 }
 
@@ -316,6 +318,7 @@ export default function ProductFormPage() {
   const [supplierLeadTimeDays, setSupplierLeadTimeDays] = useState("");
   const [supplierMinOrderQuantity, setSupplierMinOrderQuantity] = useState("");
   const [supplierPreferred, setSupplierPreferred] = useState(false);
+  const [showCreateSuccessDialog, setShowCreateSuccessDialog] = useState(false);
 
   const productQuery = useQuery({
     queryKey: ["product", productId],
@@ -359,6 +362,7 @@ export default function ProductFormPage() {
         : "",
       unit: toDisplayUnit(product.unit),
       status: product.status,
+      requiresItemTracking: product.requires_item_tracking,
     });
   }, [productQuery.data]);
 
@@ -394,10 +398,9 @@ export default function ProductFormPage() {
 
   const createProductMutation = useMutation({
     mutationFn: createProduct,
-    onSuccess: async (created) => {
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["products"] });
-      await queryClient.invalidateQueries({ queryKey: ["product", created.id] });
-      navigate(`/products/${created.id}/edit`);
+      setShowCreateSuccessDialog(true);
     },
   });
 
@@ -537,6 +540,7 @@ export default function ProductFormPage() {
             : null,
           unit: toApiUnit(productForm.unit),
           status: productForm.status,
+          requires_item_tracking: productForm.requiresItemTracking,
         },
       });
       return;
@@ -551,6 +555,7 @@ export default function ProductFormPage() {
         : null,
       unit: toApiUnit(productForm.unit),
       status: productForm.status,
+      requires_item_tracking: productForm.requiresItemTracking,
     });
   };
 
@@ -587,6 +592,25 @@ export default function ProductFormPage() {
       min_order_quantity: supplierMinOrderQuantity.trim() || null,
       is_preferred: supplierPreferred,
     });
+  };
+
+  const onCreateAnotherArticle = () => {
+    setShowCreateSuccessDialog(false);
+    setProductForm(emptyProductForm());
+    setWarehouseFormById({});
+    setActiveTab("master");
+    setSelectedSupplierId("");
+    setSupplierProductNumber("");
+    setSupplierPrice("");
+    setSupplierLeadTimeDays("");
+    setSupplierMinOrderQuantity("");
+    setSupplierPreferred(false);
+    navigate("/products/new", { replace: true });
+  };
+
+  const onCreateDoneGoToList = () => {
+    setShowCreateSuccessDialog(false);
+    navigate("/products");
   };
 
   if (isEditMode && productQuery.isLoading) {
@@ -669,15 +693,15 @@ export default function ProductFormPage() {
               onClick={() => setActiveTab(tab.id as ProductTab)}
               type="button"
               className={`group pb-4 px-1 text-sm font-semibold flex items-center gap-2.5 transition-all relative whitespace-nowrap ${activeTab === tab.id
-                  ? "text-[var(--accent)]"
-                  : "text-[var(--muted)] hover:text-[var(--ink)]"
+                ? "text-[var(--accent)]"
+                : "text-[var(--muted)] hover:text-[var(--ink)]"
                 }`}
             >
               <tab.icon
                 size={18}
                 className={`transition-colors ${activeTab === tab.id
-                    ? "text-[var(--accent)]"
-                    : "text-[var(--muted)] group-hover:text-[var(--ink)]"
+                  ? "text-[var(--accent)]"
+                  : "text-[var(--muted)] group-hover:text-[var(--ink)]"
                   }`}
               />
               {tab.label}
@@ -703,7 +727,7 @@ export default function ProductFormPage() {
                   <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-wider flex items-center gap-2">
                     <Info size={14} /> Grundinformationen
                   </h3>
-                  
+
                   <div className="space-y-5">
                     <label className="space-y-1.5 block">
                       <span className="text-sm font-medium text-[var(--ink)]">
@@ -762,7 +786,7 @@ export default function ProductFormPage() {
                   <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-wider flex items-center gap-2">
                     <Layers size={14} /> Kategorisierung
                   </h3>
-                  
+
                   <div className="space-y-5">
                     <div className="space-y-1.5 block">
                       <span className="text-sm font-medium text-[var(--ink)]">
@@ -835,6 +859,31 @@ export default function ProductFormPage() {
                         </div>
                       </label>
                     </div>
+
+                    <div className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--panel-soft)] p-3 group">
+                      <div className="relative flex items-center">
+                        <input
+                          id="product-form-item-tracking-checkbox"
+                          type="checkbox"
+                          className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-[var(--line)] checked:border-[var(--accent)] checked:bg-[var(--accent)] transition-all"
+                          checked={productForm.requiresItemTracking}
+                          onChange={(event) =>
+                            setProductForm((prev) => ({
+                              ...prev,
+                              requiresItemTracking: event.target.checked,
+                            }))
+                          }
+                          data-testid="product-form-requires-item-tracking"
+                        />
+                        <Check size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" />
+                      </div>
+                      <label
+                        htmlFor="product-form-item-tracking-checkbox"
+                        className="cursor-pointer text-sm text-[var(--ink)] transition-colors group-hover:text-[var(--accent)]"
+                      >
+                        Einzelteilverfolgung (Seriennummernpflicht)
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -904,22 +953,22 @@ export default function ProductFormPage() {
                       data-testid={`product-warehouse-setting-${warehouse.id}`}
                     >
                       <div className="bg-[var(--panel-soft)] border-b border-[var(--line)] px-6 py-4 flex items-center justify-between">
-                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-[var(--panel)] border border-[var(--line)] flex items-center justify-center text-[var(--accent)] shadow-sm">
-                              <Warehouse size={20} />
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-[var(--panel)] border border-[var(--line)] flex items-center justify-center text-[var(--accent)] shadow-sm">
+                            <Warehouse size={20} />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-[var(--ink)] text-lg leading-tight">
+                              {warehouse.name}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs font-mono bg-[var(--line)] px-1.5 py-0.5 rounded text-[var(--muted)]">
+                                {warehouse.code}
+                              </span>
+                              <span className="text-xs text-[var(--muted)]">Lager #{warehouse.id}</span>
                             </div>
-                            <div>
-                                <h3 className="font-semibold text-[var(--ink)] text-lg leading-tight">
-                                {warehouse.name}
-                                </h3>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="text-xs font-mono bg-[var(--line)] px-1.5 py-0.5 rounded text-[var(--muted)]">
-                                    {warehouse.code}
-                                    </span>
-                                    <span className="text-xs text-[var(--muted)]">Lager #{warehouse.id}</span>
-                                </div>
-                            </div>
-                         </div>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="p-6">
@@ -930,20 +979,20 @@ export default function ProductFormPage() {
                               EAN Code
                             </span>
                             <div className="relative">
-                                <input
+                              <input
                                 className="input w-full text-sm h-10"
                                 value={form.ean}
                                 onChange={(event) =>
-                                    setWarehouseFormById((prev) => ({
+                                  setWarehouseFormById((prev) => ({
                                     ...prev,
                                     [warehouse.id]: {
-                                        ...form,
-                                        ean: event.target.value,
+                                      ...form,
+                                      ean: event.target.value,
                                     },
-                                    }))
+                                  }))
                                 }
                                 placeholder="-"
-                                />
+                              />
                             </div>
                           </label>
                           <label className="space-y-1.5">
@@ -975,7 +1024,7 @@ export default function ProductFormPage() {
 
                           <label className="space-y-1.5">
                             <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-red-500"></div> Min. Bestand
+                              <div className="w-2 h-2 rounded-full bg-red-500"></div> Min. Bestand
                             </span>
                             <input
                               className="input w-full text-sm h-10"
@@ -997,7 +1046,7 @@ export default function ProductFormPage() {
                           </label>
                           <label className="space-y-1.5">
                             <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-amber-500"></div> Meldebestand
+                              <div className="w-2 h-2 rounded-full bg-amber-500"></div> Meldebestand
                             </span>
                             <input
                               className="input w-full text-sm h-10"
@@ -1017,9 +1066,9 @@ export default function ProductFormPage() {
                               placeholder="0.000"
                             />
                           </label>
-                           <label className="space-y-1.5">
+                          <label className="space-y-1.5">
                             <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-blue-500"></div> Sicherheitsbest.
+                              <div className="w-2 h-2 rounded-full bg-blue-500"></div> Sicherheitsbest.
                             </span>
                             <input
                               className="input w-full text-sm h-10"
@@ -1040,9 +1089,9 @@ export default function ProductFormPage() {
                             />
                           </label>
 
-                           <label className="space-y-1.5">
+                          <label className="space-y-1.5">
                             <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
-                                Maximalbestand
+                              Maximalbestand
                             </span>
                             <input
                               className="input w-full text-sm h-10"
@@ -1065,7 +1114,7 @@ export default function ProductFormPage() {
                         </div>
 
                         <div className="flex justify-end gap-3 pt-4 border-t border-[var(--line)]">
-                           <button
+                          <button
                             className="btn btn-sm text-sm text-[var(--danger)] hover:bg-red-50 hover:border-red-200"
                             type="button"
                             onClick={() =>
@@ -1101,14 +1150,14 @@ export default function ProductFormPage() {
           <div className="space-y-8" data-testid="product-form-suppliers-tab">
             {!isEditMode && (
               <div className="flex items-center gap-4 p-5 rounded-xl bg-amber-50 text-black border border-amber-200 shadow-sm">
-                 <Info size={24} className="shrink-0 text-amber-600" />
-                 <div>
-                   <h4 className="font-semibold">Artikel noch nicht erstellt</h4>
-                   <p className="text-sm text-black mt-1">
-                     Bitte speichern Sie den Artikel zuerst, um Lieferanten zuordnen zu können.
-                   </p>
-                 </div>
-               </div>
+                <Info size={24} className="shrink-0 text-amber-600" />
+                <div>
+                  <h4 className="font-semibold">Artikel noch nicht erstellt</h4>
+                  <p className="text-sm text-black mt-1">
+                    Bitte speichern Sie den Artikel zuerst, um Lieferanten zuordnen zu können.
+                  </p>
+                </div>
+              </div>
             )}
 
             {isEditMode && (
@@ -1116,7 +1165,7 @@ export default function ProductFormPage() {
                 <section className="card p-6 border border-[var(--line)] bg-[var(--panel)] shadow-sm rounded-xl">
                   <h3 className="text-lg font-semibold text-[var(--ink)] mb-6 flex items-center gap-2">
                     <div className="p-1.5 rounded-md bg-[var(--accent)]/10 text-[var(--accent)]">
-                         <Plus size={18} />
+                      <Plus size={18} />
                     </div>
                     Neuen Lieferanten zuordnen
                   </h3>
@@ -1257,7 +1306,7 @@ export default function ProductFormPage() {
                         disabled={pending || !isAdmin}
                         data-testid="product-supplier-add-btn"
                       >
-                         {createProductSupplierMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                        {createProductSupplierMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
                         Hinzufügen
                       </button>
                     </div>
@@ -1267,70 +1316,70 @@ export default function ProductFormPage() {
                 <div className="space-y-4">
                   <h3 className="font-bold text-[var(--muted)] uppercase tracking-wider text-sm px-1">Zugeordnete Lieferanten</h3>
                   <div className="grid grid-cols-1 gap-4">
-                  {(productSuppliersQuery.data ?? []).map((relation) => (
-                    <div
-                      key={relation.id}
-                      className={`group flex flex-col md:flex-row md:items-center justify-between gap-6 p-5 rounded-xl border transition-all duration-200 ${relation.is_preferred 
-                          ? "border-[var(--accent)] bg-green-50/40 shadow-sm" 
+                    {(productSuppliersQuery.data ?? []).map((relation) => (
+                      <div
+                        key={relation.id}
+                        className={`group flex flex-col md:flex-row md:items-center justify-between gap-6 p-5 rounded-xl border transition-all duration-200 ${relation.is_preferred
+                          ? "border-[var(--accent)] bg-green-50/40 shadow-sm"
                           : "border-[var(--line)] bg-[var(--panel)] hover:border-[var(--line-strong)] hover:shadow-sm"
-                        }`}
-                      data-testid={`product-supplier-relation-${relation.id}`}
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-[var(--ink)] text-lg">
-                            {supplierNameById.get(relation.supplier_id) ??
-                              `Lieferant #${relation.supplier_id}`}
-                          </span>
-                          {relation.is_preferred && (
-                            <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold text-[var(--accent-strong)] bg-green-100 px-2 py-0.5 rounded-full border border-green-200">
-                              <Star size={10} fill="currentColor" /> Preferred
+                          }`}
+                        data-testid={`product-supplier-relation-${relation.id}`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-[var(--ink)] text-lg">
+                              {supplierNameById.get(relation.supplier_id) ??
+                                `Lieferant #${relation.supplier_id}`}
                             </span>
-                          )}
+                            {relation.is_preferred && (
+                              <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold text-[var(--accent-strong)] bg-green-100 px-2 py-0.5 rounded-full border border-green-200">
+                                <Star size={10} fill="currentColor" /> Preferred
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--muted)]">
+                            <span className="flex items-center gap-1.5"><Hash size={14} /> Art.-Nr: <span className="font-medium text-[var(--ink)]">{relation.supplier_product_number || "-"}</span></span>
+                            <span className="flex items-center gap-1.5"><DollarSign size={14} /> Preis: <span className="font-medium text-[var(--ink)]">{relation.price ?? "-"}</span></span>
+                            <span className="flex items-center gap-1.5"><Clock size={14} /> Lead Time: <span className="font-medium text-[var(--ink)]">{relation.lead_time_days ?? "-"} Tage</span></span>
+                            <span className="flex items-center gap-1.5"><ShoppingCart size={14} /> MOQ: <span className="font-medium text-[var(--ink)]">{relation.min_order_quantity ?? "-"}</span></span>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--muted)]">
-                          <span className="flex items-center gap-1.5"><Hash size={14}/> Art.-Nr: <span className="font-medium text-[var(--ink)]">{relation.supplier_product_number || "-"}</span></span>
-                          <span className="flex items-center gap-1.5"><DollarSign size={14}/> Preis: <span className="font-medium text-[var(--ink)]">{relation.price ?? "-"}</span></span>
-                          <span className="flex items-center gap-1.5"><Clock size={14}/> Lead Time: <span className="font-medium text-[var(--ink)]">{relation.lead_time_days ?? "-"} Tage</span></span>
-                          <span className="flex items-center gap-1.5"><ShoppingCart size={14}/> MOQ: <span className="font-medium text-[var(--ink)]">{relation.min_order_quantity ?? "-"}</span></span>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-2 pt-4 md:pt-0 border-t md:border-0 border-[var(--line)]/50">
-                        <button
-                          className={`btn btn-sm ${relation.is_preferred ? "text-[var(--muted)] hover:bg-[var(--line)]" : "text-[var(--accent)] bg-green-50 hover:bg-green-100 border-green-200"}`}
-                          type="button"
-                          onClick={() =>
-                            void updateProductSupplierMutation.mutateAsync({
-                              relation,
-                              payload: {
-                                is_preferred: !relation.is_preferred,
-                              },
-                            })
-                          }
-                          disabled={pending || !isAdmin}
-                          data-testid={`product-supplier-toggle-preferred-${relation.id}`}
-                          title={relation.is_preferred ? "Markierung entfernen" : "Als bevorzugt markieren"}
-                        >
-                          <Star size={16} fill={relation.is_preferred ? "none" : "currentColor"} />
-                          {relation.is_preferred ? "Unmark" : "Preferred"}
-                        </button>
-                        <button
-                          className="btn btn-sm text-red-600 hover:bg-red-50 border-transparent hover:border-red-200"
-                          type="button"
-                          onClick={() =>
-                            void deleteProductSupplierMutation.mutateAsync(
-                              relation.id
-                            )
-                          }
-                          disabled={pending || !isAdmin}
-                          data-testid={`product-supplier-delete-${relation.id}`}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-2 pt-4 md:pt-0 border-t md:border-0 border-[var(--line)]/50">
+                          <button
+                            className={`btn btn-sm ${relation.is_preferred ? "text-[var(--muted)] hover:bg-[var(--line)]" : "text-[var(--accent)] bg-green-50 hover:bg-green-100 border-green-200"}`}
+                            type="button"
+                            onClick={() =>
+                              void updateProductSupplierMutation.mutateAsync({
+                                relation,
+                                payload: {
+                                  is_preferred: !relation.is_preferred,
+                                },
+                              })
+                            }
+                            disabled={pending || !isAdmin}
+                            data-testid={`product-supplier-toggle-preferred-${relation.id}`}
+                            title={relation.is_preferred ? "Markierung entfernen" : "Als bevorzugt markieren"}
+                          >
+                            <Star size={16} fill={relation.is_preferred ? "none" : "currentColor"} />
+                            {relation.is_preferred ? "Unmark" : "Preferred"}
+                          </button>
+                          <button
+                            className="btn btn-sm text-red-600 hover:bg-red-50 border-transparent hover:border-red-200"
+                            type="button"
+                            onClick={() =>
+                              void deleteProductSupplierMutation.mutateAsync(
+                                relation.id
+                              )
+                            }
+                            disabled={pending || !isAdmin}
+                            data-testid={`product-supplier-delete-${relation.id}`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                   </div>
 
                   {!productSuppliersQuery.isLoading &&
@@ -1347,6 +1396,45 @@ export default function ProductFormPage() {
           </div>
         )}
       </div>
+
+      {showCreateSuccessDialog && !isEditMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div
+            className="w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--panel)] shadow-2xl"
+            data-testid="product-create-success-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-create-success-title"
+          >
+            <div className="p-6 space-y-3">
+              <h3 id="product-create-success-title" className="text-lg font-semibold text-[var(--ink)]">
+                Artikel erfolgreich angelegt
+              </h3>
+              <p className="text-sm text-[var(--muted)]">
+                Möchten Sie einen weiteren Artikel hinzufügen?
+              </p>
+            </div>
+            <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+              <button
+                type="button"
+                className="btn"
+                onClick={onCreateDoneGoToList}
+                data-testid="product-create-success-no-btn"
+              >
+                Nein, zum Artikelstamm
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onCreateAnotherArticle}
+                data-testid="product-create-success-yes-btn"
+              >
+                Ja, weiteren Artikel anlegen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -47,6 +47,9 @@ class GoodsReceipt(TimestampMixin, Base):
     supplier_id: Mapped[int | None] = mapped_column(
         ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    purchase_order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("purchase_orders.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status: Mapped[str] = mapped_column(String(20), default="draft", server_default="draft", index=True)
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -84,6 +87,9 @@ class GoodsIssue(TimestampMixin, Base):
     issue_number: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    customer_location_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customer_locations.id", ondelete="SET NULL"), nullable=True, index=True
     )
     customer_reference: Mapped[str | None] = mapped_column(String(100), index=True)
     status: Mapped[str] = mapped_column(String(20), default="draft", server_default="draft", index=True)

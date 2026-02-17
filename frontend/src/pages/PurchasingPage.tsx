@@ -191,15 +191,15 @@ export default function PurchasingPage() {
   };
 
   return (
-    <div className="space-y-6" data-testid="purchasing-page">
+    <div className="page space-y-6" data-testid="purchasing-page">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[var(--line)] pb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--ink)] flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <ShoppingCart className="w-6 h-6 text-[var(--accent)]" />
             Einkauf / Bestellwesen
           </h1>
-          <p className="text-[var(--muted)] mt-1 text-sm max-w-2xl">
+          <p className="section-subtitle mt-1 max-w-2xl">
             Verwalten Sie Bestellungen, ABC-Klassifizierungen und erhalten Sie intelligente Bestellvorschläge.
           </p>
         </div>
@@ -252,7 +252,7 @@ export default function PurchasingPage() {
           <div className="lg:col-span-4 space-y-6">
             {/* Create Order Card */}
             <div className="bg-[var(--panel)] border border-[var(--line)] rounded-xl shadow-sm p-5">
-              <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+              <h3 className="section-title mb-4 flex items-center gap-2">
                 <Plus className="w-4 h-4 text-[var(--accent)]" /> Neue Bestellung
               </h3>
               <form onSubmit={(event) => void onCreateOrder(event)} className="space-y-4" data-testid="purchase-order-create-form">

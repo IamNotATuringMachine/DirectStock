@@ -22,6 +22,20 @@ Gesamtstatus: **IMPLEMENTED (validated)**
 2. Strict-E-Invoice deckt jetzt positive und negative KoSIT-Pfade reproduzierbar ab.
 3. Abnahme- und Statusdokumente sind wieder auf denselben finalen Stand harmonisiert.
 
+## Erweiterung 2026-02-17: Kundenhierarchie
+1. Additive Erweiterung `Kunde -> Standort -> Ansprechpartner` umgesetzt.
+2. Neue Endpunkte:
+   - `GET/POST /api/customers/{customer_id}/locations`
+   - `GET/PUT/DELETE /api/customers/{customer_id}/locations/{location_id}`
+   - `GET/POST /api/customers/{customer_id}/contacts`
+   - `PUT/DELETE /api/customers/{customer_id}/contacts/{contact_id}`
+3. Optionale Standortverknuepfung (`customer_location_id`) in:
+   - `GoodsIssue`
+   - `SalesOrder`
+   - `Shipment`
+   - `ExternalCommandGoodsIssue`
+4. Konfliktregel aktiv: Standort/Kunde-Mismatch liefert `409`.
+
 ## Festgelegte Leitentscheidungen
 1. RBAC wird permission-basiert umgesetzt (`page.<slug>.view`, `module.<slug>.<action>`), nicht mehr mit statischen Frontend-Rollenlisten.
 2. Preislogik ist netto-fuehrend; brutto wird aus USt-Satz berechnet.

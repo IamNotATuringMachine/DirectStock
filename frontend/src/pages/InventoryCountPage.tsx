@@ -165,30 +165,28 @@ export default function InventoryCountPage() {
   };
 
   return (
-    <section className="p-6 space-y-8 max-w-[1600px] mx-auto" data-testid="inventory-count-page">
-      <header className="panel-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <ClipboardList className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            Inventur
-          </h2>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">
-            Stichtag- und permanente Inventur mit Nachzähl-Logik.
-          </p>
-        </div>
-      </header>
+    <section className="page" data-testid="inventory-count-page">
+      <div className="space-y-8 max-w-[1600px] mx-auto">
+        <header className="panel-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="page-title">Inventur</h2>
+            <p className="section-subtitle mt-1">
+              Stichtag- und permanente Inventur mit Nachzähl-Logik.
+            </p>
+          </div>
+        </header>
 
-      <div className="warehouse-grid grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="warehouse-grid grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* Panel 1: Create Session & List */}
         <article className="subpanel bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden flex flex-col h-full">
           <div className="p-4 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 flex items-center gap-2">
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">1. Session anlegen</h3>
+            <h3 className="section-title text-zinc-900 dark:text-zinc-100">1. Session anlegen</h3>
           </div>
           
           <div className="p-4 space-y-6 flex-1 flex flex-col">
             <form className="form-grid grid gap-4" onSubmit={(event) => void onCreateSession(event)} data-testid="inventory-count-create-form">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <label className="flex flex-col gap-1.5 form-label-standard text-zinc-700 dark:text-zinc-300">
                   <span className="flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Inventurtyp</span>
                   <select
                     className="input h-10 px-3 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
@@ -200,7 +198,7 @@ export default function InventoryCountPage() {
                     <option value="cycle">Permanent</option>
                   </select>
                 </label>
-                <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <label className="flex flex-col gap-1.5 form-label-standard text-zinc-700 dark:text-zinc-300">
                   <span className="flex items-center gap-1.5"><Archive className="w-3.5 h-3.5" /> Lager</span>
                   <select
                     className="input h-10 px-3 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
@@ -218,7 +216,7 @@ export default function InventoryCountPage() {
                 </label>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                 <label className="flex flex-col gap-1.5 form-label-standard text-zinc-700 dark:text-zinc-300">
                   <span className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Toleranz</span>
                   <input
                     className="input h-10 px-3 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
@@ -230,7 +228,7 @@ export default function InventoryCountPage() {
                     data-testid="inventory-count-tolerance-input"
                   />
                 </label>
-                <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <label className="flex flex-col gap-1.5 form-label-standard text-zinc-700 dark:text-zinc-300">
                   <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Notiz</span>
                   <input
                     className="input h-10 px-3 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
@@ -289,7 +287,7 @@ export default function InventoryCountPage() {
         {/* Panel 2: Actions & Summary */}
         <article className="subpanel bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden flex flex-col h-full">
           <div className="p-4 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 flex items-center gap-2">
-             <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">2. Zählliste und Abschluss</h3>
+             <h3 className="section-title text-zinc-900 dark:text-zinc-100">2. Zählliste und Abschluss</h3>
           </div>
 
           <div className="p-4 space-y-6 flex-1 flex flex-col">
@@ -370,7 +368,7 @@ export default function InventoryCountPage() {
         {/* Panel 3: Scan / Quick Capture */}
         <article className="subpanel bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden flex flex-col h-full">
            <div className="p-4 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 flex items-center gap-2">
-             <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">3. Scan-/Schnellerfassung</h3>
+             <h3 className="section-title text-zinc-900 dark:text-zinc-100">3. Scan-/Schnellerfassung</h3>
           </div>
 
           <div className="p-4 space-y-6 flex-1">
@@ -451,20 +449,20 @@ export default function InventoryCountPage() {
            <div className="p-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-md text-zinc-700 dark:text-zinc-300">
              <BarChart3 className="w-4 h-4" />
            </div>
-           <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">4. Zählpositionen</h3>
+           <h3 className="section-title text-zinc-900 dark:text-zinc-100">4. Zählpositionen</h3>
         </div>
 
         <div className="table-wrap overflow-x-auto">
           <table className="products-table w-full text-left" data-testid="inventory-count-items-table">
             <thead className="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-700">
               <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Bin</th>
-                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Artikel</th>
-                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Soll</th>
-                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right w-32">Ist</th>
-                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Differenz</th>
-                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-center">Nachzählung</th>
-                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Aktion</th>
+                <th className="table-head-standard px-6 py-4 text-zinc-500 dark:text-zinc-400">Bin</th>
+                <th className="table-head-standard px-6 py-4 text-zinc-500 dark:text-zinc-400">Artikel</th>
+                <th className="table-head-standard px-6 py-4 text-zinc-500 dark:text-zinc-400 text-right">Soll</th>
+                <th className="table-head-standard px-6 py-4 text-zinc-500 dark:text-zinc-400 text-right w-32">Ist</th>
+                <th className="table-head-standard px-6 py-4 text-zinc-500 dark:text-zinc-400 text-right">Differenz</th>
+                <th className="table-head-standard px-6 py-4 text-zinc-500 dark:text-zinc-400 text-center">Nachzählung</th>
+                <th className="table-head-standard px-6 py-4 text-zinc-500 dark:text-zinc-400 text-right">Aktion</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -538,7 +536,8 @@ export default function InventoryCountPage() {
             </tbody>
           </table>
         </div>
-      </article>
+        </article>
+      </div>
     </section>
   );
 }

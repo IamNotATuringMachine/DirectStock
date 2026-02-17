@@ -17,6 +17,8 @@ function toShipmentFromQueue(item: OfflineQueueItem): Shipment {
     shipment_number?: string;
     carrier?: "dhl" | "dpd" | "ups";
     goods_issue_id?: number | null;
+    customer_id?: number | null;
+    customer_location_id?: number | null;
     recipient_name?: string;
     shipping_address?: string;
     notes?: string;
@@ -28,6 +30,8 @@ function toShipmentFromQueue(item: OfflineQueueItem): Shipment {
     carrier: payload.carrier ?? "dhl",
     status: "draft",
     goods_issue_id: payload.goods_issue_id ?? null,
+    customer_id: payload.customer_id ?? null,
+    customer_location_id: payload.customer_location_id ?? null,
     tracking_number: null,
     recipient_name: payload.recipient_name ?? null,
     shipping_address: payload.shipping_address ?? null,
@@ -142,6 +146,8 @@ export async function createShipment(payload: {
   shipment_number?: string;
   carrier: "dhl" | "dpd" | "ups";
   goods_issue_id?: number | null;
+  customer_id?: number | null;
+  customer_location_id?: number | null;
   recipient_name?: string;
   shipping_address?: string;
   notes?: string;

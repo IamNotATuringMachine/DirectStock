@@ -35,3 +35,10 @@ export async function deleteDocument(documentId: number): Promise<void> {
 export function buildDocumentDownloadUrl(documentId: number): string {
   return `/api/documents/${documentId}/download`;
 }
+
+export async function downloadDocumentBlob(documentId: number): Promise<Blob> {
+  const response = await api.get<Blob>(`/documents/${documentId}/download`, {
+    responseType: "blob",
+  });
+  return response.data;
+}

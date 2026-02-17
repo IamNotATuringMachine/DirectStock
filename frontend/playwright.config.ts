@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   globalTeardown: "./tests/e2e/globalTeardown.ts",
   fullyParallel: false,
-  preserveOutput: "never",
+  preserveOutput: "always",
   timeout: 60_000,
   expect: {
     timeout: 10_000,

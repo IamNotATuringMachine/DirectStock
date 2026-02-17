@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, require_permissions
 from app.models.auth import User
-from app.models.catalog import Customer, Product
+from app.models.catalog import Customer, CustomerLocation, Product
 from app.models.inventory import GoodsIssue
 from app.models.phase3 import Document
 from app.models.phase5 import (
@@ -73,6 +73,7 @@ def _to_order_response(item: SalesOrder) -> SalesOrderResponse:
         id=item.id,
         order_number=item.order_number,
         customer_id=item.customer_id,
+        customer_location_id=item.customer_location_id,
         status=item.status,
         ordered_at=item.ordered_at,
         completed_at=item.completed_at,
@@ -105,6 +106,36 @@ def _to_item_response(item: SalesOrderItem) -> SalesOrderItemResponse:
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
+
+
+async def _resolve_customer_scope(
+    db: AsyncSession,
+    *,
+    customer_id: int | None,
+    customer_location_id: int | None,
+) -> tuple[int | None, int | None]:
+    if customer_location_id is None:
+        if customer_id is None:
+            return None, None
+        customer = (await db.execute(select(Customer.id).where(Customer.id == customer_id))).scalar_one_or_none()
+        if customer is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+        return customer_id, None
+
+    location = (
+        await db.execute(select(CustomerLocation).where(CustomerLocation.id == customer_location_id))
+    ).scalar_one_or_none()
+    if location is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer location not found")
+
+    resolved_customer_id = int(location.customer_id)
+    if customer_id is not None and customer_id != resolved_customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Customer location does not belong to selected customer",
+        )
+
+    return resolved_customer_id, customer_location_id
 
 
 async def _resolve_product_price(
@@ -271,14 +302,16 @@ async def create_sales_order(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permissions("module.sales_orders.write")),
 ) -> SalesOrderDetailResponse:
-    if payload.customer_id is not None:
-        customer = (await db.execute(select(Customer.id).where(Customer.id == payload.customer_id))).scalar_one_or_none()
-        if customer is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+    customer_id, customer_location_id = await _resolve_customer_scope(
+        db,
+        customer_id=payload.customer_id,
+        customer_location_id=payload.customer_location_id,
+    )
 
     row = SalesOrder(
         order_number=(payload.order_number or _generate_order_number()).strip().upper(),
-        customer_id=payload.customer_id,
+        customer_id=customer_id,
+        customer_location_id=customer_location_id,
         status="draft",
         ordered_at=_now(),
         created_by=current_user.id,
@@ -325,6 +358,19 @@ async def update_sales_order(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sales order not found")
 
     updates = payload.model_dump(exclude_unset=True)
+    if "customer_id" in updates or "customer_location_id" in updates:
+        requested_customer_id = updates.get("customer_id", order.customer_id)
+        requested_location_id = updates.get("customer_location_id", order.customer_location_id)
+        if "customer_id" in updates and updates["customer_id"] is None and "customer_location_id" not in updates:
+            requested_location_id = None
+        resolved_customer_id, resolved_location_id = await _resolve_customer_scope(
+            db,
+            customer_id=requested_customer_id,
+            customer_location_id=requested_location_id,
+        )
+        updates["customer_id"] = resolved_customer_id
+        updates["customer_location_id"] = resolved_location_id
+
     if "status" in updates and updates["status"] == "completed":
         updates["completed_at"] = _now()
     if "currency" in updates and updates["currency"] is not None:
@@ -400,10 +446,13 @@ async def create_delivery_note(
         goods_issue = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == link.goods_issue_id))).scalar_one_or_none()
 
     if goods_issue is None and order.customer_id is not None:
+        location_filters = [GoodsIssue.customer_id == order.customer_id, GoodsIssue.status == "completed"]
+        if order.customer_location_id is not None:
+            location_filters.append(GoodsIssue.customer_location_id == order.customer_location_id)
         goods_issue = (
             await db.execute(
                 select(GoodsIssue)
-                .where(GoodsIssue.customer_id == order.customer_id, GoodsIssue.status == "completed")
+                .where(*location_filters)
                 .order_by(GoodsIssue.completed_at.desc().nullslast(), GoodsIssue.id.desc())
                 .limit(1)
             )

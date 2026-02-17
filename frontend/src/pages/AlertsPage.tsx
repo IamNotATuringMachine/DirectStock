@@ -145,12 +145,12 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="page space-y-6 animate-fade-in" data-testid="alerts-page">
       {/* Header Section */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--ink)]">Benachrichtigungen</h1>
-          <p className="text-[var(--muted)] mt-1">
+          <h1 className="page-title">Benachrichtigungen</h1>
+          <p className="section-subtitle mt-1">
             Überwachung kritischer Lagerereignisse und Systemmeldungen.
           </p>
         </div>
@@ -168,7 +168,7 @@ export default function AlertsPage() {
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[var(--panel)] p-5 rounded-xl border border-[var(--line)] shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-[var(--panel)] p-5 rounded-[var(--radius-lg)] border border-[var(--line)] shadow-sm hover:shadow-md transition-shadow">
           <div>
             <p className="text-sm font-medium text-[var(--muted)]">Kritische Warnungen</p>
             <h3 className="text-2xl font-bold text-[var(--danger)] mt-2">
@@ -180,7 +180,7 @@ export default function AlertsPage() {
           </div>
         </div>
 
-        <div className="bg-[var(--panel)] p-5 rounded-xl border border-[var(--line)] shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-[var(--panel)] p-5 rounded-[var(--radius-lg)] border border-[var(--line)] shadow-sm hover:shadow-md transition-shadow">
           <div>
             <p className="text-sm font-medium text-[var(--muted)]">Hohe Priorität</p>
             <h3 className="text-2xl font-bold text-[var(--warning-ink)] mt-2">
@@ -192,7 +192,7 @@ export default function AlertsPage() {
           </div>
         </div>
 
-        <div className="bg-[var(--panel)] p-5 rounded-xl border border-[var(--line)] shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-[var(--panel)] p-5 rounded-[var(--radius-lg)] border border-[var(--line)] shadow-sm hover:shadow-md transition-shadow">
           <div>
             <p className="text-sm font-medium text-[var(--muted)]">Aktive Regeln</p>
             <h3 className="text-2xl font-bold text-[var(--accent)] mt-2">
@@ -206,17 +206,17 @@ export default function AlertsPage() {
       </div>
 
       {/* Filters & Actions */}
-      <div className="bg-[var(--panel)] rounded-xl border border-[var(--line)] shadow-sm p-4">
+      <div className="bg-[var(--panel)] rounded-[var(--radius-lg)] border border-[var(--line)] shadow-sm p-4">
         <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 justify-between">
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            <div className="flex items-center gap-2 px-3 py-2 bg-[var(--panel-soft)] rounded-lg border border-[var(--line)] text-sm text-[var(--muted)]">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[var(--panel-soft)] rounded-[var(--radius-sm)] border border-[var(--line)] text-sm text-[var(--muted)]">
               <Filter className="w-4 h-4" />
               <span className="font-medium">Filter:</span>
             </div>
             
             <div className="relative min-w-[140px] flex-1 lg:flex-none">
               <select
-                className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
+                className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value);
@@ -235,7 +235,7 @@ export default function AlertsPage() {
 
             <div className="relative min-w-[140px] flex-1 lg:flex-none">
               <select
-                className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
+                className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
                 value={severityFilter}
                 onChange={(e) => {
                   setSeverityFilter(e.target.value);
@@ -255,7 +255,7 @@ export default function AlertsPage() {
 
             <div className="relative min-w-[140px] flex-1 lg:flex-none">
               <select
-                className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
+                className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
                 value={typeFilter}
                 onChange={(e) => {
                   setTypeFilter(e.target.value);
@@ -275,7 +275,7 @@ export default function AlertsPage() {
             {(statusFilter !== "open" || severityFilter || typeFilter) && (
               <button
                 onClick={resetFilters}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--panel-soft)] rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--panel-soft)] rounded-[var(--radius-sm)] transition-colors"
               >
                 <X className="w-4 h-4" />
                 Filter zurücksetzen
@@ -286,17 +286,17 @@ export default function AlertsPage() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-[var(--panel)] rounded-xl border border-[var(--line)] shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-[var(--panel)] rounded-[var(--radius-lg)] border border-[var(--line)] shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[var(--panel-soft)] border-b border-[var(--line)]">
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Zeitpunkt</th>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Priorität</th>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Typ</th>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Details</th>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider text-right">Aktion</th>
+                <th className="table-head-standard px-6 py-4">Zeitpunkt</th>
+                <th className="table-head-standard px-6 py-4">Priorität</th>
+                <th className="table-head-standard px-6 py-4">Typ</th>
+                <th className="table-head-standard px-6 py-4">Details</th>
+                <th className="table-head-standard px-6 py-4">Status</th>
+                <th className="table-head-standard px-6 py-4 text-right">Aktion</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
@@ -342,7 +342,7 @@ export default function AlertsPage() {
                       <button
                         onClick={() => void ackMutation.mutateAsync(alert.id)}
                         disabled={ackMutation.isPending}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--panel)] border border-[var(--line)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--muted)] text-xs font-medium rounded-lg transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--panel)] border border-[var(--line)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--muted)] text-xs font-medium rounded-[var(--radius-sm)] transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Als gelesen markieren"
                       >
                         <CheckCircle className="w-4 h-4" />
@@ -384,14 +384,14 @@ export default function AlertsPage() {
             </span>
             <div className="flex items-center gap-2">
               <button
-                className="px-3 py-1.5 text-sm font-medium text-[var(--ink)] bg-[var(--panel)] border border-[var(--line)] rounded-lg hover:bg-[var(--panel-soft)] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
+                className="px-3 py-1.5 text-sm font-medium text-[var(--ink)] bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-sm)] hover:bg-[var(--panel-soft)] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
               >
                 Zurück
               </button>
               <button
-                className="px-3 py-1.5 text-sm font-medium text-[var(--ink)] bg-[var(--panel)] border border-[var(--line)] rounded-lg hover:bg-[var(--panel-soft)] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
+                className="px-3 py-1.5 text-sm font-medium text-[var(--ink)] bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-sm)] hover:bg-[var(--panel-soft)] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
               >

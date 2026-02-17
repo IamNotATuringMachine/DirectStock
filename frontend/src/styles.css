@@ -1,13 +1,14 @@
 @import "tailwindcss";
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 /* ---------------------------------------------
    Phase 4: Clean Industrial UI Modernization
 ---------------------------------------------- */
 
 :root {
-  --bg: #eaf0f7;
-  --panel: #ffffff;
-  --panel-soft: #f8fbff;
-  --panel-strong: #f3f7ff;
+  --bg: #f0eee7;
+  --panel: #faf9f5;
+  --panel-soft: #ffffff;
+  --panel-strong: #f5f4ef;
   --ink: #18283a;
   --muted: #62758f;
   --line: #cfdaea;
@@ -19,7 +20,7 @@
   --success-ink: #176b43;
   --warning-bg: #fff8dc;
   --warning-ink: #7a5817;
-  --code-bg: #edf3fb;
+  --code-bg: #f5f4ef;
   --overlay: rgba(10, 22, 36, 0.42);
   --radius-sm: 10px;
   --radius-md: 14px;
@@ -145,6 +146,40 @@ select.input:focus-visible,
 
 .page {
   padding: clamp(1rem, 2.4vw, 2rem);
+}
+
+.page-title {
+  font-size: clamp(1.2rem, 1.6vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.section-title {
+  font-size: clamp(1rem, 1.2vw, 1.15rem);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.section-subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.form-label-standard {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.table-head-standard {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .card {

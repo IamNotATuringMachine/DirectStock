@@ -76,6 +76,7 @@ PHASE5_PAGES: list[tuple[str, str, str]] = [
     ("stock-transfer", "Umlagerung", "Intra-Warehouse Umlagerung"),
     ("inter-warehouse-transfer", "Inter-Warehouse", "Standortübergreifende Umlagerung"),
     ("shipping", "Shipping", "Versand"),
+    ("customers", "Kunden", "Kundenstamm mit Standorten und Ansprechpartnern"),
     ("scanner", "Scanner", "Scan Workflows"),
     ("users", "Benutzerverwaltung", "User- und Rollenverwaltung"),
     ("services", "Dienstleistungen", "Service-Katalog"),
@@ -101,6 +102,7 @@ PHASE5_MODULE_PERMISSIONS: list[tuple[str, str]] = [
     ("module.invoices.read", "Read invoices"),
     ("module.invoices.write", "Write invoices"),
     ("module.invoices.export", "Export invoices"),
+    ("module.products.quick_create", "Create products from goods receipt workflow"),
 ]
 
 PHASE5_ROLE_MODULE_PERMISSIONS: dict[str, set[str]] = {
@@ -200,6 +202,7 @@ PHASE5_ROLE_PAGE_ACCESS: dict[str, set[str]] = {
         "stock-transfer",
         "inter-warehouse-transfer",
         "shipping",
+        "customers",
         "scanner",
         "services",
         "sales-orders",
@@ -246,6 +249,7 @@ PHASE5_ROLE_PAGE_ACCESS: dict[str, set[str]] = {
         "alerts",
         "goods-issue",
         "shipping",
+        "customers",
         "scanner",
         "services",
         "sales-orders",

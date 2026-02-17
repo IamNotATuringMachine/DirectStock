@@ -108,6 +108,8 @@ class ReturnOrder(TimestampMixin, Base):
         ForeignKey("goods_issues.id", ondelete="SET NULL"), nullable=True, index=True
     )
     status: Mapped[str] = mapped_column(String(24), default="registered", server_default="registered", index=True)
+    source_type: Mapped[str | None] = mapped_column(String(24), nullable=True, index=True)
+    source_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -125,6 +127,11 @@ class ReturnOrderItem(TimestampMixin, Base):
     quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=0, server_default="0")
     unit: Mapped[str] = mapped_column(String(20), default="piece", server_default="piece")
     decision: Mapped[str | None] = mapped_column(String(24), nullable=True, index=True)
+    repair_mode: Mapped[str | None] = mapped_column(String(24), nullable=True, index=True)
+    external_status: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    external_partner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    external_dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    external_returned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     target_bin_id: Mapped[int | None] = mapped_column(
         ForeignKey("bin_locations.id", ondelete="SET NULL"), nullable=True, index=True
     )

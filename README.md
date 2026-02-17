@@ -6,6 +6,7 @@ Dieses Repository enthält die Sprint-1-Implementierung für DirectStock inkl. P
 - FastAPI-Backend mit Alembic-Migrationen
 - Authentifizierung (JWT), RBAC und Benutzerverwaltung
 - Audit-Logging, Request-ID und standardisierte Fehlerantworten
+- Lagerplatz-QR-Labels mit lesbarem Platznamen unter dem QR-Code (PNG/PDF)
 - Frontend-Scaffold mit React/Vite, PWA-Manifest + Service Worker + Offline-UI
 - Deterministischer Seed auf MVP-Niveau und Legacy-Importer (Fail-fast CSV-Validierung)
 - Backend-Tests, Frontend-Unit-Tests und Playwright-E2E-Basissuite
@@ -120,6 +121,10 @@ Neu ergänzt (additiv, umgesetzt):
 - Pricing + Services:
   - `/api/pricing/*` (Basispreise, Kundenpreise, Preisauflösung)
   - `/api/services`
+- Kundenhierarchie:
+  - `/api/customers/{customer_id}/locations`
+  - `/api/customers/{customer_id}/contacts`
+  - optionale Standort-Verknüpfung in `/api/goods-issues`, `/api/sales-orders`, `/api/shipments`
 - Sales + Invoices:
   - `/api/sales-orders`
   - `/api/invoices`
@@ -130,7 +135,7 @@ Neu ergänzt (additiv, umgesetzt):
   - Export-Tracking in `invoice_exports`
 - Frontend:
   - Permission-Guards in Routing/Navigation
-  - neue Seiten `/services`, `/sales-orders`, `/invoices`
+  - neue Seiten `/services`, `/sales-orders`, `/invoices`, `/customers`
   - Theme-Persistenz und Dashboard-Customizing
 
 Phase-5-Validierung (Stand 2026-02-14):

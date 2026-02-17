@@ -34,6 +34,7 @@ class ProductBase(BaseModel):
     product_group_id: int | None = None
     unit: str = Field(default="piece", min_length=1, max_length=20)
     status: str = Field(default="active", pattern="^(active|blocked|deprecated|archived)$")
+    requires_item_tracking: bool = False
 
 
 class ProductCreate(ProductBase):
@@ -46,6 +47,7 @@ class ProductUpdate(BaseModel):
     product_group_id: int | None = None
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     status: str | None = Field(default=None, pattern="^(active|blocked|deprecated|archived)$")
+    requires_item_tracking: bool | None = None
 
 
 class ProductResponse(ProductBase):

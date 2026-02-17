@@ -12,6 +12,7 @@ from starlette.responses import Response
 from app.database import AsyncSessionLocal
 from app.models.audit import AuditLog
 from app.models.auth import Role
+from app.models.catalog import Customer, CustomerContact, CustomerLocation
 from app.models.inventory import GoodsIssue, GoodsReceipt, InventoryCountSession, StockTransfer
 from app.models.phase3 import (
     AbcClassificationRun,
@@ -38,6 +39,9 @@ _REDACT_KEYS = {
     "set-cookie",
 }
 _ENTITY_MODEL_MAP: dict[str, type[Any]] = {
+    "customers": Customer,
+    "customer-locations": CustomerLocation,
+    "customer-contacts": CustomerContact,
     "purchase-orders": PurchaseOrder,
     "goods-receipts": GoodsReceipt,
     "goods-issues": GoodsIssue,
@@ -165,6 +169,13 @@ def _parse_entity(path: str) -> tuple[str, str | None]:
     parts = [part for part in path.split("/") if part]
     if len(parts) < 2:
         return ("unknown", None)
+
+    if parts[1] == "customers" and len(parts) >= 4:
+        if parts[3] == "locations":
+            return ("customer-locations", parts[4] if len(parts) > 4 else None)
+        if parts[3] == "contacts":
+            return ("customer-contacts", parts[4] if len(parts) > 4 else None)
+
     entity = parts[1]
     entity_id = parts[2] if len(parts) > 2 else None
     return (entity, entity_id)

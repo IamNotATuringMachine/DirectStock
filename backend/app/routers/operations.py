@@ -2,14 +2,15 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from secrets import token_hex
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions, require_roles
 from app.models.auth import User
-from app.models.catalog import Customer
+from app.models.catalog import Customer, CustomerLocation, Product
 from app.models.inventory import (
     GoodsIssue,
     GoodsIssueItem,
@@ -43,9 +44,11 @@ from app.schemas.operations import (
     StockTransferResponse,
     StockTransferUpdate,
 )
+from app.schemas.product import ProductCreate, ProductResponse
 from app.schemas.user import MessageResponse
 from app.services.alerts import evaluate_alerts
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
+from app.utils.qr_generator import generate_serial_labels_pdf
 
 router = APIRouter(prefix="/api", tags=["operations"])
 
@@ -60,6 +63,36 @@ def _now() -> datetime:
 
 def _generate_number(prefix: str) -> str:
     return f"{prefix}-{_now().strftime('%Y%m%d%H%M%S')}-{token_hex(2).upper()}"
+
+
+async def _resolve_customer_scope(
+    db: AsyncSession,
+    *,
+    customer_id: int | None,
+    customer_location_id: int | None,
+) -> tuple[int | None, int | None]:
+    if customer_location_id is None:
+        if customer_id is None:
+            return None, None
+        customer = (await db.execute(select(Customer.id).where(Customer.id == customer_id))).scalar_one_or_none()
+        if customer is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+        return customer_id, None
+
+    location = (
+        await db.execute(select(CustomerLocation).where(CustomerLocation.id == customer_location_id))
+    ).scalar_one_or_none()
+    if location is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer location not found")
+
+    resolved_customer_id = int(location.customer_id)
+    if customer_id is not None and customer_id != resolved_customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Customer location does not belong to selected customer",
+        )
+
+    return resolved_customer_id, customer_location_id
 
 
 async def _get_inventory(
@@ -234,11 +267,64 @@ async def _get_purchase_order_item_or_404(
     return item
 
 
+async def _get_purchase_order_or_404(
+    db: AsyncSession,
+    *,
+    purchase_order_id: int,
+) -> PurchaseOrder:
+    item = (
+        await db.execute(
+            select(PurchaseOrder).where(PurchaseOrder.id == purchase_order_id)
+        )
+    ).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
+    return item
+
+
+def _ensure_purchase_order_ready_for_receipt(order: PurchaseOrder) -> None:
+    if order.status not in {"ordered", "partially_received"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Purchase order {order.order_number} is not ready for goods receipt",
+        )
+
+
+def _ensure_serial_tracked_quantity_is_integer(quantity: Decimal, *, item_label: str) -> None:
+    if quantity <= 0:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE,
+            detail=f"{item_label} has invalid received quantity",
+        )
+    if quantity != quantity.to_integral_value():
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE,
+            detail=f"{item_label} requires integer quantity for tracked items",
+        )
+
+
+def _to_product_response(item: Product) -> ProductResponse:
+    return ProductResponse(
+        id=item.id,
+        product_number=item.product_number,
+        name=item.name,
+        description=item.description,
+        product_group_id=item.product_group_id,
+        group_name=item.group.name if item.group else None,
+        unit=item.unit,
+        status=item.status,
+        requires_item_tracking=item.requires_item_tracking,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
 def _to_goods_receipt_response(item: GoodsReceipt) -> GoodsReceiptResponse:
     return GoodsReceiptResponse(
         id=item.id,
         receipt_number=item.receipt_number,
         supplier_id=item.supplier_id,
+        purchase_order_id=item.purchase_order_id,
         status=item.status,
         received_at=item.received_at,
         completed_at=item.completed_at,
@@ -273,6 +359,7 @@ def _to_goods_issue_response(item: GoodsIssue) -> GoodsIssueResponse:
         id=item.id,
         issue_number=item.issue_number,
         customer_id=item.customer_id,
+        customer_location_id=item.customer_location_id,
         customer_reference=item.customer_reference,
         status=item.status,
         issued_at=item.issued_at,
@@ -350,9 +437,23 @@ async def create_goods_receipt(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(*GOODS_RECEIPT_ROLES)),
 ) -> GoodsReceiptResponse:
+    purchase_order: PurchaseOrder | None = None
+    if payload.purchase_order_id is not None:
+        purchase_order = await _get_purchase_order_or_404(
+            db,
+            purchase_order_id=payload.purchase_order_id,
+        )
+        _ensure_purchase_order_ready_for_receipt(purchase_order)
+        if payload.supplier_id is not None and purchase_order.supplier_id != payload.supplier_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Supplier does not match linked purchase order",
+            )
+
     item = GoodsReceipt(
         receipt_number=payload.receipt_number or _generate_number("WE"),
-        supplier_id=payload.supplier_id,
+        supplier_id=payload.supplier_id if payload.supplier_id is not None else purchase_order.supplier_id if purchase_order else None,
+        purchase_order_id=payload.purchase_order_id,
         notes=payload.notes,
         created_by=current_user.id,
     )
@@ -392,7 +493,22 @@ async def update_goods_receipt(
 
     _ensure_draft("Goods receipt", item.status)
 
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    purchase_order_id = updates.get("purchase_order_id", item.purchase_order_id)
+    supplier_id = updates.get("supplier_id", item.supplier_id)
+    if purchase_order_id is not None:
+        purchase_order = await _get_purchase_order_or_404(
+            db,
+            purchase_order_id=purchase_order_id,
+        )
+        _ensure_purchase_order_ready_for_receipt(purchase_order)
+        if supplier_id is not None and purchase_order.supplier_id != supplier_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Supplier does not match linked purchase order",
+            )
+
+    for key, value in updates.items():
         setattr(item, key, value)
 
     await db.commit()
@@ -477,6 +593,16 @@ async def create_goods_receipt_item(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Purchase order item does not match goods receipt item product",
             )
+        if parent.purchase_order_id is not None and purchase_order_item.purchase_order_id != parent.purchase_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Purchase order item does not belong to linked purchase order",
+            )
+    elif parent.purchase_order_id is not None:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE,
+            detail="purchase_order_item_id is required when goods receipt is linked to a purchase order",
+        )
 
     item = GoodsReceiptItem(goods_receipt_id=receipt_id, **values)
     db.add(item)
@@ -543,6 +669,18 @@ async def update_goods_receipt_item(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Purchase order item does not match goods receipt item product",
             )
+        if parent.purchase_order_id is not None and purchase_order_item.purchase_order_id != parent.purchase_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Purchase order item does not belong to linked purchase order",
+            )
+    if parent.purchase_order_id is not None:
+        candidate_purchase_order_item_id = updates.get("purchase_order_item_id", item.purchase_order_item_id)
+        if candidate_purchase_order_item_id is None:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE,
+                detail="purchase_order_item_id is required when goods receipt is linked to a purchase order",
+            )
 
     for key, value in updates.items():
         setattr(item, key, value)
@@ -581,6 +719,92 @@ async def delete_goods_receipt_item(
     return MessageResponse(message="goods receipt item deleted")
 
 
+@router.post(
+    "/goods-receipts/{receipt_id}/ad-hoc-product",
+    response_model=ProductResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_goods_receipt_adhoc_product(
+    receipt_id: int,
+    payload: ProductCreate,
+    db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(require_permissions("module.products.quick_create")),
+) -> ProductResponse:
+    receipt = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
+    if receipt is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt not found")
+    _ensure_draft("Goods receipt", receipt.status)
+
+    product = Product(**payload.model_dump())
+    db.add(product)
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Product already exists") from exc
+
+    product = (
+        await db.execute(
+            select(Product).where(Product.id == product.id).options(joinedload(Product.group))
+        )
+    ).scalar_one()
+    return _to_product_response(product)
+
+
+@router.get("/goods-receipts/{receipt_id}/items/{item_id}/serial-labels/pdf")
+async def get_goods_receipt_item_serial_labels_pdf(
+    receipt_id: int,
+    item_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+) -> Response:
+    parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
+    if parent is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt not found")
+
+    receipt_item = (
+        await db.execute(
+            select(GoodsReceiptItem).where(
+                GoodsReceiptItem.id == item_id,
+                GoodsReceiptItem.goods_receipt_id == receipt_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if receipt_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt item not found")
+
+    serial_numbers = _normalize_serial_numbers(receipt_item.serial_numbers)
+    if not serial_numbers:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE,
+            detail="Goods receipt item has no serial numbers",
+        )
+
+    product = (
+        await db.execute(
+            select(Product).where(Product.id == receipt_item.product_id)
+        )
+    ).scalar_one_or_none()
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    labels = [
+        (
+            product.name,
+            serial_number,
+            product.product_number,
+            f"DS:SN:{serial_number}",
+        )
+        for serial_number in serial_numbers
+    ]
+    pdf_bytes = generate_serial_labels_pdf(labels)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="we-{receipt_id}-item-{item_id}-serial-labels.pdf"'},
+    )
+
+
 @router.post("/goods-receipts/{receipt_id}/complete", response_model=MessageResponse)
 async def complete_goods_receipt(
     receipt_id: int,
@@ -609,6 +833,14 @@ async def complete_goods_receipt(
     touched_purchase_order_ids: set[int] = set()
     purchase_order_item_cache: dict[int, PurchaseOrderItem] = {}
     purchase_order_cache: dict[int, PurchaseOrder] = {}
+    product_cache: dict[int, Product] = {}
+    linked_purchase_order: PurchaseOrder | None = None
+    if item.purchase_order_id is not None:
+        linked_purchase_order = await _get_purchase_order_or_404(
+            db,
+            purchase_order_id=item.purchase_order_id,
+        )
+        _ensure_purchase_order_ready_for_receipt(linked_purchase_order)
 
     try:
         for receipt_item in receipt_items:
@@ -626,6 +858,27 @@ async def complete_goods_receipt(
                 )
 
             serial_numbers = _normalize_serial_numbers(receipt_item.serial_numbers)
+            product = product_cache.get(receipt_item.product_id)
+            if product is None:
+                product = (
+                    await db.execute(
+                        select(Product).where(Product.id == receipt_item.product_id)
+                    )
+                ).scalar_one_or_none()
+                if product is None:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+                product_cache[receipt_item.product_id] = product
+
+            if product.requires_item_tracking:
+                if not serial_numbers:
+                    raise HTTPException(
+                        status_code=HTTP_422_UNPROCESSABLE,
+                        detail=f"Receipt item {receipt_item.id} requires serial numbers for tracked product",
+                    )
+                _ensure_serial_tracked_quantity_is_integer(
+                    quantity,
+                    item_label=f"Receipt item {receipt_item.id}",
+                )
             _ensure_quantity_matches_serials(quantity, serial_numbers, item_label=f"Receipt item {receipt_item.id}")
 
             purchase_order_item: PurchaseOrderItem | None = None
@@ -643,6 +896,11 @@ async def complete_goods_receipt(
                         status_code=status.HTTP_409_CONFLICT,
                         detail=f"Receipt item {receipt_item.id} references a purchase order item with different product",
                     )
+                if linked_purchase_order is not None and purchase_order_item.purchase_order_id != linked_purchase_order.id:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Receipt item {receipt_item.id} does not belong to linked purchase order",
+                    )
 
                 purchase_order = purchase_order_cache.get(purchase_order_item.purchase_order_id)
                 if purchase_order is None:
@@ -658,11 +916,7 @@ async def complete_goods_receipt(
                         )
                     purchase_order_cache[purchase_order.id] = purchase_order
 
-                if purchase_order.status not in {"ordered", "partially_received"}:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail=f"Purchase order {purchase_order.order_number} is not ready for goods receipt",
-                    )
+                _ensure_purchase_order_ready_for_receipt(purchase_order)
 
                 next_received = Decimal(purchase_order_item.received_quantity) + quantity
                 if next_received > Decimal(purchase_order_item.ordered_quantity):
@@ -672,6 +926,11 @@ async def complete_goods_receipt(
                     )
                 purchase_order_item.received_quantity = next_received
                 touched_purchase_order_ids.add(purchase_order.id)
+            elif linked_purchase_order is not None:
+                raise HTTPException(
+                    status_code=HTTP_422_UNPROCESSABLE,
+                    detail=f"Receipt item {receipt_item.id} requires purchase_order_item_id for linked purchase order",
+                )
 
             inventory = await _get_inventory(
                 db,
@@ -822,14 +1081,16 @@ async def create_goods_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(*GOODS_ISSUE_ROLES)),
 ) -> GoodsIssueResponse:
-    if payload.customer_id is not None:
-        customer = (await db.execute(select(Customer).where(Customer.id == payload.customer_id))).scalar_one_or_none()
-        if customer is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+    customer_id, customer_location_id = await _resolve_customer_scope(
+        db,
+        customer_id=payload.customer_id,
+        customer_location_id=payload.customer_location_id,
+    )
 
     item = GoodsIssue(
         issue_number=payload.issue_number or _generate_number("WA"),
-        customer_id=payload.customer_id,
+        customer_id=customer_id,
+        customer_location_id=customer_location_id,
         customer_reference=payload.customer_reference,
         notes=payload.notes,
         created_by=current_user.id,
@@ -870,12 +1131,21 @@ async def update_goods_issue(
 
     _ensure_draft("Goods issue", item.status)
 
-    if payload.customer_id is not None:
-        customer = (await db.execute(select(Customer).where(Customer.id == payload.customer_id))).scalar_one_or_none()
-        if customer is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+    updates = payload.model_dump(exclude_unset=True)
+    if "customer_id" in updates or "customer_location_id" in updates:
+        requested_customer_id = updates.get("customer_id", item.customer_id)
+        requested_location_id = updates.get("customer_location_id", item.customer_location_id)
+        if "customer_id" in updates and updates["customer_id"] is None and "customer_location_id" not in updates:
+            requested_location_id = None
+        resolved_customer_id, resolved_location_id = await _resolve_customer_scope(
+            db,
+            customer_id=requested_customer_id,
+            customer_location_id=requested_location_id,
+        )
+        updates["customer_id"] = resolved_customer_id
+        updates["customer_location_id"] = resolved_location_id
 
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    for key, value in updates.items():
         setattr(item, key, value)
 
     await db.commit()

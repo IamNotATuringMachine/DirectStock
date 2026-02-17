@@ -1,9 +1,13 @@
+from io import BytesIO
 from decimal import Decimal
 
+import pikepdf
 import pytest
 from httpx import AsyncClient
+from PIL import Image, ImageChops
 
 from app.models.inventory import Inventory
+from app.utils.qr_generator import format_bin_label_name
 
 
 @pytest.mark.asyncio
@@ -87,6 +91,11 @@ async def test_warehouse_zone_bin_flow(client: AsyncClient, admin_token: str, db
     assert qr_png.status_code == 200
     assert qr_png.headers["content-type"] == "image/png"
     assert len(qr_png.content) > 100
+    with Image.open(BytesIO(qr_png.content)) as image:
+        rgb = image.convert("RGB")
+        assert rgb.height > rgb.width
+        caption_band = rgb.crop((0, int(rgb.height * 0.8), rgb.width, rgb.height))
+        assert ImageChops.invert(caption_band.convert("L")).getbbox() is not None
 
     qr_pdf = await client.post(
         "/api/bins/qr-codes/pdf",
@@ -96,6 +105,14 @@ async def test_warehouse_zone_bin_flow(client: AsyncClient, admin_token: str, db
     assert qr_pdf.status_code == 200
     assert qr_pdf.headers["content-type"] == "application/pdf"
     assert qr_pdf.content.startswith(b"%PDF")
+    with pikepdf.open(BytesIO(qr_pdf.content)) as pdf:
+        page_contents = pdf.pages[0].Contents
+        if isinstance(page_contents, pikepdf.Array):
+            content_bytes = b"".join(stream.read_bytes() for stream in page_contents)
+        else:
+            content_bytes = page_contents.read_bytes()
+    expected_label = format_bin_label_name(first_bin["code"]).encode("utf-8")
+    assert expected_label in content_bytes
 
 
 @pytest.mark.asyncio

@@ -12,7 +12,7 @@ vi.mock("./api", () => ({
   },
 }));
 
-import { createShipmentLabel, downloadDocument, fetchShipments } from "./shippingApi";
+import { createShipment, createShipmentLabel, downloadDocument, fetchShipments } from "./shippingApi";
 
 describe("shippingApi", () => {
   beforeEach(() => {
@@ -36,6 +36,20 @@ describe("shippingApi", () => {
     await createShipmentLabel(10);
 
     expect(mocks.apiPost).toHaveBeenCalledWith("/shipments/10/create-label");
+  });
+
+  it("createShipment forwards customer and location linkage fields", async () => {
+    const payload = {
+      carrier: "dhl" as const,
+      customer_id: 12,
+      customer_location_id: 44,
+      recipient_name: "Musterkunde",
+    };
+    mocks.apiPost.mockResolvedValueOnce({ data: { id: 3 } });
+
+    await createShipment(payload);
+
+    expect(mocks.apiPost).toHaveBeenCalledWith("/shipments", payload);
   });
 
   it("downloadDocument requests blob response type", async () => {

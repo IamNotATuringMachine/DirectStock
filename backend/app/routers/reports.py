@@ -11,7 +11,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -627,6 +627,30 @@ async def report_returns(
             func.count(ReturnOrderItem.id).label("total_items"),
             func.coalesce(func.sum(ReturnOrderItem.quantity), 0).label("total_quantity"),
             func.sum(case((ReturnOrderItem.decision == "restock", 1), else_=0)).label("restock_items"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            ReturnOrderItem.decision == "repair",
+                            ReturnOrderItem.repair_mode == "internal",
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("internal_repair_items"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            ReturnOrderItem.decision == "repair",
+                            ReturnOrderItem.repair_mode == "external",
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("external_repair_items"),
             func.sum(case((ReturnOrderItem.decision == "scrap", 1), else_=0)).label("scrap_items"),
             func.sum(case((ReturnOrderItem.decision == "return_supplier", 1), else_=0)).label("return_supplier_items"),
         )
@@ -652,6 +676,8 @@ async def report_returns(
             total_items=int(row.total_items or 0),
             total_quantity=Decimal(row.total_quantity or 0),
             restock_items=int(row.restock_items or 0),
+            internal_repair_items=int(row.internal_repair_items or 0),
+            external_repair_items=int(row.external_repair_items or 0),
             scrap_items=int(row.scrap_items or 0),
             return_supplier_items=int(row.return_supplier_items or 0),
             created_at=row.created_at,
@@ -669,6 +695,8 @@ async def report_returns(
                 "total_items",
                 "total_quantity",
                 "restock_items",
+                "internal_repair_items",
+                "external_repair_items",
                 "scrap_items",
                 "return_supplier_items",
                 "created_at",

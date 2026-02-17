@@ -31,6 +31,7 @@ class Product(TimestampMixin, Base):
     )
     unit: Mapped[str] = mapped_column(String(20), default="piece", server_default="piece")
     status: Mapped[str] = mapped_column(String(20), default="active", server_default="active")
+    requires_item_tracking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     group: Mapped[ProductGroup | None] = relationship("ProductGroup", lazy="selectin")
 
@@ -62,6 +63,49 @@ class Customer(TimestampMixin, Base):
     delivery_terms: Mapped[str | None] = mapped_column(String(255))
     credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+
+
+class CustomerLocation(TimestampMixin, Base):
+    __tablename__ = "customer_locations"
+    __table_args__ = (
+        UniqueConstraint("customer_id", "location_code", name="uq_customer_locations_customer_location_code"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id", ondelete="CASCADE"), index=True)
+    location_code: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    street: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    house_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    address_line2: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    city: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    country_code: Mapped[str] = mapped_column(String(2), default="DE", server_default="DE")
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+
+
+class CustomerContact(TimestampMixin, Base):
+    __tablename__ = "customer_contacts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id", ondelete="CASCADE"), index=True)
+    customer_location_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customer_locations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    job_title: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    salutation: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    first_name: Mapped[str] = mapped_column(String(128))
+    last_name: Mapped[str] = mapped_column(String(128), index=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
 class ProductSupplier(TimestampMixin, Base):

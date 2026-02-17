@@ -112,6 +112,8 @@ class ReportReturnsRow(BaseModel):
     total_items: int
     total_quantity: Decimal
     restock_items: int
+    internal_repair_items: int
+    external_repair_items: int
     scrap_items: int
     return_supplier_items: int
     created_at: datetime

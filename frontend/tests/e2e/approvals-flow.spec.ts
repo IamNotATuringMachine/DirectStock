@@ -27,9 +27,10 @@ test("approvals flow can approve a pending request", async ({ page, request }) =
   await page.goto("/approvals");
   await expect(page.getByTestId("approvals-page")).toBeVisible();
 
-  const approvalRow = page.getByTestId("approval-request-list").locator(`text=#${approval.id} purchase_order:1`).first();
-  await expect(approvalRow).toBeVisible();
+  // New UI splits ID and Type, so we look for the approve button which is specific to the ID
+  const approveButton = page.getByTestId(`approval-approve-${approval.id}`);
+  await expect(approveButton).toBeVisible();
 
-  await page.getByTestId(`approval-approve-${approval.id}`).click();
-  await expect(approvalRow).toHaveCount(0);
+  await approveButton.click();
+  await expect(approveButton).toHaveCount(0);
 });

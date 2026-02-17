@@ -5,7 +5,6 @@ import {
   Search,
   Calendar,
   RefreshCw,
-  BarChart3,
   TrendingUp,
   Package,
   AlertCircle,
@@ -345,15 +344,13 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in p-6" data-testid="reports-page">
+    <div className="page" data-testid="reports-page">
+      <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--ink)] flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-[var(--accent)]" />
-            Berichte & Analysen
-          </h1>
-          <p className="text-[var(--muted)] mt-1">
+          <h1 className="page-title">Berichte & Analysen</h1>
+          <p className="section-subtitle mt-1">
             Umfassende Einblicke in Bestände, Bewegungen und Lagerleistung.
           </p>
         </div>
@@ -400,7 +397,7 @@ export default function ReportsPage() {
             {/* Primary Filter Group */}
             <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
                  <div className="w-full sm:w-64">
-                    <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">
+                    <label className="form-label-standard mb-1.5 block">
                         Berichtstyp
                     </label>
                     <div className="relative">
@@ -411,6 +408,7 @@ export default function ReportsPage() {
                                 setReportType(e.target.value as ReportType);
                                 setPage(1);
                             }}
+                            data-testid="reports-type-select"
                         >
                             <option value="stock">Bestandsübersicht</option>
                             <option value="movements">Lagerbewegungen</option>
@@ -431,7 +429,7 @@ export default function ReportsPage() {
                  {reportType !== "stock" && reportType !== "purchase-recommendations" && (
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         <div className="w-full sm:w-40">
-                             <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">
+                             <label className="form-label-standard mb-1.5 block">
                                 Von
                             </label>
                             <div className="relative">
@@ -441,12 +439,13 @@ export default function ReportsPage() {
                                     className="input input-leading-icon w-full"
                                     value={dateFrom}
                                     onChange={(e) => setDateFrom(e.target.value)}
+                                    data-testid="reports-date-from"
                                 />
                             </div>
                         </div>
                         <span className="text-[var(--muted)] mt-6">-</span>
                         <div className="w-full sm:w-40">
-                            <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">
+                            <label className="form-label-standard mb-1.5 block">
                                 Bis
                             </label>
                             <div className="relative">
@@ -456,6 +455,7 @@ export default function ReportsPage() {
                                     className="input input-leading-icon w-full"
                                     value={dateTo}
                                     onChange={(e) => setDateTo(e.target.value)}
+                                    data-testid="reports-date-to"
                                 />
                             </div>
                         </div>
@@ -569,7 +569,7 @@ export default function ReportsPage() {
             
             {reportType === "stock" && (
                 <table className="products-table">
-                    <thead>
+                    <thead className="table-head-standard">
                         <tr>
                             <th className="w-48">Artikelnr.</th>
                             <th>Name</th>
@@ -596,7 +596,7 @@ export default function ReportsPage() {
 
             {reportType === "movements" && (
                 <table className="products-table">
-                    <thead>
+                    <thead className="table-head-standard">
                         <tr>
                             <th>Zeitpunkt</th>
                             <th>Typ</th>
@@ -627,7 +627,7 @@ export default function ReportsPage() {
 
             {reportType === "inbound-outbound" && (
                 <table className="products-table">
-                    <thead>
+                    <thead className="table-head-standard">
                         <tr>
                             <th>Datum</th>
                             <th className="text-right text-green-700">Inbound</th>
@@ -654,7 +654,7 @@ export default function ReportsPage() {
             
             {reportType === "inventory-accuracy" && (
                 <table className="products-table">
-                    <thead>
+                    <thead className="table-head-standard">
                         <tr>
                             <th>Session</th>
                             <th>Abgeschlossen am</th>
@@ -691,7 +691,7 @@ export default function ReportsPage() {
 
             {reportType === "abc" && (
                 <table className="products-table">
-                    <thead>
+                    <thead className="table-head-standard">
                         <tr>
                             <th className="w-16 text-center">Rank</th>
                             <th>Artikel</th>
@@ -733,7 +733,7 @@ export default function ReportsPage() {
                         </h3>
                     </div>
                     <table className="products-table">
-                        <thead>
+                        <thead className="table-head-standard">
                             <tr>
                                 <th>Artikel</th>
                                 <th className="text-right">Gesamt Outbound</th>
@@ -781,14 +781,16 @@ export default function ReportsPage() {
         {/* Render the missing tables inside the container if active */}
         {reportType === "returns" && (
             <div className="overflow-x-auto -mt-[88px] relative z-10 bg-[var(--panel)]">
-                 <table className="products-table">
-                    <thead>
+                 <table className="products-table" data-testid="reports-returns-table">
+                    <thead className="table-head-standard">
                         <tr>
                             <th>Retoure</th>
                             <th>Status</th>
                             <th>Items</th>
                             <th>Menge</th>
                             <th>Restock</th>
+                            <th>Repair Intern</th>
+                            <th>Repair Extern</th>
                             <th>Scrap</th>
                             <th>Supplier</th>
                         </tr>
@@ -801,6 +803,8 @@ export default function ReportsPage() {
                                 <td>{row.total_items}</td>
                                 <td>{row.total_quantity}</td>
                                 <td>{row.restock_items}</td>
+                                <td>{row.internal_repair_items}</td>
+                                <td>{row.external_repair_items}</td>
                                 <td>{row.scrap_items}</td>
                                 <td>{row.return_supplier_items}</td>
                             </tr>
@@ -813,7 +817,7 @@ export default function ReportsPage() {
          {reportType === "picking-performance" && (
             <div className="overflow-x-auto -mt-[88px] relative z-10 bg-[var(--panel)]">
                  <table className="products-table">
-                    <thead>
+                    <thead className="table-head-standard">
                         <tr>
                             <th>Wave</th>
                             <th>Status</th>
@@ -844,7 +848,7 @@ export default function ReportsPage() {
         {reportType === "purchase-recommendations" && (
             <div className="overflow-x-auto -mt-[88px] relative z-10 bg-[var(--panel)]">
                  <table className="products-table">
-                    <thead>
+                    <thead className="table-head-standard">
                         <tr>
                             <th>ID</th>
                             <th>Produkt</th>
@@ -877,7 +881,7 @@ export default function ReportsPage() {
         {reportType === "demand-forecast" && (
             <div className="overflow-x-auto -mt-[88px] relative z-10 bg-[var(--panel)]">
                  <table className="products-table">
-                    <thead>
+                    <thead className="table-head-standard">
                         <tr>
                             <th>Run</th>
                             <th>Produkt</th>
@@ -941,6 +945,7 @@ export default function ReportsPage() {
             </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

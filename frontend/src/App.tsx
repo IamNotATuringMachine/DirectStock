@@ -8,6 +8,7 @@ import {
   AlertsPage,
   ApprovalsPage,
   AuditTrailPage,
+  CustomersPage,
   DashboardPage,
   DocumentsPage,
   GoodsIssuePage,
@@ -164,6 +165,14 @@ export default function App() {
           element={
             <RequirePermission permissions={["page.shipping.view"]}>
               <ShippingPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="customers"
+          element={
+            <RequirePermission permissions={["page.customers.view"]}>
+              <CustomersPage />
             </RequirePermission>
           }
         />

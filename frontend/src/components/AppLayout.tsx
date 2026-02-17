@@ -30,6 +30,7 @@ import {
   FileSpreadsheet,
   Receipt,
   Users,
+  Building2,
 } from "lucide-react";
 
 import OfflineSyncPanel from "./offline/OfflineSyncPanel";
@@ -72,6 +73,7 @@ const navItems: NavItem[] = [
     requiredPermissions: ["page.inter-warehouse-transfer.view"],
   },
   { to: "/shipping", label: "Versand", shortLabel: "SH", icon: Truck, requiredPermissions: ["page.shipping.view"] },
+  { to: "/customers", label: "Kunden", shortLabel: "KD", icon: Building2, requiredPermissions: ["page.customers.view"] },
   { to: "/scanner", label: "Scanner", shortLabel: "SC", icon: ScanBarcode, requiredPermissions: ["page.scanner.view"] },
   { to: "/services", label: "Dienstleistungen", shortLabel: "SV", icon: Briefcase, requiredPermissions: ["page.services.view"] },
   { to: "/sales-orders", label: "Verkaufsaufträge", shortLabel: "SO", icon: FileSpreadsheet, requiredPermissions: ["page.sales-orders.view"] },
@@ -346,7 +348,6 @@ export default function AppLayout() {
             ) : null}
 
             <PwaStatus compact={isMobileLayout} />
-            {!isMobileLayout ? <OfflineSyncPanel /> : null}
 
             <div className="h-6 w-px bg-[var(--line)] mx-2"></div>
 

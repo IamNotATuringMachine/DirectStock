@@ -2,7 +2,16 @@ from app.models.alerts import AlertEvent, AlertRule
 from app.models.audit import AuditLog
 from app.models.auth import Permission, Role, User, role_permissions, user_roles
 from app.models.base import Base
-from app.models.catalog import Customer, Product, ProductGroup, ProductSupplier, ProductWarehouseSetting, Supplier
+from app.models.catalog import (
+    Customer,
+    CustomerContact,
+    CustomerLocation,
+    Product,
+    ProductGroup,
+    ProductSupplier,
+    ProductWarehouseSetting,
+    Supplier,
+)
 from app.models.inventory import (
     GoodsIssue,
     GoodsIssueItem,
@@ -78,6 +87,8 @@ __all__ = [
     "BinLocation",
     "ClientOperationLog",
     "Customer",
+    "CustomerLocation",
+    "CustomerContact",
     "Document",
     "GoodsIssue",
     "GoodsIssueItem",

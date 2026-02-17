@@ -23,7 +23,7 @@ from app.schemas.warehouse import (
     ZoneUpdate,
 )
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
-from app.utils.qr_generator import generate_bin_labels_pdf, generate_qr_png_bytes
+from app.utils.qr_generator import generate_bin_label_png_bytes, generate_bin_labels_pdf
 
 router = APIRouter(prefix="/api", tags=["warehouses"])
 
@@ -387,7 +387,7 @@ async def get_bin_qr_code(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bin not found")
 
     qr_data = bin_location.qr_code_data or f"DS:BIN:{bin_location.code}"
-    png_bytes = generate_qr_png_bytes(qr_data)
+    png_bytes = generate_bin_label_png_bytes(bin_location.code, qr_data)
 
     return Response(
         content=png_bytes,

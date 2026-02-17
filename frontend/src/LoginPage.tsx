@@ -186,7 +186,7 @@ export default function LoginPage() {
           </form>
 
           <div className="pt-8 mt-8 border-t border-[var(--line)] text-center text-xs text-[var(--muted)]">
-            &copy; {new Date().getFullYear()} DirectStock. All rights reserved.
+            &copy; {new Date().getFullYear()} direct services GmbH. All rights reserved.
           </div>
         </div>
       </div>

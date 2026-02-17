@@ -136,6 +136,7 @@ class ExternalCommandGoodsIssueItem(BaseModel):
 class ExternalCommandGoodsIssueCreate(BaseModel):
     issue_number: str | None = Field(default=None, max_length=64)
     customer_id: int | None = None
+    customer_location_id: int | None = None
     customer_reference: str | None = Field(default=None, max_length=100)
     notes: str | None = None
     items: list[ExternalCommandGoodsIssueItem] = Field(default_factory=list, min_length=1)
@@ -151,6 +152,8 @@ class ShipmentCreate(BaseModel):
     shipment_number: str | None = Field(default=None, max_length=64)
     carrier: Literal["dhl", "dpd", "ups"]
     goods_issue_id: int | None = None
+    customer_id: int | None = None
+    customer_location_id: int | None = None
     recipient_name: str | None = None
     shipping_address: str | None = None
     notes: str | None = None
@@ -162,6 +165,8 @@ class ShipmentResponse(BaseModel):
     carrier: str
     status: str
     goods_issue_id: int | None
+    customer_id: int | None
+    customer_location_id: int | None
     tracking_number: str | None
     recipient_name: str | None
     shipping_address: str | None

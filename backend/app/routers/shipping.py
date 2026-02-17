@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.dependencies import get_db, require_roles
 from app.models.auth import User
+from app.models.catalog import Customer, CustomerLocation
 from app.models.inventory import GoodsIssue
 from app.models.phase3 import Document
 from app.models.phase4 import Shipment, ShipmentEvent
@@ -42,6 +43,36 @@ def _generate_number(prefix: str) -> str:
     return f"{prefix}-{_now().strftime('%Y%m%d%H%M%S')}-{token_hex(2).upper()}"
 
 
+async def _resolve_customer_scope(
+    db: AsyncSession,
+    *,
+    customer_id: int | None,
+    customer_location_id: int | None,
+) -> tuple[int | None, int | None]:
+    if customer_location_id is None:
+        if customer_id is None:
+            return None, None
+        customer = (await db.execute(select(Customer.id).where(Customer.id == customer_id))).scalar_one_or_none()
+        if customer is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+        return customer_id, None
+
+    location = (
+        await db.execute(select(CustomerLocation).where(CustomerLocation.id == customer_location_id))
+    ).scalar_one_or_none()
+    if location is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer location not found")
+
+    resolved_customer_id = int(location.customer_id)
+    if customer_id is not None and customer_id != resolved_customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Customer location does not belong to selected customer",
+        )
+
+    return resolved_customer_id, customer_location_id
+
+
 def _effective_storage_root() -> Path:
     configured = Path(os.getenv("DIRECTSTOCK_DOCUMENT_STORAGE_ROOT", "/app/data/documents"))
     try:
@@ -60,6 +91,8 @@ def _to_shipment_response(item: Shipment) -> ShipmentResponse:
         carrier=item.carrier,
         status=item.status,
         goods_issue_id=item.goods_issue_id,
+        customer_id=item.customer_id,
+        customer_location_id=item.customer_location_id,
         tracking_number=item.tracking_number,
         recipient_name=item.recipient_name,
         shipping_address=item.shipping_address,
@@ -135,11 +168,19 @@ async def create_shipment(
         if goods_issue is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods issue not found")
 
+    customer_id, customer_location_id = await _resolve_customer_scope(
+        db,
+        customer_id=payload.customer_id,
+        customer_location_id=payload.customer_location_id,
+    )
+
     item = Shipment(
         shipment_number=payload.shipment_number or _generate_number("SHP"),
         carrier=payload.carrier,
         status="draft",
         goods_issue_id=payload.goods_issue_id,
+        customer_id=customer_id,
+        customer_location_id=customer_location_id,
         recipient_name=payload.recipient_name,
         shipping_address=payload.shipping_address,
         created_by=current_user.id,

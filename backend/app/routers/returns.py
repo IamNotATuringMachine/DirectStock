@@ -1,9 +1,14 @@
+import os
 from datetime import UTC, datetime
 from decimal import Decimal
+from io import BytesIO
+from pathlib import Path
 from secrets import token_hex
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,10 +16,13 @@ from app.dependencies import get_db, require_roles
 from app.models.auth import User
 from app.models.catalog import Product
 from app.models.inventory import Inventory, StockMovement
-from app.models.phase3 import ApprovalRequest, ApprovalRule, ReturnOrder, ReturnOrderItem
-from app.models.warehouse import BinLocation
+from app.models.phase3 import ApprovalRequest, ApprovalRule, Document, ReturnOrder, ReturnOrderItem
+from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 from app.schemas.phase3 import (
     ReturnOrderCreate,
+    ReturnOrderExternalDispatchPayload,
+    ReturnOrderExternalDispatchResponse,
+    ReturnOrderExternalReceivePayload,
     ReturnOrderItemCreate,
     ReturnOrderItemResponse,
     ReturnOrderItemUpdate,
@@ -37,6 +45,14 @@ TRANSITIONS: dict[str, set[str]] = {
     "cancelled": set(),
 }
 
+EXTERNAL_REPAIR_DOCUMENT_TYPE = "external_repair_form"
+EXTERNAL_WAREHOUSE_CODE = "WH-ESP-REPAIR"
+EXTERNAL_WAREHOUSE_NAME = "Lager Spanien / Reparatur extern"
+EXTERNAL_ZONE_CODE = "ESP-REPAIR"
+EXTERNAL_ZONE_NAME = "Reparatur Extern Spanien"
+EXTERNAL_BIN_CODE = "ESP-REPAIR-BIN"
+EXTERNAL_BIN_QR = "DS:BIN:ESP-REPAIR-BIN"
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -53,6 +69,8 @@ def _to_order_response(item: ReturnOrder) -> ReturnOrderResponse:
         customer_id=item.customer_id,
         goods_issue_id=item.goods_issue_id,
         status=item.status,
+        source_type=item.source_type,
+        source_reference=item.source_reference,
         notes=item.notes,
         registered_at=item.registered_at,
         received_at=item.received_at,
@@ -72,11 +90,57 @@ def _to_item_response(item: ReturnOrderItem) -> ReturnOrderItemResponse:
         quantity=item.quantity,
         unit=item.unit,
         decision=item.decision,
+        repair_mode=item.repair_mode,
+        external_status=item.external_status,
+        external_partner=item.external_partner,
+        external_dispatched_at=item.external_dispatched_at,
+        external_returned_at=item.external_returned_at,
         target_bin_id=item.target_bin_id,
         reason=item.reason,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
+
+
+def _effective_storage_root() -> Path:
+    configured = Path(os.getenv("DIRECTSTOCK_DOCUMENT_STORAGE_ROOT", "/app/data/documents"))
+    try:
+        configured.mkdir(parents=True, exist_ok=True)
+        return configured
+    except OSError:
+        fallback = Path.cwd() / ".documents"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
+def _build_external_repair_form_pdf(*, order: ReturnOrder, item: ReturnOrderItem, external_partner: str | None) -> bytes:
+    output = BytesIO()
+    pdf = canvas.Canvas(output, pagesize=A4)
+    page_width, page_height = A4
+
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(40, page_height - 50, "Externes Reparaturformular")
+    pdf.setFont("Helvetica", 11)
+
+    lines = [
+        f"Retourennummer: {order.return_number}",
+        f"Retourenposition: {item.id}",
+        f"Produkt-ID: {item.product_id}",
+        f"Menge: {item.quantity} {item.unit}",
+        f"Externer Partner: {external_partner or 'N/A'}",
+        f"Status: Wartet auf externen Dienstleister",
+        f"Erstellt am (UTC): {_now().isoformat()}",
+    ]
+    y = page_height - 90
+    for line in lines:
+        pdf.drawString(40, y, line)
+        y -= 18
+
+    pdf.setFont("Helvetica", 9)
+    pdf.drawString(40, 70, "DirectStock - automatisch erzeugtes Dokument")
+    pdf.showPage()
+    pdf.save()
+    return output.getvalue()
 
 
 async def _load_order_or_404(db: AsyncSession, order_id: int) -> ReturnOrder:
@@ -100,6 +164,170 @@ async def _load_item_or_404(db: AsyncSession, order_id: int, item_id: int) -> Re
     return item
 
 
+async def _ensure_bin_exists(db: AsyncSession, *, bin_id: int, detail: str = "Target bin not found") -> BinLocation:
+    item = (await db.execute(select(BinLocation).where(BinLocation.id == bin_id))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+    return item
+
+
+def _normalize_item_repair_state(
+    values: dict,
+    *,
+    existing: ReturnOrderItem | None = None,
+) -> dict:
+    decision = values.get("decision", existing.decision if existing else None)
+    repair_mode = values.get("repair_mode", existing.repair_mode if existing else None)
+    touches_repair_fields = any(
+        key in values for key in ("decision", "repair_mode", "external_status", "external_partner")
+    )
+
+    if decision != "repair":
+        if touches_repair_fields:
+            values["repair_mode"] = None
+            values["external_status"] = None
+            values["external_partner"] = None
+            values["external_dispatched_at"] = None
+            values["external_returned_at"] = None
+        return values
+
+    if repair_mode not in {"internal", "external"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="repair_mode is required when decision is 'repair'",
+        )
+
+    if repair_mode == "internal":
+        if touches_repair_fields:
+            values["external_status"] = None
+            values["external_partner"] = None
+            values["external_dispatched_at"] = None
+            values["external_returned_at"] = None
+        return values
+
+    if existing is None or touches_repair_fields:
+        requested_external_status = values.get("external_status")
+        if requested_external_status not in {None, "waiting_external_provider"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="external_status must be 'waiting_external_provider' for external repair triage",
+            )
+        values["external_status"] = "waiting_external_provider"
+        values["external_dispatched_at"] = None
+        values["external_returned_at"] = None
+    return values
+
+
+def _ensure_external_dispatch_prerequisites(item: ReturnOrderItem) -> None:
+    if item.decision != "repair":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Return item is not marked for repair")
+    if item.repair_mode != "external":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Return item is not marked for external repair",
+        )
+    if item.external_status != "waiting_external_provider":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Return item is not waiting for external provider dispatch",
+        )
+
+
+def _ensure_external_receive_prerequisites(item: ReturnOrderItem) -> None:
+    if item.decision != "repair":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Return item is not marked for repair")
+    if item.repair_mode != "external":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Return item is not marked for external repair",
+        )
+    if item.external_status != "at_external_provider":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Return item is not currently at external provider",
+        )
+
+
+async def _get_inventory_or_create(
+    db: AsyncSession,
+    *,
+    product_id: int,
+    bin_id: int,
+    unit: str,
+) -> Inventory:
+    item = (
+        await db.execute(
+            select(Inventory).where(
+                Inventory.product_id == product_id,
+                Inventory.bin_location_id == bin_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if item is None:
+        item = Inventory(
+            product_id=product_id,
+            bin_location_id=bin_id,
+            quantity=Decimal("0"),
+            reserved_quantity=Decimal("0"),
+            unit=unit,
+        )
+        db.add(item)
+        await db.flush()
+    return item
+
+
+async def _ensure_spain_external_bin(db: AsyncSession) -> BinLocation:
+    warehouse = (await db.execute(select(Warehouse).where(Warehouse.code == EXTERNAL_WAREHOUSE_CODE))).scalar_one_or_none()
+    if warehouse is None:
+        warehouse = Warehouse(
+            code=EXTERNAL_WAREHOUSE_CODE,
+            name=EXTERNAL_WAREHOUSE_NAME,
+            address="Virtuelles Lager fuer externe Reparaturen",
+            is_active=True,
+        )
+        db.add(warehouse)
+        await db.flush()
+
+    zone = (
+        await db.execute(
+            select(WarehouseZone).where(
+                WarehouseZone.warehouse_id == warehouse.id,
+                WarehouseZone.code == EXTERNAL_ZONE_CODE,
+            )
+        )
+    ).scalar_one_or_none()
+    if zone is None:
+        zone = WarehouseZone(
+            warehouse_id=warehouse.id,
+            code=EXTERNAL_ZONE_CODE,
+            name=EXTERNAL_ZONE_NAME,
+            zone_type="returns",
+            is_active=True,
+        )
+        db.add(zone)
+        await db.flush()
+
+    bin_location = (
+        await db.execute(
+            select(BinLocation).where(
+                BinLocation.zone_id == zone.id,
+                BinLocation.code == EXTERNAL_BIN_CODE,
+            )
+        )
+    ).scalar_one_or_none()
+    if bin_location is None:
+        bin_location = BinLocation(
+            zone_id=zone.id,
+            code=EXTERNAL_BIN_CODE,
+            bin_type="returns",
+            qr_code_data=EXTERNAL_BIN_QR,
+            is_active=True,
+        )
+        db.add(bin_location)
+        await db.flush()
+    return bin_location
+
+
 @router.get("", response_model=list[ReturnOrderResponse])
 async def list_return_orders(
     db: AsyncSession = Depends(get_db),
@@ -120,6 +348,8 @@ async def create_return_order(
         customer_id=payload.customer_id,
         goods_issue_id=payload.goods_issue_id,
         status="registered",
+        source_type=payload.source_type,
+        source_reference=payload.source_reference,
         notes=payload.notes,
         registered_at=_now(),
         created_by=current_user.id,
@@ -217,7 +447,7 @@ async def update_return_order_status(
                     performed_at=now,
                     metadata_json={"return_order_id": order.id, "decision": item.decision},
                 )
-            )
+                )
     elif payload.status == "inspected":
         order.inspected_at = now
     elif payload.status == "resolved":
@@ -391,13 +621,10 @@ async def create_return_order_item(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
     if payload.target_bin_id is not None:
-        bin_location = (
-            await db.execute(select(BinLocation).where(BinLocation.id == payload.target_bin_id))
-        ).scalar_one_or_none()
-        if bin_location is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target bin not found")
+        await _ensure_bin_exists(db, bin_id=payload.target_bin_id)
 
-    item = ReturnOrderItem(return_order_id=order_id, **payload.model_dump())
+    values = _normalize_item_repair_state(payload.model_dump(), existing=None)
+    item = ReturnOrderItem(return_order_id=order_id, **values)
     db.add(item)
     await db.commit()
     await db.refresh(item)
@@ -421,11 +648,9 @@ async def update_return_order_item(
 
     target_bin_id = updates.get("target_bin_id")
     if target_bin_id is not None:
-        bin_location = (
-            await db.execute(select(BinLocation).where(BinLocation.id == target_bin_id))
-        ).scalar_one_or_none()
-        if bin_location is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target bin not found")
+        await _ensure_bin_exists(db, bin_id=target_bin_id)
+
+    updates = _normalize_item_repair_state(updates, existing=item)
 
     for key, value in updates.items():
         setattr(item, key, value)
@@ -450,3 +675,178 @@ async def delete_return_order_item(
     await db.delete(item)
     await db.commit()
     return MessageResponse(message="return order item deleted")
+
+
+@router.post(
+    "/{order_id}/items/{item_id}/dispatch-external",
+    response_model=ReturnOrderExternalDispatchResponse,
+)
+async def dispatch_return_order_item_external(
+    order_id: int,
+    item_id: int,
+    payload: ReturnOrderExternalDispatchPayload | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+) -> ReturnOrderExternalDispatchResponse:
+    order = await _load_order_or_404(db, order_id)
+    if order.status in {"resolved", "cancelled"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Return order does not allow external dispatch in current status",
+        )
+
+    item = await _load_item_or_404(db, order_id, item_id)
+    _ensure_external_dispatch_prerequisites(item)
+
+    now = _now()
+    spain_bin = await _ensure_spain_external_bin(db)
+
+    spain_inventory = await _get_inventory_or_create(
+        db,
+        product_id=item.product_id,
+        bin_id=spain_bin.id,
+        unit=item.unit,
+    )
+    spain_inventory.quantity = Decimal(spain_inventory.quantity) + Decimal(item.quantity)
+
+    if payload is not None and payload.external_partner:
+        item.external_partner = payload.external_partner
+    item.external_status = "at_external_provider"
+    item.external_dispatched_at = now
+
+    db.add(
+        StockMovement(
+            movement_type="return_external_dispatch",
+            reference_type="return_order",
+            reference_number=order.return_number,
+            product_id=item.product_id,
+            from_bin_id=item.target_bin_id,
+            to_bin_id=spain_bin.id,
+            quantity=item.quantity,
+            performed_by=current_user.id,
+            performed_at=now,
+            metadata_json={
+                "return_order_id": order.id,
+                "return_order_item_id": item.id,
+                "external_partner": item.external_partner,
+            },
+        )
+    )
+
+    repair_form = _build_external_repair_form_pdf(
+        order=order,
+        item=item,
+        external_partner=item.external_partner,
+    )
+    version = (
+        await db.execute(
+            select(func.coalesce(func.max(Document.version), 0)).where(
+                Document.entity_type == "return_order",
+                Document.entity_id == order.id,
+                Document.document_type == EXTERNAL_REPAIR_DOCUMENT_TYPE,
+            )
+        )
+    ).scalar_one()
+    next_version = int(version) + 1
+    storage_dir = _effective_storage_root() / "return_order" / str(order.id) / EXTERNAL_REPAIR_DOCUMENT_TYPE
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    file_name = f"{order.return_number}-externes-reparaturformular.pdf"
+    storage_path = storage_dir / f"v{next_version:03d}_{token_hex(4)}_{file_name}"
+    storage_path.write_bytes(repair_form)
+
+    document = Document(
+        entity_type="return_order",
+        entity_id=order.id,
+        document_type=EXTERNAL_REPAIR_DOCUMENT_TYPE,
+        file_name=file_name,
+        mime_type="application/pdf",
+        file_size=len(repair_form),
+        storage_path=str(storage_path),
+        version=next_version,
+        uploaded_by=current_user.id,
+    )
+    db.add(document)
+
+    await db.commit()
+    await db.refresh(item)
+    await db.refresh(document)
+    return ReturnOrderExternalDispatchResponse(
+        item=_to_item_response(item),
+        document_id=document.id,
+    )
+
+
+@router.post(
+    "/{order_id}/items/{item_id}/receive-external",
+    response_model=ReturnOrderItemResponse,
+)
+async def receive_return_order_item_external(
+    order_id: int,
+    item_id: int,
+    payload: ReturnOrderExternalReceivePayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+) -> ReturnOrderItemResponse:
+    order = await _load_order_or_404(db, order_id)
+    if order.status in {"resolved", "cancelled"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Return order does not allow external receive in current status",
+        )
+
+    item = await _load_item_or_404(db, order_id, item_id)
+    _ensure_external_receive_prerequisites(item)
+
+    target_bin = await _ensure_bin_exists(db, bin_id=payload.target_bin_id)
+    source_bin = await _ensure_spain_external_bin(db)
+    now = _now()
+
+    spain_inventory = (
+        await db.execute(
+            select(Inventory).where(
+                Inventory.product_id == item.product_id,
+                Inventory.bin_location_id == source_bin.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if spain_inventory is None or Decimal(spain_inventory.quantity) < Decimal(item.quantity):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Insufficient quantity in external provider virtual bin",
+        )
+    spain_inventory.quantity = Decimal(spain_inventory.quantity) - Decimal(item.quantity)
+
+    target_inventory = await _get_inventory_or_create(
+        db,
+        product_id=item.product_id,
+        bin_id=target_bin.id,
+        unit=item.unit,
+    )
+    target_inventory.quantity = Decimal(target_inventory.quantity) + Decimal(item.quantity)
+
+    db.add(
+        StockMovement(
+            movement_type="return_external_receive",
+            reference_type="return_order",
+            reference_number=order.return_number,
+            product_id=item.product_id,
+            from_bin_id=source_bin.id,
+            to_bin_id=target_bin.id,
+            quantity=item.quantity,
+            performed_by=current_user.id,
+            performed_at=now,
+            metadata_json={
+                "return_order_id": order.id,
+                "return_order_item_id": item.id,
+                "external_partner": item.external_partner,
+            },
+        )
+    )
+
+    item.target_bin_id = payload.target_bin_id
+    item.external_status = "ready_for_use"
+    item.external_returned_at = now
+
+    await db.commit()
+    await db.refresh(item)
+    return _to_item_response(item)

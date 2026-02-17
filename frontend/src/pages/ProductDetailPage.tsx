@@ -150,6 +150,15 @@ export default function ProductDetailPage() {
                     </div>
                   </div>
 
+                  <div>
+                    <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1">Einzelteilverfolgung</span>
+                    <span className={`status inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
+                      productQuery.data.requires_item_tracking ? "status-active" : "status-inactive"
+                    }`}>
+                      {productQuery.data.requires_item_tracking ? "Seriennummernpflicht" : "Nicht erforderlich"}
+                    </span>
+                  </div>
+
                   <div className="pt-4 mt-4 border-t border-[var(--line)] flex items-center gap-4 text-xs text-[var(--muted)]">
                     <div className="flex items-center gap-1">
                       <Calendar size={12} /> Erstellt: {new Date(productQuery.data.created_at).toLocaleDateString()}

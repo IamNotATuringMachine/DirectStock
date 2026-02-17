@@ -14,6 +14,8 @@ import type {
   GoodsIssueItem,
   GoodsReceipt,
   GoodsReceiptItem,
+  Product,
+  ProductCreatePayload,
   StockTransfer,
   StockTransferItem,
 } from "../types";
@@ -22,6 +24,7 @@ function toGoodsReceiptFromQueue(item: OfflineQueueItem): GoodsReceipt {
   const payload = (item.payload ?? {}) as {
     receipt_number?: string;
     supplier_id?: number;
+    purchase_order_id?: number;
     notes?: string;
   };
   const localId = item.entity_id ?? -1;
@@ -29,6 +32,7 @@ function toGoodsReceiptFromQueue(item: OfflineQueueItem): GoodsReceipt {
     id: localId,
     receipt_number: payload.receipt_number ?? `OFFLINE-WE-${Math.abs(localId)}`,
     supplier_id: payload.supplier_id ?? null,
+    purchase_order_id: payload.purchase_order_id ?? null,
     status: "draft",
     received_at: null,
     completed_at: null,
@@ -43,6 +47,7 @@ function toGoodsIssueFromQueue(item: OfflineQueueItem): GoodsIssue {
   const payload = (item.payload ?? {}) as {
     issue_number?: string;
     customer_id?: number;
+    customer_location_id?: number;
     customer_reference?: string;
     notes?: string;
   };
@@ -51,6 +56,7 @@ function toGoodsIssueFromQueue(item: OfflineQueueItem): GoodsIssue {
     id: localId,
     issue_number: payload.issue_number ?? `OFFLINE-WA-${Math.abs(localId)}`,
     customer_id: payload.customer_id ?? null,
+    customer_location_id: payload.customer_location_id ?? null,
     customer_reference: payload.customer_reference ?? null,
     status: "draft",
     issued_at: null,
@@ -189,6 +195,7 @@ export async function fetchGoodsReceipts(status?: string): Promise<GoodsReceipt[
 export async function createGoodsReceipt(payload: {
   receipt_number?: string;
   supplier_id?: number;
+  purchase_order_id?: number;
   notes?: string;
 }): Promise<GoodsReceipt> {
   if (shouldQueueOfflineMutation("POST", "/goods-receipts")) {
@@ -204,6 +211,21 @@ export async function createGoodsReceipt(payload: {
   }
 
   const response = await api.post<GoodsReceipt>("/goods-receipts", payload);
+  return response.data;
+}
+
+export async function createGoodsReceiptAdHocProduct(
+  receiptId: number,
+  payload: ProductCreatePayload
+): Promise<Product> {
+  const response = await api.post<Product>(`/goods-receipts/${receiptId}/ad-hoc-product`, payload);
+  return response.data;
+}
+
+export async function downloadGoodsReceiptItemSerialLabelsPdf(receiptId: number, itemId: number): Promise<Blob> {
+  const response = await api.get<Blob>(`/goods-receipts/${receiptId}/items/${itemId}/serial-labels/pdf`, {
+    responseType: "blob",
+  });
   return response.data;
 }
 
@@ -309,6 +331,7 @@ export async function fetchGoodsIssues(status?: string): Promise<GoodsIssue[]> {
 export async function createGoodsIssue(payload: {
   issue_number?: string;
   customer_id?: number;
+  customer_location_id?: number;
   customer_reference?: string;
   notes?: string;
 }): Promise<GoodsIssue> {

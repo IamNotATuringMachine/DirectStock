@@ -219,6 +219,7 @@ class SalesOrderItemCreate(BaseModel):
 class SalesOrderCreate(BaseModel):
     order_number: str | None = Field(default=None, max_length=64)
     customer_id: int | None = None
+    customer_location_id: int | None = None
     currency: str = Field(default="EUR", min_length=3, max_length=3)
     notes: str | None = None
     items: list[SalesOrderItemCreate] = Field(default_factory=list)
@@ -226,6 +227,7 @@ class SalesOrderCreate(BaseModel):
 
 class SalesOrderUpdate(BaseModel):
     customer_id: int | None = None
+    customer_location_id: int | None = None
     status: Literal["draft", "confirmed", "partially_delivered", "completed", "cancelled"] | None = None
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     notes: str | None = None
@@ -254,6 +256,7 @@ class SalesOrderResponse(BaseModel):
     id: int
     order_number: str
     customer_id: int | None
+    customer_location_id: int | None
     status: str
     ordered_at: datetime | None
     completed_at: datetime | None

@@ -21,6 +21,7 @@ import ShippingPage from "./pages/ShippingPage";
 import StockTransferPage from "./pages/StockTransferPage";
 import ServicesPage from "./pages/ServicesPage";
 import InvoicesPage from "./pages/InvoicesPage";
+import CustomersPage from "./pages/CustomersPage";
 import UsersPage from "./pages/UsersPage";
 import WarehousePage from "./pages/WarehousePage";
 
@@ -30,6 +31,7 @@ export {
   AuditTrailPage,
   DashboardPage,
   DocumentsPage,
+  CustomersPage,
   GoodsIssuePage,
   GoodsReceiptPage,
   InterWarehouseTransferPage,
