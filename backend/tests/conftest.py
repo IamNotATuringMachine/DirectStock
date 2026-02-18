@@ -15,6 +15,8 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_USERNAME", "admin")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_EMAIL", "admin@example.com")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_PASSWORD", "change-me-admin-password")
+os.environ.setdefault("OBSERVABILITY_ENABLED", "false")
+os.environ.setdefault("METRICS_ENABLED", "false")
 
 from app.bootstrap import seed_defaults
 from app.database import AsyncSessionLocal, engine
