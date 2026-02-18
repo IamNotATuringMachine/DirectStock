@@ -1,6 +1,5 @@
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
-from secrets import token_hex
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
@@ -50,6 +49,13 @@ from app.schemas.operations import (
 from app.schemas.product import ProductAdHocCreate, ProductResponse
 from app.schemas.user import MessageResponse
 from app.services.alerts import evaluate_alerts
+from app.services.operations.inventory_service import (
+    get_or_create_inventory,
+    get_or_create_inventory_batch,
+)
+from app.services.operations.issue_service import serial_tracked_quantity_is_integer
+from app.services.operations.receipt_service import generate_document_number, now_utc
+from app.services.operations.transfer_service import is_draft_status
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
 from app.utils.qr_generator import generate_item_labels_pdf, generate_serial_labels_pdf
 
@@ -64,11 +70,11 @@ STOCK_TRANSFER_WRITE_PERMISSION = "module.operations.stock_transfers.write"
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return now_utc()
 
 
 def _generate_number(prefix: str) -> str:
-    return f"{prefix}-{_now().strftime('%Y%m%d%H%M%S')}-{token_hex(2).upper()}"
+    return generate_document_number(prefix)
 
 
 async def _resolve_customer_scope(
@@ -108,26 +114,16 @@ async def _get_inventory(
     bin_location_id: int,
     unit: str,
 ) -> Inventory:
-    stmt = select(Inventory).where(
-        Inventory.product_id == product_id,
-        Inventory.bin_location_id == bin_location_id,
+    return await get_or_create_inventory(
+        db,
+        product_id=product_id,
+        bin_location_id=bin_location_id,
+        unit=unit,
     )
-    inventory = (await db.execute(stmt)).scalar_one_or_none()
-    if inventory is None:
-        inventory = Inventory(
-            product_id=product_id,
-            bin_location_id=bin_location_id,
-            quantity=Decimal("0"),
-            reserved_quantity=Decimal("0"),
-            unit=unit,
-        )
-        db.add(inventory)
-        await db.flush()
-    return inventory
 
 
 def _ensure_draft(entity_name: str, current_status: str) -> None:
-    if current_status != "draft":
+    if not is_draft_status(current_status):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"{entity_name} is not in draft status",
@@ -180,38 +176,15 @@ async def _get_inventory_batch(
     expiry_date: date | None,
     manufactured_at: date | None,
 ) -> InventoryBatch:
-    batch = (
-        await db.execute(
-            select(InventoryBatch).where(
-                InventoryBatch.product_id == product_id,
-                InventoryBatch.bin_location_id == bin_location_id,
-                InventoryBatch.batch_number == batch_number,
-            )
-        )
-    ).scalar_one_or_none()
-
-    if batch is None:
-        batch = InventoryBatch(
-            product_id=product_id,
-            bin_location_id=bin_location_id,
-            batch_number=batch_number,
-            expiry_date=expiry_date,
-            manufactured_at=manufactured_at,
-            quantity=Decimal("0"),
-            unit=unit,
-        )
-        db.add(batch)
-        await db.flush()
-        return batch
-
-    if batch.expiry_date is None and expiry_date is not None:
-        batch.expiry_date = expiry_date
-    if batch.manufactured_at is None and manufactured_at is not None:
-        batch.manufactured_at = manufactured_at
-    if not batch.unit:
-        batch.unit = unit
-
-    return batch
+    return await get_or_create_inventory_batch(
+        db,
+        product_id=product_id,
+        bin_location_id=bin_location_id,
+        batch_number=batch_number,
+        unit=unit,
+        expiry_date=expiry_date,
+        manufactured_at=manufactured_at,
+    )
 
 
 async def _resolve_issue_batch(db: AsyncSession, *, issue_item: GoodsIssueItem) -> InventoryBatch | None:
@@ -401,12 +374,7 @@ async def _build_goods_receipt_item_response(
 
 
 def _ensure_serial_tracked_quantity_is_integer(quantity: Decimal, *, item_label: str) -> None:
-    if quantity <= 0:
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE,
-            detail=f"{item_label} has invalid received quantity",
-        )
-    if quantity != quantity.to_integral_value():
+    if not serial_tracked_quantity_is_integer(quantity):
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE,
             detail=f"{item_label} requires integer quantity for tracked items",

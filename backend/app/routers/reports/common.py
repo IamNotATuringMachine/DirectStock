@@ -2,7 +2,7 @@ import csv
 import io
 import json
 from datetime import UTC, date, datetime, time, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -55,6 +55,7 @@ from app.schemas.reports import (
 )
 from app.schemas.user import MessageResponse
 from app.services.forecast import recompute_demand_forecast
+from app.services.reports.aggregation_service import quantize
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -63,7 +64,7 @@ ExportFormat = Literal["json", "csv", "xlsx", "pdf"]
 
 
 def _quantize(value: Decimal, digits: str = "0.01") -> Decimal:
-    return value.quantize(Decimal(digits), rounding=ROUND_HALF_UP)
+    return quantize(value, digits)
 
 
 def _date_bounds(date_from: date | None, date_to: date | None) -> tuple[date, date, datetime, datetime]:
