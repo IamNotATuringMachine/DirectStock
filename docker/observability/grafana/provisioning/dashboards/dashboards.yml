@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: directstock
+    orgId: 1
+    folder: DirectStock
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

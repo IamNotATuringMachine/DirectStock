@@ -13,15 +13,19 @@ class Settings(BaseSettings):
     cors_allow_credentials: bool = False
 
     database_url: str = "postgresql+psycopg://directstock:directstock@postgres:5432/directstock"
-    async_database_url: str = (
-        "postgresql+asyncpg://directstock:directstock@postgres:5432/directstock"
-    )
+    async_database_url: str = "postgresql+asyncpg://directstock:directstock@postgres:5432/directstock"
 
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     integration_access_token_expire_minutes: int = 30
+    observability_enabled: bool = True
+    metrics_enabled: bool = True
+    otel_service_name: str = "directstock-backend"
+    otel_exporter_otlp_endpoint: str = ""
+    otel_exporter_otlp_insecure: bool = True
+    slow_query_threshold_ms: int = 200
 
     dhl_webhook_secret: str = "dhl-webhook-secret"
     dhl_express_webhook_secret: str = "dhl-express-webhook-secret"
@@ -47,12 +51,8 @@ class Settings(BaseSettings):
     dhl_express_shipper_country_code: str = "DE"
     dhl_express_shipper_state_code: str = ""
 
-    default_admin_username: str = Field(
-        default="admin", validation_alias="DIRECTSTOCK_ADMIN_USERNAME"
-    )
-    default_admin_email: str = Field(
-        default="admin@directstock.local", validation_alias="DIRECTSTOCK_ADMIN_EMAIL"
-    )
+    default_admin_username: str = Field(default="admin", validation_alias="DIRECTSTOCK_ADMIN_USERNAME")
+    default_admin_email: str = Field(default="admin@directstock.local", validation_alias="DIRECTSTOCK_ADMIN_EMAIL")
     default_admin_password: str = Field(
         default="change-me-admin-password", validation_alias="DIRECTSTOCK_ADMIN_PASSWORD"
     )

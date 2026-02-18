@@ -20,6 +20,7 @@ _OFFLINE_ENDPOINT_PREFIXES = (
     "/api/pick-waves",
     "/api/pick-tasks",
     "/api/return-orders",
+    "/api/purchase-orders",
     "/api/external/v1/commands",
     "/api/inter-warehouse-transfers",
     "/api/shipments",
@@ -86,9 +87,7 @@ async def _reserve_operation(request: Request, operation_id: str) -> Response | 
             await session.rollback()
 
             existing = (
-                await session.execute(
-                    select(ClientOperationLog).where(ClientOperationLog.operation_id == operation_id)
-                )
+                await session.execute(select(ClientOperationLog).where(ClientOperationLog.operation_id == operation_id))
             ).scalar_one_or_none()
             if existing is None:
                 return _api_error(
@@ -129,9 +128,7 @@ async def _reserve_operation(request: Request, operation_id: str) -> Response | 
 async def _delete_operation(operation_id: str) -> None:
     async with AsyncSessionLocal() as session:
         row = (
-            await session.execute(
-                select(ClientOperationLog).where(ClientOperationLog.operation_id == operation_id)
-            )
+            await session.execute(select(ClientOperationLog).where(ClientOperationLog.operation_id == operation_id))
         ).scalar_one_or_none()
         if row is None:
             return
@@ -142,9 +139,7 @@ async def _delete_operation(operation_id: str) -> None:
 async def _finalize_operation(operation_id: str, *, status_code: int, response_body: str | None) -> None:
     async with AsyncSessionLocal() as session:
         row = (
-            await session.execute(
-                select(ClientOperationLog).where(ClientOperationLog.operation_id == operation_id)
-            )
+            await session.execute(select(ClientOperationLog).where(ClientOperationLog.operation_id == operation_id))
         ).scalar_one_or_none()
         if row is None:
             return

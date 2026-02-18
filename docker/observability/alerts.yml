@@ -1,0 +1,24 @@
+groups:
+  - name: directstock-backend-alerts
+    rules:
+      - alert: DirectStockHighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 0.001)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate"
+          description: "Backend 5xx ratio has been above 5% for 10 minutes."
+
+      - alert: DirectStockSlowQueryBurst
+        expr: increase(directstock_db_slow_query_total[10m]) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow query burst"
+          description: "More than 20 slow queries were recorded in 10 minutes."

@@ -31,6 +31,12 @@ Schnelle, sichere Iterationen mit kleinen, validierten Schritten und reproduzier
 4. PR-Scope gegen `docs/guides/refactor-scope-allowlist.md` prüfen.
 5. Vor Merge: lint, tests, build, smoke.
 
+## Proof-First Regeln
+1. Small-diff first: pro Änderung nur ein klarer Zweck (Refactor, Guard, Test oder Doku).
+2. Proof before polish: erst grüne Gates, dann sekundäre Struktur-/Style-Anpassungen.
+3. Contracts first: API-/RBAC-/Idempotency-Verhalten muss vor und nach dem Refactor gleich bleiben.
+4. Deterministic evidence: immer reproduzierbare Commands und Exit-Status mitliefern.
+
 ## Command Matrix
 ```bash
 # Frontend
@@ -41,11 +47,20 @@ cd frontend && npm run test
 cd frontend && npm run build
 
 # Backend
-cd backend && ruff check --config ruff.toml app/routers/operations app/routers/reports app/services/operations app/services/reports app/bootstrap.py tests/test_seed.py
-cd backend && ruff format --config ruff.toml --check app/routers/operations app/routers/reports app/services/operations app/services/reports app/bootstrap.py tests/test_seed.py
+cd backend && ruff check --config ruff.toml app tests
+cd backend && ruff format --config ruff.toml --check app tests
 cd backend && python -m pytest -q
+./scripts/check_api_contract_drift.sh
 
 # Repo
 pre-commit run --all-files
 ./scripts/autonomous_task_harness.sh
+./scripts/collect_complexity_metrics.sh
+RUNS=20 TEST_FLAKE_CMD="cd frontend && npm run test:e2e:smoke" ./scripts/collect_test_flakiness.sh
+CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh
+./scripts/perf/run_perf_smoke.sh
+./scripts/perf/assert_budgets.sh
+./scripts/install_gitleaks.sh
+./scripts/check_security_gates.sh
+./scripts/observability/smoke.sh
 ```

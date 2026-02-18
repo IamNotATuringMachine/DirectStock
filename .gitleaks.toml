@@ -1,0 +1,11 @@
+title = "DirectStock gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore local dependency artifacts"
+paths = [
+  '''backend/\.venv/''',
+  '''frontend/node_modules/''',
+]
