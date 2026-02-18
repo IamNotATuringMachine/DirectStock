@@ -8,12 +8,16 @@ class GoodsReceiptCreate(BaseModel):
     receipt_number: str | None = Field(default=None, max_length=64)
     supplier_id: int | None = None
     purchase_order_id: int | None = None
+    mode: str | None = Field(default=None, pattern="^(po|free)$")
+    source_type: str | None = Field(default=None, pattern="^(supplier|technician|other)$")
     notes: str | None = None
 
 
 class GoodsReceiptUpdate(BaseModel):
     supplier_id: int | None = None
     purchase_order_id: int | None = None
+    mode: str | None = Field(default=None, pattern="^(po|free)$")
+    source_type: str | None = Field(default=None, pattern="^(supplier|technician|other)$")
     notes: str | None = None
 
 
@@ -22,6 +26,8 @@ class GoodsReceiptResponse(BaseModel):
     receipt_number: str
     supplier_id: int | None
     purchase_order_id: int | None
+    mode: str
+    source_type: str
     status: str
     received_at: datetime | None
     completed_at: datetime | None
@@ -42,7 +48,8 @@ class GoodsReceiptItemCreate(BaseModel):
     manufactured_at: date | None = None
     serial_numbers: list[str] | None = None
     purchase_order_item_id: int | None = None
-    condition: str = Field(default="new", pattern="^(new|defective|needs_repair)$")
+    input_method: str | None = Field(default=None, pattern="^(scan|manual)$")
+    condition: str | None = Field(default=None, pattern="^(new|defective|needs_repair)$")
 
 
 class GoodsReceiptItemUpdate(BaseModel):
@@ -55,6 +62,7 @@ class GoodsReceiptItemUpdate(BaseModel):
     manufactured_at: date | None = None
     serial_numbers: list[str] | None = None
     purchase_order_item_id: int | None = None
+    input_method: str | None = Field(default=None, pattern="^(scan|manual)$")
     condition: str | None = Field(default=None, pattern="^(new|defective|needs_repair)$")
 
 
@@ -71,7 +79,13 @@ class GoodsReceiptItemResponse(BaseModel):
     manufactured_at: date | None
     serial_numbers: list[str] | None
     purchase_order_item_id: int | None
+    input_method: str
     condition: str
+    product_number: str | None = None
+    product_name: str | None = None
+    target_bin_code: str | None = None
+    expected_open_quantity: Decimal | None = None
+    variance_quantity: Decimal | None = None
     created_at: datetime
     updated_at: datetime
 

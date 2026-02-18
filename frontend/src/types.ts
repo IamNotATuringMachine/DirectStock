@@ -114,6 +114,7 @@ export type ProductCreatePayload = {
   unit: string;
   status: ProductStatus;
   requires_item_tracking?: boolean;
+  default_bin_id?: number | null;
 };
 
 export type ProductUpdatePayload = Partial<Omit<ProductCreatePayload, "product_number">>;
@@ -388,6 +389,8 @@ export type GoodsReceipt = {
   receipt_number: string;
   supplier_id: number | null;
   purchase_order_id: number | null;
+  mode: "po" | "free";
+  source_type: "supplier" | "technician" | "other";
   status: string;
   received_at: string | null;
   completed_at: string | null;
@@ -410,7 +413,13 @@ export type GoodsReceiptItem = {
   manufactured_at: string | null;
   serial_numbers: string[] | null;
   purchase_order_item_id: number | null;
+  input_method: "scan" | "manual";
   condition: string;
+  product_number: string | null;
+  product_name: string | null;
+  target_bin_code: string | null;
+  expected_open_quantity: string | null;
+  variance_quantity: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -614,6 +623,22 @@ export type PurchaseOrderItem = {
   expected_delivery_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type PurchaseOrderResolveItem = {
+  id: number;
+  product_id: number;
+  product_number: string | null;
+  product_name: string | null;
+  ordered_quantity: string;
+  received_quantity: string;
+  open_quantity: string;
+  unit: string;
+};
+
+export type PurchaseOrderResolveResponse = {
+  order: PurchaseOrder;
+  items: PurchaseOrderResolveItem[];
 };
 
 export type AbcClassificationRun = {

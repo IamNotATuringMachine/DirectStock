@@ -77,6 +77,8 @@ async def _create_product_and_bins(
     return {
         "group_id": group.json()["id"],
         "product_id": product.json()["id"],
+        "warehouse_id": warehouse.json()["id"],
+        "zone_id": zone.json()["id"],
         "bin_a_id": bin_a.json()["id"],
         "bin_b_id": bin_b.json()["id"],
     }
@@ -176,6 +178,144 @@ async def test_tracked_goods_receipt_with_serials_creates_labels_and_serial_rows
     label_pdf = await client.get(
         f"/api/goods-receipts/{receipt_id}/items/{item_id}/serial-labels/pdf",
         headers=_auth_headers(admin_token),
+    )
+    assert label_pdf.status_code == 200
+    assert label_pdf.headers["content-type"].startswith("application/pdf")
+    assert len(label_pdf.content) > 100
+
+
+@pytest.mark.asyncio
+async def test_free_technician_receipt_requires_condition_and_routes_to_repair_center(
+    client: AsyncClient,
+    admin_token: str,
+):
+    prefix = f"RCT-{_suffix()}"
+    data = await _create_product_and_bins(client, admin_token, prefix=prefix)
+
+    receipt = await client.post(
+        "/api/goods-receipts",
+        headers=_auth_headers(admin_token),
+        json={"mode": "free", "source_type": "technician"},
+    )
+    assert receipt.status_code == 201
+    receipt_id = receipt.json()["id"]
+
+    missing_condition = await client.post(
+        f"/api/goods-receipts/{receipt_id}/items",
+        headers=_auth_headers(admin_token),
+        json={
+            "product_id": data["product_id"],
+            "received_quantity": "1",
+            "unit": "piece",
+            "target_bin_id": data["bin_a_id"],
+        },
+    )
+    assert missing_condition.status_code == 422
+
+    valid_item = await client.post(
+        f"/api/goods-receipts/{receipt_id}/items",
+        headers=_auth_headers(admin_token),
+        json={
+            "product_id": data["product_id"],
+            "received_quantity": "1",
+            "unit": "piece",
+            "target_bin_id": data["bin_a_id"],
+            "condition": "defective",
+        },
+    )
+    assert valid_item.status_code == 201
+
+    complete_without_returns_bin = await client.post(
+        f"/api/goods-receipts/{receipt_id}/complete",
+        headers=_auth_headers(admin_token),
+    )
+    assert complete_without_returns_bin.status_code == 422
+    assert "repaircenter" in complete_without_returns_bin.json()["message"].lower()
+
+    returns_zone = await client.post(
+        f"/api/warehouses/{data['warehouse_id']}/zones",
+        headers=_auth_headers(admin_token),
+        json={"code": f"{prefix}-RET", "name": "Repair Center", "zone_type": "returns", "is_active": True},
+    )
+    assert returns_zone.status_code == 201
+    returns_zone_id = returns_zone.json()["id"]
+
+    returns_bin = await client.post(
+        f"/api/zones/{returns_zone_id}/bins",
+        headers=_auth_headers(admin_token),
+        json={"code": f"{prefix}-RC-BIN", "bin_type": "returns", "is_active": True},
+    )
+    assert returns_bin.status_code == 201
+    returns_bin_id = returns_bin.json()["id"]
+
+    complete = await client.post(
+        f"/api/goods-receipts/{receipt_id}/complete",
+        headers=_auth_headers(admin_token),
+    )
+    assert complete.status_code == 200
+
+    storage_bin_stock = await client.get(
+        f"/api/inventory/by-bin/{data['bin_a_id']}",
+        headers=_auth_headers(admin_token),
+    )
+    assert storage_bin_stock.status_code == 200
+    assert all(
+        row["product_id"] != data["product_id"] or row["quantity"] == "0.000"
+        for row in storage_bin_stock.json()
+    )
+
+    repair_bin_stock = await client.get(
+        f"/api/inventory/by-bin/{returns_bin_id}",
+        headers=_auth_headers(admin_token),
+    )
+    assert repair_bin_stock.status_code == 200
+    assert any(
+        row["product_id"] == data["product_id"] and row["quantity"] == "1.000"
+        for row in repair_bin_stock.json()
+    )
+
+    movements = await client.get(
+        "/api/inventory/movements",
+        headers=_auth_headers(admin_token),
+    )
+    assert movements.status_code == 200
+    assert any(
+        row["reference_number"] == receipt.json()["receipt_number"]
+        and row["to_bin_code"] == f"{prefix}-RC-BIN"
+        for row in movements.json()
+    )
+
+
+@pytest.mark.asyncio
+async def test_goods_receipt_item_labels_pdf_for_non_serial_item(client: AsyncClient, admin_token: str):
+    prefix = f"LBL-{_suffix()}"
+    data = await _create_product_and_bins(client, admin_token, prefix=prefix)
+
+    receipt = await client.post(
+        "/api/goods-receipts",
+        headers=_auth_headers(admin_token),
+        json={},
+    )
+    assert receipt.status_code == 201
+    receipt_id = receipt.json()["id"]
+
+    item = await client.post(
+        f"/api/goods-receipts/{receipt_id}/items",
+        headers=_auth_headers(admin_token),
+        json={
+            "product_id": data["product_id"],
+            "received_quantity": "4",
+            "unit": "piece",
+            "target_bin_id": data["bin_a_id"],
+        },
+    )
+    assert item.status_code == 201
+    item_id = item.json()["id"]
+
+    label_pdf = await client.get(
+        f"/api/goods-receipts/{receipt_id}/items/{item_id}/item-labels/pdf",
+        headers=_auth_headers(admin_token),
+        params={"copies": 3},
     )
     assert label_pdf.status_code == 200
     assert label_pdf.headers["content-type"].startswith("application/pdf")

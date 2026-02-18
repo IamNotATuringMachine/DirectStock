@@ -70,8 +70,8 @@ async function loginAndOpenProductCreatePage(page: Page, username: string, passw
   await expect(page.getByTestId("product-form-page")).toBeVisible();
 }
 
-test.describe("product form pricing flow", () => {
-  test("creates product, redirects to pricing tab, and saves base price", async ({ page, request }) => {
+test.describe("product form create wizard flow", () => {
+  test("creates product, continues through wizard steps and finishes", async ({ page, request }) => {
     const errors = collectClientErrors(page);
     const user = await createE2EUserWithRoles(request, ["admin"]);
     const token = await loginApi(request, user.username, user.password);
@@ -82,6 +82,8 @@ test.describe("product form pricing flow", () => {
 
     await ensureProductGroup(request, token, groupName);
     await loginAndOpenProductCreatePage(page, user.username, user.password);
+    await expect(page.getByTestId("product-create-stepper")).toBeVisible();
+    await expect(page.getByTestId("product-create-step-master")).toBeVisible();
 
     await page.getByTestId("product-form-number").fill(`E2E-PF-${marker}`);
     await page.getByTestId("product-form-name").fill(`E2E Product Form ${marker}`);
@@ -93,8 +95,8 @@ test.describe("product form pricing flow", () => {
 
     await page.getByTestId("product-form-submit").click();
 
-    await expect(page).toHaveURL(/\/products\/\d+\/edit\?tab=pricing$/);
-    await expect(page.getByTestId("product-form-pricing-tab")).toBeVisible();
+    await expect(page).toHaveURL(/\/products\/\d+\/edit\?flow=create&step=pricing$/);
+    await expect(page.getByTestId("product-create-stepper")).toBeVisible();
     await expect(page.getByTestId("product-form-pricing-panel")).toBeVisible();
 
     await expect(page.getByTestId("product-pricing-net-input")).toBeVisible();
@@ -111,6 +113,22 @@ test.describe("product form pricing flow", () => {
     await expect(page.getByTestId("product-pricing-history")).toContainText("10.00 EUR");
     await expect(page.getByTestId("product-pricing-history")).toContainText("19.00%");
     await expect(page.getByTestId("product-pricing-history")).toContainText("11.90 EUR");
+
+    await page.getByTestId("product-create-next").click();
+    await expect(page).toHaveURL(/\/products\/\d+\/edit\?flow=create&step=warehouse$/);
+    await expect(page.getByTestId("product-form-warehouse-tab")).toBeVisible();
+
+    await page.reload();
+    await expect(page).toHaveURL(/\/products\/\d+\/edit\?flow=create&step=warehouse$/);
+    await expect(page.getByTestId("product-form-warehouse-tab")).toBeVisible();
+
+    await page.getByTestId("product-create-skip").click();
+    await expect(page).toHaveURL(/\/products\/\d+\/edit\?flow=create&step=suppliers$/);
+    await expect(page.getByTestId("product-form-suppliers-tab")).toBeVisible();
+    await expect(page.getByTestId("product-create-finish")).toBeVisible();
+
+    await page.getByTestId("product-create-finish").click();
+    await expect(page).toHaveURL(/\/products\/\d+$/);
 
     await assertNoClientErrors(errors);
   });

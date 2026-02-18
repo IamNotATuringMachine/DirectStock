@@ -1,159 +1,117 @@
 # AGENTS.md
 
-Version: 2026-02-14 (Phase 5 baseline complete)
-Gilt fuer: gesamtes Repository `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock`
+> Version: 2026-02-18 | Scope: repository root (`DirectStock/`)
 
-## 1. Mission
-Dieses Repo wird von menschlichen Entwicklern und Coding-Agents gemeinsam gepflegt.
-Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aenderungen** mit minimalem Risiko fuer Regressionen.
+## Mission
+Deliver correct, secure, testable, and reproducible changes with minimal regression risk.
 
-## 2. Non-Negotiables (immer)
-1. Keine destruktiven Aktionen ohne explizite Freigabe: kein `git reset --hard`, kein `git checkout --`, kein Loeschen produktiver Daten.
-2. Bestehende APIs nur **additiv** erweitern, ausser eine Breaking-Change-Freigabe liegt explizit vor.
-3. DB-Schema-Aenderungen nur ueber Alembic-Migrationen.
-4. Security-Basics duerfen nicht abgeschwaecht werden (Auth, RBAC, Audit, Request-ID, Error-Format).
-5. Offline-relevante Mutationen muessen Idempotency unterstuetzen (`X-Client-Operation-Id`) oder kompatibel bleiben.
-6. Vor Abschluss immer relevante Tests/Builds ausfuehren und Ergebnisse dokumentieren.
-7. Keine Secrets in Code, Commits oder Logs. `.env` bleibt lokal.
+## Canonical Instruction Policy
+- This file is the canonical instruction source for all agents in this repository.
+- Adapter files (`CLAUDE.md`, `GEMINI.md`, `CODEX.md`) must stay thin and must not redefine project policy.
+- Nested `AGENTS.md` files in subdirectories may add stricter local rules for their scope.
 
-## 3. Arbeitsmodus fuer Agents (aktueller Standard)
-1. Kontext laden: betroffene Dateien, bestehende Kontrakte, Testlage, Phase-Dokumente.
-2. Plan in kleinen, verifizierbaren Schritten erstellen.
-3. Implementieren mit kleinen Diffs und klaren Commit-faehigen Einheiten.
-4. Lokal verifizieren (mindestens betroffene Test-Suites).
-5. Doku/Status aktualisieren, wenn Verhalten, API oder Betriebsablauf geaendert wurde.
-6. Ergebnis mit Risiken, offenen Punkten und naechsten sinnvollen Schritten berichten.
+## Quick Execution Contract
+1. Plan: load relevant code, schemas, tests, and phase docs before changing files.
+2. Implement: ship small, reviewable diffs with clear intent.
+3. Verify: run relevant tests/checks locally and capture outcomes.
+4. Report: list files changed, behavior changes, verification, and residual risk.
 
-## 4. Repo-Topologie
-- `backend/`: FastAPI, SQLAlchemy 2.x, Alembic, Auth/RBAC, Audit, Idempotency-Middleware
-- `frontend/`: React 19 + Vite 6 + TypeScript + TanStack Query + Zustand + PWA + Offline-Queue
-- `nginx/`: Entry-Routing fuer `/` und `/api/*`
-- `scripts/`: Seed, Legacy-Import (`migrate_legacy_full.py`), Forecast-Batch (`run_demand_forecast.py`), Lighthouse/PWA-Checks, Alert-Evaluierung (`run_alert_checks.py`)
-- `docs/validation/`: Betriebs- und Verifikationsnachweise inkl. Phase-2 bis Phase-5-Abnahmen
-- `directstock.md`: Masterplan
-- `directstock_phase1.md`: Phase-1-Status
-- `directstock_phase2.md`: Phase-2-Statusmatrix und Verifikationsstand
-- `directstock_phase3.md`: Phase-3-Statusmatrix und Verifikationsstand
-- `directstock_phase4.md`: Phase-4-Statusmatrix und Abnahme
-- `directstock_phase5.md`: Phase-5-Statusmatrix und Abnahme
+## Priority And Conflict Handling
+1. Direct user/developer/system instructions.
+2. Closest nested `AGENTS.md` that covers the edited file.
+3. This root `AGENTS.md`.
+4. Adapter files (`CLAUDE.md`, `GEMINI.md`, `CODEX.md`) as tool-specific hints only.
 
-## 5. Source-of-Truth fuer Kontrakte
-1. Backend-Schemas (`backend/app/schemas/*`) definieren API-Response/Request-Vertraege.
-2. Frontend-Typen (`frontend/src/types.ts`) muessen dazu konsistent sein.
-3. Phase-Kontrakte/Status stehen in `directstock_phase5.md` (historische Details in `directstock_phase1.md` bis `directstock_phase4.md`).
-4. Tests sind verbindlicher Teil der Spezifikation, besonders fuer Auth, RBAC, Inventory, Operations, Alerts, Reports, External API, Shipping, Inter-Warehouse und Offline-Idempotency.
+If instructions conflict, apply the highest-priority rule and document assumptions explicitly.
 
-## 6. Build-, Test- und Runtime-Kommandos
+## Non-Negotiables
+1. No destructive Git operations without explicit approval (`reset --hard`, `checkout --`, `push --force`).
+2. API changes must be additive unless breaking change approval is explicit.
+3. Database schema changes only through Alembic migrations.
+4. Preserve security baseline: auth, RBAC, audit logging, idempotency, standardized `ApiError` format.
+5. Never commit or print secrets; keep `.env` local.
+6. Run and report relevant tests before closing work.
+7. Do not weaken offline idempotency (`X-Client-Operation-Id`).
 
-### Dev Runtime
-- `docker compose up --build`
-- Optional Hot Reload: `docker compose -f docker-compose.dev.yml up --build`
+## Monorepo Navigation
+- `backend/`: FastAPI, SQLAlchemy 2.x, Alembic, auth/RBAC/audit/idempotency.
+- `frontend/`: React 19, Vite 6, TypeScript, TanStack Query, Zustand, PWA.
+- `nginx/`: reverse proxy (`/` frontend, `/api/*` backend).
+- `scripts/`: seed/import/batch/check automation.
+- `docs/`: implementation guides and validation artifacts.
+- `directstock_phase*.md`: project status and phase history.
 
-### Backend lokal
-- `cd backend`
-- `python3 -m venv .venv && source .venv/bin/activate`
-- `pip install -e .[dev]`
-- `python -m pytest -q`
+## Source Of Truth
+1. API contract: `backend/app/schemas/*` and `frontend/src/types.ts` must stay consistent.
+2. Project status: `directstock_phase5.md` is current baseline.
+3. Tests are part of the specification (especially auth, RBAC, inventory, operations, shipping, offline idempotency).
 
-### Frontend lokal
-- `cd frontend`
-- `npm install`
-- `npm run test`
-- `npm run build`
-- `npm run test:e2e` (isolierter Lauf mit eigenem Compose-Project und automatischem Cleanup)
-- `npm run test:e2e:raw` (gegen bereits laufenden Stack, z. B. `http://localhost:8080`)
-
-### Testdaten-Cleanup (one-time)
-- `python3 scripts/cleanup_test_data.py --mode dry-run`
-- `python3 scripts/cleanup_test_data.py --mode apply`
-
-### Production-Verifikation
-- `docker compose -f docker-compose.prod.yml up -d --build`
-- Smoke: `/health`, `/api/health`, `/api/docs`, Login
-- `./scripts/lighthouse_pwa.sh` (PWA Score >= 0.90)
-
-### Phase-5 Acceptance Referenz (letzter Stand)
-- Backend: `99 passed`
-- Frontend Unit: `9 files passed`, `30 tests passed`
-- Frontend E2E: `74 passed`, `4 skipped`
-- Lighthouse/PWA: `1.00`
-- Nachweise: `docs/validation/phase2-acceptance.md`, `docs/validation/phase3-acceptance.md`, `docs/validation/phase4-acceptance.md`, `docs/validation/phase5-acceptance.md`
-
-## 7. Architektur-Guardrails
-
+## Architecture Guardrails
 ### Backend
-1. Endpunkte unter `/api/*`, Health unter `/health` und `/api/health`.
-2. Fehlerformat einheitlich halten (`ApiError`: `code`, `message`, `request_id`, `details`).
-3. Mutierende Endpunkte (`POST/PUT/PATCH/DELETE`) muessen Audit-Eintraege erzeugen.
-4. RBAC serverseitig pruefen, nie nur im Frontend.
-5. Zeitbezug in UTC.
-6. Phase-2 bis Phase-5 Module bleiben stabil und additiv: `customers`, `suppliers`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `idempotency`, `abc`, `purchase_recommendations`, `picking`, `returns`, `workflows`, `documents`, `audit_log`, `external_api`, `integration_clients`, `shipping`, `inter_warehouse_transfers`, `forecast`, `permissions`, `pages`, `roles`, `ui_preferences`, `dashboard_config`, `pricing`, `services_catalog`, `sales_orders`, `invoices`.
-7. Offline-relevante Mutationen duerfen ohne gueltige Konfliktbehandlung keine Doppelbuchungen erzeugen.
-
-### Datenbank
-1. Fachliche Unique-Constraints aus den Migrationen `0001` bis `0006` beibehalten.
-2. Indexe fuer Bewegungs-/Bestandsabfragen erhalten (`product_id`, `bin_location_id`, `performed_at`, `status`, `expiry_date`).
-3. Migrationen vorwaerts-sicher, idempotent und reviewbar halten.
+- Endpoints under `/api/*`; health at `/health` and `/api/health`.
+- Mutating endpoints (`POST/PUT/PATCH/DELETE`) produce audit entries.
+- Enforce RBAC on the server, never in frontend only.
+- Use UTC for timestamps.
+- Keep unique constraints and critical indexes intact.
 
 ### Frontend
-1. App-Shell responsiv halten, Sidebar-Collapse darf Mobile nicht brechen.
-2. Kritische Flows mit stabilen `data-testid`-Attributen absichern.
-3. API-Zugriff nur ueber Service-Layer (`frontend/src/services/*`).
-4. PWA-UX erhalten: Install-Hinweis, Offline-Indikator, Update-Banner.
-5. Offline-Queue zentral in `frontend/src/services/offlineQueue.ts` halten, keine parallelen Queue-Implementierungen einfuehren.
-6. Rollenbasierte Navigation/Routeguards konsistent zu Backend-RBAC pflegen.
+- Access backend through `frontend/src/services/*` only.
+- Keep critical user flows covered by `data-testid`.
+- Keep a single offline queue implementation (`offlineQueue.ts`).
+- Preserve PWA UX elements (install prompt, offline indicator, update banner).
+- Keep role-based navigation aligned with backend RBAC.
 
-## 8. Seed/Import/Jobs
-1. Seed muss idempotent und deterministisch sein.
-2. Legacy-Import (`scripts/migrate_legacy_full.py`) bleibt **fail-fast** fuer Vertragsdateien, wenn Pflichtspalten fehlen (Exit-Code `2`), und staged nicht-gemappte Legacy-CSV-Tabellen in `legacy_raw_records`.
-3. Positiver Referenzpfad fuer valides Fixture muss idempotenten Apply/Upsert nachweisen (`dry-run|apply|delta`).
-4. Alert-Batchlauf (`scripts/run_alert_checks.py`) muss ohne Seiteneffekte ausserhalb der Alert-Domaene bleiben.
+### Security And Data Integrity
+- Keep password hashing/JWT handling unchanged unless explicitly requested.
+- Validate input and keep error contracts stable (`ApiError`, conflict details on `409`).
+- Keep dependency changes minimal and justified.
 
-## 9. Definition of Done (DoD)
-Eine Aufgabe gilt nur als fertig, wenn:
-1. Implementierung abgeschlossen und lauffaehig ist.
-2. Relevante Tests gruen sind.
-3. Keine offensichtlichen Contract-Breaks bestehen.
-4. Doku aktualisiert ist (`README.md`, `directstock_phase5.md`, `docs/validation/*` sofern betroffen).
-5. Betriebsrelevante Schritte reproduzierbar beschrieben sind.
+## Production-Mode Completion Gates
+Work is complete only when all are true:
+- Implementation builds/runs for the touched scope.
+- Relevant automated tests were executed locally and reported.
+- No known contract breaks were introduced.
+- Docs were updated if behavior/API changed.
+- Reproduction steps are clear.
 
-## 10. Minimaler Abschlussbericht je Agent-Task
-Jeder Agent liefert am Ende:
-1. Geaenderte Dateien.
-2. Was funktional geaendert wurde.
-3. Ausgefuehrte Verifikation inkl. Resultaten.
-4. Bekannte Rest-Risiken/offene Punkte.
-5. Optional: naechste 1-3 sinnvolle Schritte.
+## Standard Commands
+```bash
+# Dev
 
-## 11. Git- und Review-Disziplin
-1. Kleine, thematisch klare Diffs bevorzugen.
-2. Keine "drive-by" Refactors ausser direkt erforderlich.
-3. Keine toten TODOs ohne Ticket/Context.
-4. Bei Unsicherheit ueber fachliche Regeln: Annahmen explizit machen statt stillschweigend raten.
+docker compose up --build
+docker compose -f docker-compose.dev.yml up --build
 
-## 12. Performance- und Zuverlaessigkeits-Baseline
-1. N+1 Queries vermeiden (gezielte Joins/Prefetching).
-2. Teure Listen-Endpunkte paginierbar halten.
-3. Frontend-Ladezustaende und Fehlerpfade sichtbar machen.
-4. Build-Warnungen nicht ignorieren, wenn sie Laufzeit- oder Bundle-Risiken anzeigen.
-5. Query-/Report-Endpunkte mit Filter- und Exportpfaden performant halten.
+# Backend tests
+cd backend && python -m pytest -q
 
-## 13. Security- und Compliance-Baseline
-1. Passwort-Hashing via bcrypt/passlib unveraendert sicher halten.
-2. JWT Claims/TTL nicht aufweichen ohne explizite Freigabe.
-3. Input validieren (Pydantic/TypeScript), Output escapen wo noetig.
-4. Abhaengigkeiten nur minimal und begruendet erweitern.
-5. Idempotency- und Conflict-Responses (`409` + `details`) nicht aufweichen.
+# Frontend tests
+cd frontend && npm run test
+cd frontend && npm run test:e2e
+cd frontend && npm run test:e2e:raw
 
-## 14. Phase-5 Moduluebersicht (aktiver Bestand)
-- Backend-Router: `auth`, `users`, `products`, `warehouses`, `inventory`, `operations`, `dashboard`, `customers`, `suppliers`, `product_settings`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `abc`, `purchase_recommendations`, `picking`, `returns`, `workflows`, `documents`, `audit_log`, `external_api`, `integration_clients`, `shipping`, `inter_warehouse_transfers`, `permissions`, `pages`, `roles`, `ui_preferences`, `dashboard_config`, `pricing`, `services_catalog`, `sales_orders`, `invoices`
-- Frontend-Seiten: `Products`, `ProductForm`, `GoodsReceipt`, `GoodsIssue`, `StockTransfer`, `Inventory`, `InventoryCount`, `Purchasing`, `Reports`, `Alerts`, `Dashboard`, `Scanner`, `Warehouse`, `Picking`, `Returns`, `Approvals`, `Documents`, `AuditTrail`, `Shipping`, `InterWarehouseTransfer`, `Users`, `Services`, `SalesOrders`, `Invoices`
-- Guides: `docs/guides/rbac-phase5.md`, `docs/guides/dashboard-konfiguration.md`, `docs/guides/pricing.md`, `docs/guides/services.md`, `docs/guides/sales-invoice.md`, `docs/guides/einvoice.md`
-- Validation-Dokumente: `docs/validation/scanner-verification.md`, `docs/validation/phase2-acceptance.md`, `docs/validation/phase3-acceptance.md`, `docs/validation/phase4-acceptance.md`, `docs/validation/phase4-migration-rehearsal.md`, `docs/validation/phase5-acceptance.md`
+# Production
+docker compose -f docker-compose.prod.yml up -d --build
+./scripts/lighthouse_pwa.sh
+```
 
----
-Bei Konflikten gilt: Sicherheit und Datenintegritaet vor Geschwindigkeit.
+## Agent Report Template
+1. Files changed
+2. Functional change (what and why)
+3. Verification and results
+4. Residual risks/open points
+5. Optional next 1-3 steps
 
-## 15. Projektzugang
-- **Benutzername**: admin
-- **Passwort**: DirectStock2026!
+## Git Discipline
+- Keep diffs small and focused.
+- Avoid drive-by refactors.
+- Avoid dead TODOs without context.
+- State assumptions explicitly when uncertain.
+
+## Active Modules (Phase 5)
+### Backend routers
+`auth`, `users`, `products`, `warehouses`, `inventory`, `operations`, `dashboard`, `customers`, `suppliers`, `product_settings`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `abc`, `purchase_recommendations`, `picking`, `returns`, `workflows`, `documents`, `audit_log`, `external_api`, `integration_clients`, `shipping`, `inter_warehouse_transfers`, `permissions`, `pages`, `roles`, `ui_preferences`, `dashboard_config`, `pricing`, `services_catalog`, `sales_orders`, `invoices`
+
+### Frontend pages
+`Products`, `ProductForm`, `GoodsReceipt`, `GoodsIssue`, `StockTransfer`, `Inventory`, `InventoryCount`, `Purchasing`, `Reports`, `Alerts`, `Dashboard`, `Scanner`, `Warehouse`, `Picking`, `Returns`, `Approvals`, `Documents`, `AuditTrail`, `Shipping`, `InterWarehouseTransfer`, `Users`, `Services`, `SalesOrders`, `Invoices`
+
+Principle: security and data integrity over speed.

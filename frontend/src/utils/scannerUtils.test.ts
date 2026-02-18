@@ -30,6 +30,24 @@ describe("scannerUtils", () => {
     });
   });
 
+  it("parses DS:PO format", () => {
+    expect(parseScanValue("DS:PO:PO-20260001")).toEqual({
+      raw: "DS:PO:PO-20260001",
+      normalized: "DS:PO:PO-20260001",
+      type: "po_qr",
+      value: "PO-20260001",
+    });
+  });
+
+  it("parses DS:SN format", () => {
+    expect(parseScanValue("DS:SN:SN-ABC-001")).toEqual({
+      raw: "DS:SN:SN-ABC-001",
+      normalized: "DS:SN:SN-ABC-001",
+      type: "serial_qr",
+      value: "SN-ABC-001",
+    });
+  });
+
   it("detects EAN13", () => {
     expect(isEan13("4006381333931")).toBe(true);
     expect(parseScanValue("4006381333931").type).toBe("ean");

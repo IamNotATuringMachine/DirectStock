@@ -61,6 +61,7 @@ type ProductFormState = {
 };
 
 type ProductTab = "master" | "warehouse" | "suppliers" | "pricing";
+type ProductCreateStep = "master" | "pricing" | "warehouse" | "suppliers";
 
 type WarehouseSettingFormState = {
   ean: string;
@@ -77,6 +78,25 @@ const productStatusOptions: Array<{ value: ProductStatus; label: string }> = [
   { value: "deprecated", label: "Veraltet" },
   { value: "archived", label: "Archiviert" },
 ];
+
+const tabConfig: Array<{
+  id: ProductTab;
+  label: string;
+  icon: typeof Package;
+  testId: string;
+}> = [
+  { id: "master", label: "Stammdaten", icon: Package, testId: "product-form-master-tab" },
+  { id: "warehouse", label: "Lagerdaten", icon: Warehouse, testId: "product-form-warehouse-tab-button" },
+  { id: "suppliers", label: "Lieferanten", icon: Truck, testId: "product-form-suppliers-tab-button" },
+  { id: "pricing", label: "Preise", icon: DollarSign, testId: "product-form-pricing-tab" },
+];
+
+const createStepMeta: Record<ProductCreateStep, { label: string; icon: typeof Package; optional: boolean }> = {
+  master: { label: "Stammdaten", icon: Package, optional: false },
+  pricing: { label: "Preise", icon: DollarSign, optional: true },
+  warehouse: { label: "Lagerdaten", icon: Warehouse, optional: true },
+  suppliers: { label: "Lieferanten", icon: Truck, optional: true },
+};
 
 function emptyProductForm(): ProductFormState {
   return {
@@ -349,7 +369,12 @@ export default function ProductFormPage() {
 
   const productId = id ? Number(id) : null;
   const isEditMode = productId !== null;
+  const isCreateMode = !isEditMode;
+  const requestedFlow = searchParams.get("flow");
+  const isCreateWizardFlow = requestedFlow === "create";
+  const isCreateWizardMode = isCreateMode || isCreateWizardFlow;
   const requestedTab = searchParams.get("tab");
+  const requestedStep = searchParams.get("step");
 
   const [activeTab, setActiveTab] = useState<ProductTab>("master");
   const [productForm, setProductForm] = useState<ProductFormState>(
@@ -371,6 +396,19 @@ export default function ProductFormPage() {
   const [defaultBinId, setDefaultBinId] = useState<number | null>(null);
   const [defaultBinWarehouseId, setDefaultBinWarehouseId] = useState<number | null>(null);
   const [defaultBinZoneId, setDefaultBinZoneId] = useState<number | null>(null);
+
+  const createWizardSteps = useMemo<ProductCreateStep[]>(() => {
+    const steps: ProductCreateStep[] = ["master"];
+    if (canReadPricing) {
+      steps.push("pricing");
+    }
+    steps.push("warehouse", "suppliers");
+    return steps;
+  }, [canReadPricing]);
+
+  const firstCreateOptionalStep = useMemo<ProductCreateStep>(() => {
+    return createWizardSteps.find((step) => step !== "master") ?? "master";
+  }, [createWizardSteps]);
 
   const productQuery = useQuery({
     queryKey: ["product", productId],
@@ -444,7 +482,21 @@ export default function ProductFormPage() {
   }, [productQuery.data]);
 
   useEffect(() => {
-    if (!isEditMode || !requestedTab) {
+    if (isCreateMode) {
+      setActiveTab("master");
+      return;
+    }
+
+    if (isCreateWizardFlow) {
+      if (requestedStep && createWizardSteps.includes(requestedStep as ProductCreateStep)) {
+        setActiveTab(requestedStep as ProductTab);
+        return;
+      }
+      setActiveTab(firstCreateOptionalStep);
+      return;
+    }
+
+    if (!requestedTab) {
       return;
     }
     if (requestedTab === "pricing") {
@@ -454,7 +506,15 @@ export default function ProductFormPage() {
     if (requestedTab === "warehouse" || requestedTab === "suppliers" || requestedTab === "master") {
       setActiveTab(requestedTab);
     }
-  }, [canReadPricing, isEditMode, requestedTab]);
+  }, [
+    canReadPricing,
+    createWizardSteps,
+    firstCreateOptionalStep,
+    isCreateMode,
+    isCreateWizardFlow,
+    requestedStep,
+    requestedTab,
+  ]);
 
   useEffect(() => {
     if (!warehousesQuery.data) {
@@ -490,7 +550,7 @@ export default function ProductFormPage() {
     mutationFn: createProduct,
     onSuccess: async (createdProduct) => {
       await queryClient.invalidateQueries({ queryKey: ["products"] });
-      navigate(`/products/${createdProduct.id}/edit?tab=pricing`);
+      navigate(`/products/${createdProduct.id}/edit?flow=create&step=${firstCreateOptionalStep}`);
     },
   });
 
@@ -615,8 +675,13 @@ export default function ProductFormPage() {
     createProductBasePriceMutation.isPending;
 
   const title = useMemo(
-    () => (isEditMode ? `Artikel bearbeiten` : "Neuer Artikel"),
-    [isEditMode]
+    () => {
+      if (isCreateWizardFlow) {
+        return "Neuer Artikel";
+      }
+      return isEditMode ? "Artikel bearbeiten" : "Neuer Artikel";
+    },
+    [isCreateWizardFlow, isEditMode]
   );
 
   const supplierNameById = useMemo(
@@ -643,6 +708,108 @@ export default function ProductFormPage() {
     () => deriveActiveBasePriceId(productBasePricesQuery.data, resolvedProductPriceQuery.data),
     [productBasePricesQuery.data, resolvedProductPriceQuery.data]
   );
+
+  const activeCreateStep = (activeTab as ProductCreateStep);
+  const activeCreateStepIndex = createWizardSteps.indexOf(activeCreateStep);
+  const createWizardStepCount = createWizardSteps.length;
+  const nextCreateStep =
+    activeCreateStepIndex >= 0 && activeCreateStepIndex < createWizardSteps.length - 1
+      ? createWizardSteps[activeCreateStepIndex + 1]
+      : null;
+
+  const navigateCreateWizardToStep = (step: ProductCreateStep) => {
+    if (!isEditMode || productId === null) {
+      return;
+    }
+    navigate(`/products/${productId}/edit?flow=create&step=${step}`);
+  };
+
+  const onCreateWizardSkip = () => {
+    if (!isCreateWizardFlow || !isEditMode) {
+      return;
+    }
+    if (nextCreateStep) {
+      navigateCreateWizardToStep(nextCreateStep);
+      return;
+    }
+    navigate(`/products/${productId}`);
+  };
+
+  const onCreateWizardFinish = () => {
+    if (!isCreateWizardFlow || !isEditMode) {
+      return;
+    }
+    navigate(`/products/${productId}`);
+  };
+
+  const onCreateWizardStartNextProduct = () => {
+    navigate("/products/new");
+  };
+
+  const renderCreateWizardFooter = (currentStep: ProductCreateStep) => {
+    if (!isCreateWizardFlow || !isEditMode || currentStep === "master") {
+      return null;
+    }
+
+    const currentStepIndex = createWizardSteps.indexOf(currentStep);
+    const currentNextStep =
+      currentStepIndex >= 0 && currentStepIndex < createWizardSteps.length - 1
+        ? createWizardSteps[currentStepIndex + 1]
+        : null;
+    const currentIsLastStep = currentStepIndex === createWizardSteps.length - 1;
+
+    return (
+      <div className="rounded-xl border border-[var(--line)] bg-[var(--panel-soft)] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <p className="text-sm text-[var(--muted)]">
+          {currentIsLastStep
+            ? "Letzter Schritt. Sie können jetzt abschließen oder direkt einen weiteren Artikel anlegen."
+            : "Optionaler Schritt. Speichern Sie bei Bedarf und gehen Sie dann weiter."}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onCreateWizardSkip}
+            data-testid="product-create-skip"
+          >
+            {currentIsLastStep ? "Überspringen & abschließen" : "Überspringen"}
+          </button>
+          {currentIsLastStep ? (
+            <>
+              <button
+                type="button"
+                className="btn"
+                onClick={onCreateWizardStartNextProduct}
+              >
+                Weiteren Artikel anlegen
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onCreateWizardFinish}
+                data-testid="product-create-finish"
+              >
+                Zur Detailseite
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                if (currentNextStep) {
+                  navigateCreateWizardToStep(currentNextStep);
+                }
+              }}
+              data-testid="product-create-next"
+            >
+              Weiter
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -769,9 +936,11 @@ export default function ProductFormPage() {
               )}
             </div>
             <p className="text-[var(--muted)] mt-1.5">
-              {isEditMode
-                ? "Verwalten Sie hier alle Stammdaten, Lagerbestände und Lieferantenbeziehungen."
-                : "Füllen Sie das Formular aus, um einen neuen Artikel im System zu registrieren."}
+              {isCreateWizardFlow
+                ? "Der Artikel wurde angelegt. Ergänzen Sie jetzt optional Preise, Lagerdaten und Lieferanten."
+                : isEditMode
+                  ? "Verwalten Sie hier alle Stammdaten, Lagerbestände und Lieferantenbeziehungen."
+                  : "Füllen Sie das Formular aus, um einen neuen Artikel im System zu registrieren."}
             </p>
           </div>
         </div>
@@ -802,40 +971,81 @@ export default function ProductFormPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="border-b border-[var(--line)]">
-        <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
-          {[
-            { id: "master", label: "Stammdaten", icon: Package, testId: "product-form-master-tab" },
-            { id: "warehouse", label: "Lagerdaten", icon: Warehouse, testId: "product-form-warehouse-tab-button" },
-            { id: "suppliers", label: "Lieferanten", icon: Truck, testId: "product-form-suppliers-tab-button" },
-            ...(canReadPricing ? [{ id: "pricing", label: "Preise", icon: DollarSign, testId: "product-form-pricing-tab" }] : []),
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as ProductTab)}
-              type="button"
-              data-testid={tab.testId}
-              className={`group pb-4 px-1 text-sm font-semibold flex items-center gap-2.5 transition-all relative whitespace-nowrap ${activeTab === tab.id
-                ? "text-[var(--accent)]"
-                : "text-[var(--muted)] hover:text-[var(--ink)]"
-                }`}
-            >
-              <tab.icon
-                size={18}
-                className={`transition-colors ${activeTab === tab.id
-                  ? "text-[var(--accent)]"
-                  : "text-[var(--muted)] group-hover:text-[var(--ink)]"
-                  }`}
-              />
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent)] rounded-t-full shadow-[0_-2px_6px_rgba(21,128,61,0.2)]" />
-              )}
-            </button>
-          ))}
+      {isCreateWizardMode ? (
+        <section
+          className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4 md:p-5 space-y-3"
+          data-testid="product-create-stepper"
+        >
+          <p className="text-sm font-semibold text-[var(--ink)]">
+            Schritt {Math.max(activeCreateStepIndex + 1, 1)} von {createWizardStepCount}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {createWizardSteps.map((step, index) => {
+              const stepMeta = createStepMeta[step];
+              const isActive = step === activeTab;
+              const isReachableInCreate = isEditMode || step === "master";
+              const isCompleted = activeCreateStepIndex > index;
+
+              return (
+                <button
+                  key={step}
+                  type="button"
+                  onClick={() => {
+                    if (isEditMode) {
+                      navigateCreateWizardToStep(step);
+                    } else {
+                      setActiveTab("master");
+                    }
+                  }}
+                  disabled={!isReachableInCreate}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${isActive
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
+                    : isCompleted
+                      ? "border-green-200 bg-green-50 text-green-700"
+                      : "border-[var(--line)] text-[var(--muted)]"
+                    } ${!isReachableInCreate ? "opacity-60 cursor-not-allowed" : "hover:border-[var(--line-strong)]"}`}
+                  data-testid={`product-create-step-${step}`}
+                >
+                  <stepMeta.icon size={14} />
+                  {stepMeta.label}
+                  {stepMeta.optional ? <span className="text-[10px] uppercase">Optional</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : (
+        <div className="border-b border-[var(--line)]">
+          <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
+            {tabConfig
+              .filter((tab) => tab.id !== "pricing" || canReadPricing)
+              .map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  type="button"
+                  data-testid={tab.testId}
+                  className={`group pb-4 px-1 text-sm font-semibold flex items-center gap-2.5 transition-all relative whitespace-nowrap ${activeTab === tab.id
+                    ? "text-[var(--accent)]"
+                    : "text-[var(--muted)] hover:text-[var(--ink)]"
+                    }`}
+                >
+                  <tab.icon
+                    size={18}
+                    className={`transition-colors ${activeTab === tab.id
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--muted)] group-hover:text-[var(--ink)]"
+                      }`}
+                  />
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent)] rounded-t-full shadow-[0_-2px_6px_rgba(21,128,61,0.2)]" />
+                  )}
+                </button>
+              ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Content */}
       <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -1106,7 +1316,7 @@ export default function ProductFormPage() {
                   data-testid="product-form-submit"
                 >
                   {pending ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  {isEditMode ? "Änderungen speichern" : "Artikel anlegen"}
+                  {isEditMode ? "Änderungen speichern" : "Artikel anlegen und weiter"}
                 </button>
               </div>
             </form>
@@ -1128,8 +1338,9 @@ export default function ProductFormPage() {
             )}
 
             {isEditMode && (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {(warehousesQuery.data ?? []).map((warehouse) => {
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  {(warehousesQuery.data ?? []).map((warehouse) => {
                   const form =
                     warehouseFormById[warehouse.id] ??
                     emptyWarehouseSettingForm();
@@ -1329,6 +1540,8 @@ export default function ProductFormPage() {
                     </div>
                   );
                 })}
+                </div>
+                {renderCreateWizardFooter("warehouse")}
               </div>
             )}
           </div>
@@ -1475,6 +1688,7 @@ export default function ProductFormPage() {
                     </div>
                   )}
                 </section>
+                {renderCreateWizardFooter("pricing")}
               </>
             )}
           </div>
@@ -1725,6 +1939,7 @@ export default function ProductFormPage() {
                       </div>
                     )}
                 </div>
+                {renderCreateWizardFooter("suppliers")}
               </>
             )}
           </div>

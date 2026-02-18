@@ -12,6 +12,15 @@ Dieses Repository enthält die Sprint-1-Implementierung für DirectStock inkl. P
 - Backend-Tests, Frontend-Unit-Tests und Playwright-E2E-Basissuite
 - Separate Production-Runtime-Artefakte
 
+## AI Agent Instructions
+
+- Canonical policy: `AGENTS.md`
+- Scoped deltas: `backend/AGENTS.md`, `frontend/AGENTS.md`
+- Tool adapters: `CLAUDE.md`, `GEMINI.md`, `CODEX.md`
+- Setup guide: `docs/guides/ai-agent-setup.md`
+
+Arbeitsmodus: production-only. Relevante Tests muessen vor Abschluss ausgefuehrt und berichtet werden.
+
 ## Phase-2 Snapshot (aktueller Umsetzungsstand)
 
 Bereits umgesetzt im Backend:
@@ -27,7 +36,7 @@ Bereits umgesetzt im Backend:
 
 Bereits umgesetzt im Frontend:
 
-- Produktformular-Tabs für Lagerdaten und Lieferanten mit API-Anbindung
+- Produktformular als Wizard für Neuanlage plus Tabs im Bearbeiten (Lagerdaten/Lieferanten/Preise) mit API-Anbindung
 - Einkaufsseite (`/purchasing`) mit Bestellanlage, Positionspflege und Statusübergängen
 - Alerts-Seite (`/alerts`) mit Filter- und Ack-Workflow sowie Dashboard-Widget für kritische Alerts
 - Offline-Queue-Engine fuer WE/WA/Umlagerung/Inventur inkl. globalem Sync-Panel (Queue, Retry, Discard, Auto-Sync bei Reconnect)

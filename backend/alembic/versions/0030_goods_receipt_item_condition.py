@@ -20,6 +20,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    if bind.dialect.name in {"postgresql", "mysql"}:
+        op.alter_column(
+            "alembic_version",
+            "version_num",
+            type_=sa.String(length=64),
+            existing_type=sa.String(length=32),
+            existing_nullable=False,
+        )
+
     op.add_column(
         "goods_receipt_items",
         sa.Column("condition", sa.String(20), nullable=False, server_default="new"),

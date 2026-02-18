@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from uuid import uuid4
 
 
 async def _create_group(client: AsyncClient, admin_token: str, name: str) -> int:
@@ -10,6 +11,30 @@ async def _create_group(client: AsyncClient, admin_token: str, name: str) -> int
     )
     assert response.status_code == 201
     return response.json()["id"]
+
+
+async def _create_bin(client: AsyncClient, admin_token: str, prefix: str) -> int:
+    warehouse = await client.post(
+        "/api/warehouses",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"code": f"{prefix}-WH", "name": f"{prefix} Warehouse", "is_active": True},
+    )
+    assert warehouse.status_code == 201
+
+    zone = await client.post(
+        f"/api/warehouses/{warehouse.json()['id']}/zones",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"code": f"{prefix}-ZONE", "name": "Storage", "zone_type": "storage", "is_active": True},
+    )
+    assert zone.status_code == 201
+
+    bin_location = await client.post(
+        f"/api/zones/{zone.json()['id']}/bins",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"code": f"{prefix}-BIN", "bin_type": "storage", "is_active": True},
+    )
+    assert bin_location.status_code == 201
+    return bin_location.json()["id"]
 
 
 @pytest.mark.asyncio
@@ -109,3 +134,41 @@ async def test_non_admin_cannot_mutate_products(client: AsyncClient, admin_token
         },
     )
     assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_product_default_bin_roundtrip(client: AsyncClient, admin_token: str):
+    suffix = uuid4().hex[:8].upper()
+    group_id = await _create_group(client, admin_token, f"Hardware-{suffix}")
+    default_bin_id = await _create_bin(client, admin_token, f"PRDBIN-{suffix}")
+
+    create = await client.post(
+        "/api/products",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "product_number": f"ART-300-{suffix}",
+            "name": "Default Bin Product",
+            "product_group_id": group_id,
+            "unit": "piece",
+            "status": "active",
+            "default_bin_id": default_bin_id,
+        },
+    )
+    assert create.status_code == 201
+    product_id = create.json()["id"]
+    assert create.json()["default_bin_id"] == default_bin_id
+
+    detail = await client.get(
+        f"/api/products/{product_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert detail.status_code == 200
+    assert detail.json()["default_bin_id"] == default_bin_id
+
+    update = await client.put(
+        f"/api/products/{product_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"default_bin_id": None},
+    )
+    assert update.status_code == 200
+    assert update.json()["default_bin_id"] is None

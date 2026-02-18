@@ -26,6 +26,8 @@ function toGoodsReceiptFromQueue(item: OfflineQueueItem): GoodsReceipt {
     receipt_number?: string;
     supplier_id?: number;
     purchase_order_id?: number;
+    mode?: "po" | "free";
+    source_type?: "supplier" | "technician" | "other";
     notes?: string;
   };
   const localId = item.entity_id ?? -1;
@@ -34,6 +36,8 @@ function toGoodsReceiptFromQueue(item: OfflineQueueItem): GoodsReceipt {
     receipt_number: payload.receipt_number ?? `OFFLINE-WE-${Math.abs(localId)}`,
     supplier_id: payload.supplier_id ?? null,
     purchase_order_id: payload.purchase_order_id ?? null,
+    mode: payload.mode ?? (payload.purchase_order_id ? "po" : "free"),
+    source_type: payload.source_type ?? "supplier",
     status: "draft",
     received_at: null,
     completed_at: null,
@@ -100,6 +104,7 @@ function toGoodsReceiptItemFromQueue(item: OfflineQueueItem): GoodsReceiptItem {
     manufactured_at?: string;
     serial_numbers?: string[];
     purchase_order_item_id?: number;
+    input_method?: "scan" | "manual";
     condition?: string;
   };
 
@@ -117,7 +122,13 @@ function toGoodsReceiptItemFromQueue(item: OfflineQueueItem): GoodsReceiptItem {
     manufactured_at: payload.manufactured_at ?? null,
     serial_numbers: payload.serial_numbers ?? null,
     purchase_order_item_id: payload.purchase_order_item_id ?? null,
+    input_method: payload.input_method ?? "manual",
     condition: payload.condition ?? "new",
+    product_number: null,
+    product_name: null,
+    target_bin_code: null,
+    expected_open_quantity: null,
+    variance_quantity: null,
     created_at: item.created_at,
     updated_at: item.updated_at,
   };
@@ -199,6 +210,8 @@ export async function createGoodsReceipt(payload: {
   receipt_number?: string;
   supplier_id?: number;
   purchase_order_id?: number;
+  mode?: "po" | "free";
+  source_type?: "supplier" | "technician" | "other";
   notes?: string;
 }): Promise<GoodsReceipt> {
   if (shouldQueueOfflineMutation("POST", "/goods-receipts")) {
@@ -227,6 +240,18 @@ export async function createGoodsReceiptAdHocProduct(
 
 export async function downloadGoodsReceiptItemSerialLabelsPdf(receiptId: number, itemId: number): Promise<Blob> {
   const response = await api.get<Blob>(`/goods-receipts/${receiptId}/items/${itemId}/serial-labels/pdf`, {
+    responseType: "blob",
+  });
+  return response.data;
+}
+
+export async function downloadGoodsReceiptItemLabelsPdf(
+  receiptId: number,
+  itemId: number,
+  copies = 1
+): Promise<Blob> {
+  const response = await api.get<Blob>(`/goods-receipts/${receiptId}/items/${itemId}/item-labels/pdf`, {
+    params: { copies },
     responseType: "blob",
   });
   return response.data;
@@ -261,6 +286,7 @@ export async function createGoodsReceiptItem(
     manufactured_at?: string;
     serial_numbers?: string[];
     purchase_order_item_id?: number;
+    input_method?: "scan" | "manual";
     condition?: string;
   }
 ): Promise<GoodsReceiptItem> {

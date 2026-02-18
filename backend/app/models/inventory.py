@@ -50,6 +50,8 @@ class GoodsReceipt(TimestampMixin, Base):
     purchase_order_id: Mapped[int | None] = mapped_column(
         ForeignKey("purchase_orders.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    mode: Mapped[str] = mapped_column(String(20), default="po", server_default="po", index=True)
+    source_type: Mapped[str] = mapped_column(String(20), default="supplier", server_default="supplier", index=True)
     status: Mapped[str] = mapped_column(String(20), default="draft", server_default="draft", index=True)
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -78,6 +80,7 @@ class GoodsReceiptItem(TimestampMixin, Base):
         nullable=True,
         index=True,
     )
+    input_method: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")
     condition: Mapped[str] = mapped_column(String(20), default="new", server_default="new")
 
 

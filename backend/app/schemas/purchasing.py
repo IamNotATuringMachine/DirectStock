@@ -62,3 +62,19 @@ class PurchaseOrderItemResponse(BaseModel):
     expected_delivery_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class PurchaseOrderResolveItem(BaseModel):
+    id: int
+    product_id: int
+    product_number: str | None
+    product_name: str | None
+    ordered_quantity: Decimal
+    received_quantity: Decimal
+    open_quantity: Decimal
+    unit: str
+
+
+class PurchaseOrderResolveResponse(BaseModel):
+    order: PurchaseOrderResponse
+    items: list[PurchaseOrderResolveItem]

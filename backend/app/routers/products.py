@@ -30,6 +30,7 @@ def _to_product_response(product: Product) -> ProductResponse:
         unit=product.unit,
         status=product.status,
         requires_item_tracking=product.requires_item_tracking,
+        default_bin_id=product.default_bin_id,
         created_at=product.created_at,
         updated_at=product.updated_at,
     )

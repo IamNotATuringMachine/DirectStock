@@ -15,6 +15,8 @@ from app.models.purchasing import PurchaseOrder, PurchaseOrderItem
 from app.schemas.purchasing import (
     PurchaseOrderCreate,
     PurchaseOrderItemCreate,
+    PurchaseOrderResolveItem,
+    PurchaseOrderResolveResponse,
     PurchaseOrderItemResponse,
     PurchaseOrderItemUpdate,
     PurchaseOrderResponse,
@@ -82,6 +84,14 @@ def _ensure_editable(order: PurchaseOrder) -> None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Purchase order is not editable")
 
 
+def _ensure_receivable(order: PurchaseOrder) -> None:
+    if order.status not in {"ordered", "partially_received"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Purchase order {order.order_number} is not ready for goods receipt",
+        )
+
+
 async def _ensure_order_can_be_completed(db: AsyncSession, *, order_id: int) -> None:
     order_items = list(
         (
@@ -119,6 +129,61 @@ async def list_purchase_orders(
         stmt = stmt.where(PurchaseOrder.status == status_filter)
     rows = list((await db.execute(stmt)).scalars())
     return [_to_order_response(item) for item in rows]
+
+
+@router.get("/purchase-orders/resolve", response_model=PurchaseOrderResolveResponse)
+async def resolve_purchase_order_by_number(
+    order_number: str = Query(min_length=1),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_roles(*PURCHASING_READ_ROLES)),
+) -> PurchaseOrderResolveResponse:
+    normalized = order_number.strip()
+    order = (
+        await db.execute(select(PurchaseOrder).where(PurchaseOrder.order_number == normalized))
+    ).scalar_one_or_none()
+    if order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
+
+    _ensure_receivable(order)
+
+    rows = list(
+        (
+            await db.execute(
+                select(PurchaseOrderItem, Product)
+                .join(Product, Product.id == PurchaseOrderItem.product_id)
+                .where(PurchaseOrderItem.purchase_order_id == order.id)
+                .order_by(PurchaseOrderItem.id.asc())
+            )
+        ).all()
+    )
+
+    items: list[PurchaseOrderResolveItem] = []
+    for po_item, product in rows:
+        ordered_quantity = Decimal(po_item.ordered_quantity)
+        received_quantity = Decimal(po_item.received_quantity)
+        open_quantity = ordered_quantity - received_quantity
+        if open_quantity <= 0:
+            continue
+        items.append(
+            PurchaseOrderResolveItem(
+                id=po_item.id,
+                product_id=po_item.product_id,
+                product_number=product.product_number,
+                product_name=product.name,
+                ordered_quantity=ordered_quantity,
+                received_quantity=received_quantity,
+                open_quantity=open_quantity,
+                unit=po_item.unit,
+            )
+        )
+
+    if not items:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Purchase order {order.order_number} has no open quantities",
+        )
+
+    return PurchaseOrderResolveResponse(order=_to_order_response(order), items=items)
 
 
 @router.post("/purchase-orders", response_model=PurchaseOrderResponse, status_code=status.HTTP_201_CREATED)

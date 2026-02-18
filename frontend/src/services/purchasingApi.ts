@@ -1,8 +1,15 @@
 import { api } from "./api";
-import type { PurchaseOrder, PurchaseOrderItem } from "../types";
+import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderResolveResponse } from "../types";
 
 export async function fetchPurchaseOrders(status?: PurchaseOrder["status"]): Promise<PurchaseOrder[]> {
   const response = await api.get<PurchaseOrder[]>("/purchase-orders", { params: { status } });
+  return response.data;
+}
+
+export async function resolvePurchaseOrder(orderNumber: string): Promise<PurchaseOrderResolveResponse> {
+  const response = await api.get<PurchaseOrderResolveResponse>("/purchase-orders/resolve", {
+    params: { order_number: orderNumber },
+  });
   return response.data;
 }
 

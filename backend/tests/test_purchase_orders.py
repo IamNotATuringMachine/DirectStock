@@ -278,3 +278,109 @@ async def test_goods_receipt_updates_linked_purchase_order_item_and_status(clien
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert over_complete.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_purchase_order_resolve_by_order_number_returns_open_items(client: AsyncClient, admin_token: str):
+    suffix = _suffix()
+    data = await _create_master_data(client, admin_token, suffix)
+
+    order_id, order_item_id = await _create_order_with_item(
+        client,
+        admin_token,
+        supplier_id=data["supplier_id"],
+        product_id=data["product_id"],
+        ordered_quantity="5",
+    )
+    order_detail = await client.get(
+        f"/api/purchase-orders/{order_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert order_detail.status_code == 200
+    order_number = order_detail.json()["order_number"]
+
+    resolved = await client.get(
+        "/api/purchase-orders/resolve",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        params={"order_number": order_number},
+    )
+    assert resolved.status_code == 200
+    payload = resolved.json()
+    assert payload["order"]["id"] == order_id
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["id"] == order_item_id
+    assert payload["items"][0]["open_quantity"] == "5.000"
+
+    receipt = await client.post(
+        "/api/goods-receipts",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"supplier_id": data["supplier_id"]},
+    )
+    assert receipt.status_code == 201
+
+    receipt_item = await client.post(
+        f"/api/goods-receipts/{receipt.json()['id']}/items",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "product_id": data["product_id"],
+            "received_quantity": "2",
+            "unit": "piece",
+            "target_bin_id": data["bin_id"],
+            "purchase_order_item_id": order_item_id,
+        },
+    )
+    assert receipt_item.status_code == 201
+
+    complete = await client.post(
+        f"/api/goods-receipts/{receipt.json()['id']}/complete",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert complete.status_code == 200
+
+    resolved_after = await client.get(
+        "/api/purchase-orders/resolve",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        params={"order_number": order_number},
+    )
+    assert resolved_after.status_code == 200
+    assert resolved_after.json()["items"][0]["open_quantity"] == "3.000"
+
+
+@pytest.mark.asyncio
+async def test_create_goods_receipt_from_po_uses_strict_soll_ist_defaults(client: AsyncClient, admin_token: str):
+    suffix = _suffix()
+    data = await _create_master_data(client, admin_token, suffix)
+
+    order_id, _ = await _create_order_with_item(
+        client,
+        admin_token,
+        supplier_id=data["supplier_id"],
+        product_id=data["product_id"],
+        ordered_quantity="7",
+    )
+
+    receipt = await client.post(
+        f"/api/goods-receipts/from-po/{order_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert receipt.status_code == 201
+    receipt_payload = receipt.json()
+    assert receipt_payload["purchase_order_id"] == order_id
+    assert receipt_payload["mode"] == "po"
+    assert receipt_payload["source_type"] == "supplier"
+
+    items = await client.get(
+        f"/api/goods-receipts/{receipt_payload['id']}/items",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert items.status_code == 200
+    assert len(items.json()) == 1
+    assert items.json()[0]["expected_quantity"] == "7.000"
+    assert items.json()[0]["expected_open_quantity"] == "7.000"
+    assert items.json()[0]["received_quantity"] == "0.000"
+
+    complete = await client.post(
+        f"/api/goods-receipts/{receipt_payload['id']}/complete",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert complete.status_code == 422

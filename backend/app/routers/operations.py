@@ -51,7 +51,7 @@ from app.schemas.product import ProductAdHocCreate, ProductResponse
 from app.schemas.user import MessageResponse
 from app.services.alerts import evaluate_alerts
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
-from app.utils.qr_generator import generate_serial_labels_pdf
+from app.utils.qr_generator import generate_item_labels_pdf, generate_serial_labels_pdf
 
 router = APIRouter(prefix="/api", tags=["operations"])
 
@@ -301,6 +301,113 @@ def _ensure_purchase_order_ready_for_receipt(order: PurchaseOrder) -> None:
         )
 
 
+def _resolve_receipt_mode(*, explicit_mode: str | None, purchase_order_id: int | None) -> str:
+    if explicit_mode is not None:
+        return explicit_mode
+    return "po" if purchase_order_id is not None else "free"
+
+
+def _resolve_receipt_source_type(*, explicit_source_type: str | None, mode: str) -> str:
+    if explicit_source_type is not None:
+        return explicit_source_type
+    return "supplier"
+
+
+def _is_condition_required_for_receipt(receipt: GoodsReceipt) -> bool:
+    return receipt.mode == "free" and receipt.source_type in {"technician", "other"}
+
+
+def _validate_receipt_mode_constraints(*, mode: str, purchase_order_id: int | None) -> None:
+    if mode == "po" and purchase_order_id is None:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE,
+            detail="purchase_order_id is required when mode is 'po'",
+        )
+    if mode == "free" and purchase_order_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="purchase_order_id is not allowed when mode is 'free'",
+        )
+
+
+async def _get_repair_center_bin_or_422(db: AsyncSession) -> BinLocation:
+    repair_bin = (
+        await db.execute(
+            select(BinLocation)
+            .join(WarehouseZone, BinLocation.zone_id == WarehouseZone.id)
+            .where(
+                WarehouseZone.zone_type == "returns",
+                BinLocation.is_active == True,  # noqa: E712
+            )
+            .order_by(BinLocation.id.asc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if repair_bin is None:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE,
+            detail="RepairCenter bin not configured (returns zone with active bin required)",
+        )
+    return repair_bin
+
+
+async def _build_goods_receipt_item_response(
+    db: AsyncSession,
+    item: GoodsReceiptItem,
+    *,
+    product_cache: dict[int, Product] | None = None,
+    bin_cache: dict[int, BinLocation] | None = None,
+    purchase_order_item_cache: dict[int, PurchaseOrderItem] | None = None,
+) -> GoodsReceiptItemResponse:
+    p_cache = product_cache if product_cache is not None else {}
+    b_cache = bin_cache if bin_cache is not None else {}
+    poi_cache = purchase_order_item_cache if purchase_order_item_cache is not None else {}
+
+    product = p_cache.get(item.product_id)
+    if product is None:
+        product = (
+            await db.execute(select(Product).where(Product.id == item.product_id))
+        ).scalar_one_or_none()
+        if product is not None:
+            p_cache[item.product_id] = product
+
+    target_bin_code: str | None = None
+    if item.target_bin_id is not None:
+        target_bin = b_cache.get(item.target_bin_id)
+        if target_bin is None:
+            target_bin = (
+                await db.execute(select(BinLocation).where(BinLocation.id == item.target_bin_id))
+            ).scalar_one_or_none()
+            if target_bin is not None:
+                b_cache[item.target_bin_id] = target_bin
+        target_bin_code = target_bin.code if target_bin else None
+
+    expected_open_quantity: Decimal | None = None
+    if item.purchase_order_item_id is not None:
+        po_item = poi_cache.get(item.purchase_order_item_id)
+        if po_item is None:
+            po_item = (
+                await db.execute(
+                    select(PurchaseOrderItem).where(PurchaseOrderItem.id == item.purchase_order_item_id)
+                )
+            ).scalar_one_or_none()
+            if po_item is not None:
+                poi_cache[item.purchase_order_item_id] = po_item
+        if po_item is not None:
+            expected_open_quantity = max(
+                Decimal(po_item.ordered_quantity) - Decimal(po_item.received_quantity),
+                Decimal("0"),
+            )
+
+    return _to_goods_receipt_item_response(
+        item,
+        product_number=product.product_number if product else None,
+        product_name=product.name if product else None,
+        target_bin_code=target_bin_code,
+        expected_open_quantity=expected_open_quantity,
+    )
+
+
 def _ensure_serial_tracked_quantity_is_integer(quantity: Decimal, *, item_label: str) -> None:
     if quantity <= 0:
         raise HTTPException(
@@ -337,6 +444,8 @@ def _to_goods_receipt_response(item: GoodsReceipt) -> GoodsReceiptResponse:
         receipt_number=item.receipt_number,
         supplier_id=item.supplier_id,
         purchase_order_id=item.purchase_order_id,
+        mode=item.mode,
+        source_type=item.source_type,
         status=item.status,
         received_at=item.received_at,
         completed_at=item.completed_at,
@@ -347,7 +456,19 @@ def _to_goods_receipt_response(item: GoodsReceipt) -> GoodsReceiptResponse:
     )
 
 
-def _to_goods_receipt_item_response(item: GoodsReceiptItem) -> GoodsReceiptItemResponse:
+def _to_goods_receipt_item_response(
+    item: GoodsReceiptItem,
+    *,
+    product_number: str | None = None,
+    product_name: str | None = None,
+    target_bin_code: str | None = None,
+    expected_open_quantity: Decimal | None = None,
+) -> GoodsReceiptItemResponse:
+    variance_quantity = (
+        Decimal(item.received_quantity) - Decimal(item.expected_quantity)
+        if item.expected_quantity is not None
+        else None
+    )
     return GoodsReceiptItemResponse(
         id=item.id,
         goods_receipt_id=item.goods_receipt_id,
@@ -361,7 +482,13 @@ def _to_goods_receipt_item_response(item: GoodsReceiptItem) -> GoodsReceiptItemR
         manufactured_at=item.manufactured_at,
         serial_numbers=item.serial_numbers,
         purchase_order_item_id=item.purchase_order_item_id,
+        input_method=item.input_method,
         condition=item.condition,
+        product_number=product_number,
+        product_name=product_name,
+        target_bin_code=target_bin_code,
+        expected_open_quantity=expected_open_quantity,
+        variance_quantity=variance_quantity,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -450,6 +577,16 @@ async def create_goods_receipt(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> GoodsReceiptResponse:
+    mode = _resolve_receipt_mode(
+        explicit_mode=payload.mode,
+        purchase_order_id=payload.purchase_order_id,
+    )
+    source_type = _resolve_receipt_source_type(
+        explicit_source_type=payload.source_type,
+        mode=mode,
+    )
+    _validate_receipt_mode_constraints(mode=mode, purchase_order_id=payload.purchase_order_id)
+
     purchase_order: PurchaseOrder | None = None
     if payload.purchase_order_id is not None:
         purchase_order = await _get_purchase_order_or_404(
@@ -467,6 +604,8 @@ async def create_goods_receipt(
         receipt_number=payload.receipt_number or _generate_number("WE"),
         supplier_id=payload.supplier_id if payload.supplier_id is not None else purchase_order.supplier_id if purchase_order else None,
         purchase_order_id=payload.purchase_order_id,
+        mode=mode,
+        source_type=source_type,
         notes=payload.notes,
         created_by=current_user.id,
     )
@@ -598,6 +737,8 @@ async def create_goods_receipt_from_po(
         receipt_number=_generate_number("WE"),
         purchase_order_id=po_id,
         supplier_id=purchase_order.supplier_id,
+        mode="po",
+        source_type="supplier",
         created_by=current_user.id,
     )
     db.add(receipt)
@@ -618,9 +759,11 @@ async def create_goods_receipt_from_po(
                     goods_receipt_id=receipt.id,
                     product_id=po_item.product_id,
                     expected_quantity=remaining,
-                    received_quantity=remaining,
+                    received_quantity=Decimal("0"),
                     unit=po_item.unit,
                     purchase_order_item_id=po_item.id,
+                    input_method="manual",
+                    condition="new",
                 )
             )
 
@@ -656,6 +799,18 @@ async def update_goods_receipt(
 
     updates = payload.model_dump(exclude_unset=True)
     purchase_order_id = updates.get("purchase_order_id", item.purchase_order_id)
+    mode = updates.get("mode", item.mode)
+    source_type = updates.get("source_type", item.source_type)
+    _validate_receipt_mode_constraints(mode=mode, purchase_order_id=purchase_order_id)
+
+    if "mode" in updates and "source_type" not in updates:
+        updates["source_type"] = _resolve_receipt_source_type(
+            explicit_source_type=None,
+            mode=mode,
+        )
+    elif source_type is not None:
+        updates["source_type"] = source_type
+
     supplier_id = updates.get("supplier_id", item.supplier_id)
     if purchase_order_id is not None:
         purchase_order = await _get_purchase_order_or_404(
@@ -713,7 +868,19 @@ async def list_goods_receipt_items(
             )
         ).scalars()
     )
-    return [_to_goods_receipt_item_response(item) for item in rows]
+    product_cache: dict[int, Product] = {}
+    bin_cache: dict[int, BinLocation] = {}
+    purchase_order_item_cache: dict[int, PurchaseOrderItem] = {}
+    return [
+        await _build_goods_receipt_item_response(
+            db,
+            item,
+            product_cache=product_cache,
+            bin_cache=bin_cache,
+            purchase_order_item_cache=purchase_order_item_cache,
+        )
+        for item in rows
+    ]
 
 
 @router.post(
@@ -734,6 +901,21 @@ async def create_goods_receipt_item(
     _ensure_draft("Goods receipt", parent.status)
 
     values = payload.model_dump()
+    input_method = values.get("input_method") or "manual"
+    values["input_method"] = input_method
+
+    condition = values.get("condition")
+    if _is_condition_required_for_receipt(parent):
+        if condition is None:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE,
+                detail="condition is required when goods receipt mode is 'free'",
+            )
+    else:
+        values["condition"] = condition or "new"
+    if values.get("condition") is None:
+        values["condition"] = "new"
+
     serial_numbers = _normalize_serial_numbers(values.get("serial_numbers"))
     values["serial_numbers"] = serial_numbers or None
 
@@ -774,7 +956,7 @@ async def create_goods_receipt_item(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Conflict while creating receipt item") from exc
 
     await db.refresh(item)
-    return _to_goods_receipt_item_response(item)
+    return await _build_goods_receipt_item_response(db, item)
 
 
 @router.put(
@@ -808,9 +990,25 @@ async def update_goods_receipt_item(
     updates = payload.model_dump(exclude_unset=True)
     if updates.get("use_fefo") is None:
         updates.pop("use_fefo", None)
+    if "input_method" in updates and updates["input_method"] is None:
+        updates.pop("input_method", None)
     if "serial_numbers" in updates:
         serial_numbers = _normalize_serial_numbers(updates.get("serial_numbers"))
         updates["serial_numbers"] = serial_numbers or None
+    if "condition" in updates and updates["condition"] is None:
+        if _is_condition_required_for_receipt(parent):
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE,
+                detail="condition is required when goods receipt mode is 'free'",
+            )
+        updates["condition"] = "new"
+    if _is_condition_required_for_receipt(parent):
+        candidate_condition = updates.get("condition", item.condition)
+        if candidate_condition is None:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE,
+                detail="condition is required when goods receipt mode is 'free'",
+            )
     candidate_batch_number = updates.get("batch_number", item.batch_number)
     candidate_expiry = updates.get("expiry_date", item.expiry_date)
     candidate_manufactured = updates.get("manufactured_at", item.manufactured_at)
@@ -848,7 +1046,7 @@ async def update_goods_receipt_item(
 
     await db.commit()
     await db.refresh(item)
-    return _to_goods_receipt_item_response(item)
+    return await _build_goods_receipt_item_response(db, item)
 
 
 @router.delete("/goods-receipts/{receipt_id}/items/{item_id}", response_model=MessageResponse)
@@ -993,6 +1191,50 @@ async def get_goods_receipt_item_serial_labels_pdf(
     )
 
 
+@router.get("/goods-receipts/{receipt_id}/items/{item_id}/item-labels/pdf")
+async def get_goods_receipt_item_labels_pdf(
+    receipt_id: int,
+    item_id: int,
+    copies: int = Query(default=1, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_permissions(GOODS_RECEIPT_READ_PERMISSION)),
+) -> Response:
+    parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
+    if parent is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt not found")
+
+    receipt_item = (
+        await db.execute(
+            select(GoodsReceiptItem).where(
+                GoodsReceiptItem.id == item_id,
+                GoodsReceiptItem.goods_receipt_id == receipt_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if receipt_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt item not found")
+
+    product = (
+        await db.execute(
+            select(Product).where(Product.id == receipt_item.product_id)
+        )
+    ).scalar_one_or_none()
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    labels: list[tuple[str, str, str]] = []
+    for index in range(1, copies + 1):
+        qr_payload = f"DS:ART:{product.product_number}"
+        labels.append((product.name, product.product_number, f"{qr_payload}:C{index:03d}"))
+
+    pdf_bytes = generate_item_labels_pdf(labels)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="we-{receipt_id}-item-{item_id}-labels.pdf"'},
+    )
+
+
 @router.post("/goods-receipts/{receipt_id}/complete", response_model=MessageResponse)
 async def complete_goods_receipt(
     receipt_id: int,
@@ -1029,13 +1271,21 @@ async def complete_goods_receipt(
             purchase_order_id=item.purchase_order_id,
         )
         _ensure_purchase_order_ready_for_receipt(linked_purchase_order)
+    non_new_items = [ri for ri in receipt_items if (ri.condition or "new") != "new"]
+    repair_bin: BinLocation | None = None
+    if non_new_items:
+        repair_bin = await _get_repair_center_bin_or_422(db)
 
     try:
         for receipt_item in receipt_items:
-            if receipt_item.target_bin_id is None:
+            effective_target_bin_id = receipt_item.target_bin_id
+            if (receipt_item.condition or "new") != "new":
+                effective_target_bin_id = repair_bin.id if repair_bin else None
+
+            if effective_target_bin_id is None:
                 raise HTTPException(
                     status_code=HTTP_422_UNPROCESSABLE,
-                    detail=f"Receipt item {receipt_item.id} has no target_bin_id",
+                    detail=f"Receipt item {receipt_item.id} has no effective target bin",
                 )
 
             quantity = Decimal(receipt_item.received_quantity)
@@ -1123,7 +1373,7 @@ async def complete_goods_receipt(
             inventory = await _get_inventory(
                 db,
                 product_id=receipt_item.product_id,
-                bin_location_id=receipt_item.target_bin_id,
+                bin_location_id=effective_target_bin_id,
                 unit=receipt_item.unit,
             )
             inventory.quantity = Decimal(inventory.quantity) + quantity
@@ -1133,7 +1383,7 @@ async def complete_goods_receipt(
                 batch = await _get_inventory_batch(
                     db,
                     product_id=receipt_item.product_id,
-                    bin_location_id=receipt_item.target_bin_id,
+                    bin_location_id=effective_target_bin_id,
                     batch_number=receipt_item.batch_number,
                     unit=receipt_item.unit,
                     expiry_date=receipt_item.expiry_date,
@@ -1165,7 +1415,7 @@ async def complete_goods_receipt(
                             product_id=receipt_item.product_id,
                             serial_number=serial_number,
                             batch_id=batch.id if batch else None,
-                            current_bin_id=receipt_item.target_bin_id,
+                            current_bin_id=effective_target_bin_id,
                             status="in_stock",
                             last_movement_at=now,
                         )
@@ -1178,7 +1428,7 @@ async def complete_goods_receipt(
                     reference_number=item.receipt_number,
                     product_id=receipt_item.product_id,
                     from_bin_id=None,
-                    to_bin_id=receipt_item.target_bin_id,
+                    to_bin_id=effective_target_bin_id,
                     quantity=quantity,
                     performed_by=current_user.id,
                     performed_at=now,
@@ -1188,6 +1438,8 @@ async def complete_goods_receipt(
                         "purchase_order_item_id": receipt_item.purchase_order_item_id,
                         "batch_number": receipt_item.batch_number,
                         "serial_numbers": serial_numbers or None,
+                        "condition": receipt_item.condition,
+                        "original_target_bin_id": receipt_item.target_bin_id,
                     },
                 )
             )
@@ -1220,20 +1472,7 @@ async def complete_goods_receipt(
         if item.received_at is None:
             item.received_at = now
 
-        non_new = [ri for ri in receipt_items if ri.condition != "new"]
-        if non_new:
-            repair_bin = (
-                await db.execute(
-                    select(BinLocation)
-                    .join(WarehouseZone, BinLocation.zone_id == WarehouseZone.id)
-                    .where(
-                        WarehouseZone.zone_type == "returns",
-                        BinLocation.is_active == True,  # noqa: E712
-                    )
-                    .limit(1)
-                )
-            ).scalar_one_or_none()
-
+        if non_new_items:
             return_order = ReturnOrder(
                 return_number=_generate_number("RT"),
                 source_type="technician",
@@ -1245,7 +1484,7 @@ async def complete_goods_receipt(
             db.add(return_order)
             await db.flush()
 
-            for ri in non_new:
+            for ri in non_new_items:
                 db.add(
                     ReturnOrderItem(
                         return_order_id=return_order.id,

@@ -58,6 +58,18 @@ export async function createBinBatch(
   return response.data;
 }
 
+export async function createBin(
+  zoneId: number,
+  payload: {
+    code: string;
+    bin_type?: WarehouseZoneType;
+    is_active?: boolean;
+  }
+): Promise<BinLocation> {
+  const response = await api.post<BinLocation>(`/zones/${zoneId}/bins`, payload);
+  return response.data;
+}
+
 export async function deleteBin(binId: number): Promise<void> {
   await api.delete(`/bins/${binId}`);
 }

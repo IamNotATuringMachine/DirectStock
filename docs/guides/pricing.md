@@ -5,7 +5,7 @@ Preisfuehrung ist netto, brutto wird zentral im Backend berechnet.
 
 ## Frontend (Stand Produkt-Flow)
 1. Artikel anlegen unter `Artikelstamm -> Neuer Artikel`.
-2. Nach erfolgreicher Anlage erfolgt Redirect auf `.../products/{id}/edit?tab=pricing`.
+2. Nach erfolgreicher Anlage erfolgt Redirect auf `.../products/{id}/edit?flow=create&step=pricing`.
 3. Im Tab `Preise` kann ein Basispreis (Netto + USt, EUR) erfasst werden.
 4. In `Produktdetails -> Stammdaten` wird der aktuell gueltige Preis (Netto/USt/Brutto) angezeigt.
 

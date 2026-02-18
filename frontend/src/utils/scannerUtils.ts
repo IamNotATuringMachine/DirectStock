@@ -1,4 +1,4 @@
-export type ParsedScanType = "bin_qr" | "product_qr" | "ean" | "unknown";
+export type ParsedScanType = "bin_qr" | "product_qr" | "po_qr" | "serial_qr" | "ean" | "unknown";
 
 export type ParsedScan = {
   raw: string;
@@ -9,6 +9,8 @@ export type ParsedScan = {
 
 const BIN_PREFIX = "DS:BIN:";
 const PRODUCT_PREFIX = "DS:ART:";
+const PO_PREFIX = "DS:PO:";
+const SERIAL_PREFIX = "DS:SN:";
 
 export function normalizeScanValue(value: string): string {
   return value.trim().replace(/\s+/g, "");
@@ -36,6 +38,24 @@ export function parseScanValue(value: string): ParsedScan {
       normalized,
       type: "product_qr",
       value: normalized.slice(PRODUCT_PREFIX.length),
+    };
+  }
+
+  if (normalized.startsWith(PO_PREFIX)) {
+    return {
+      raw: value,
+      normalized,
+      type: "po_qr",
+      value: normalized.slice(PO_PREFIX.length),
+    };
+  }
+
+  if (normalized.startsWith(SERIAL_PREFIX)) {
+    return {
+      raw: value,
+      normalized,
+      type: "serial_qr",
+      value: normalized.slice(SERIAL_PREFIX.length),
     };
   }
 

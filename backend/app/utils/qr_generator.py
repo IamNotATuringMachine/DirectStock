@@ -249,3 +249,81 @@ def generate_serial_labels_pdf(labels: list[tuple[str, str, str, str]]) -> bytes
 
     pdf.save()
     return output.getvalue()
+
+
+def generate_item_labels_pdf(labels: list[tuple[str, str, str]]) -> bytes:
+    """Render non-serial item labels as 3x8 cells per A4 page.
+
+    labels: list of tuples (product_name, product_number, qr_data)
+    """
+
+    output = BytesIO()
+    pdf = canvas.Canvas(output, pagesize=A4)
+    page_width, page_height = A4
+
+    def _fit_text(value: str, max_width: float, *, font_name: str, font_size: float) -> str:
+        if not value:
+            return "-"
+        if pdf.stringWidth(value, font_name, font_size) <= max_width:
+            return value
+        suffix = "..."
+        trimmed = value
+        while trimmed:
+            candidate = f"{trimmed}{suffix}"
+            if pdf.stringWidth(candidate, font_name, font_size) <= max_width:
+                return candidate
+            trimmed = trimmed[:-1]
+        return suffix
+
+    columns = 3
+    rows = 8
+    labels_per_page = columns * rows
+
+    margin_x = 16
+    margin_y = 18
+    gap_x = 8
+    gap_y = 8
+
+    cell_width = (page_width - (2 * margin_x) - ((columns - 1) * gap_x)) / columns
+    cell_height = (page_height - (2 * margin_y) - ((rows - 1) * gap_y)) / rows
+
+    for index, (product_name, product_number, qr_data) in enumerate(labels):
+        page_index = index % labels_per_page
+        if index > 0 and page_index == 0:
+            pdf.showPage()
+
+        row = page_index // columns
+        col = page_index % columns
+
+        x = margin_x + (col * (cell_width + gap_x))
+        y = page_height - margin_y - ((row + 1) * cell_height) - (row * gap_y)
+
+        pdf.roundRect(x, y, cell_width, cell_height, 6)
+
+        qr_png = generate_qr_png_bytes(qr_data, box_size=5, border=2)
+        qr_image = ImageReader(BytesIO(qr_png))
+
+        qr_size = min(cell_width * 0.44, cell_height * 0.58)
+        qr_x = x + ((cell_width - qr_size) / 2)
+        qr_y = y + cell_height - qr_size - 8
+        pdf.drawImage(qr_image, qr_x, qr_y, width=qr_size, height=qr_size, preserveAspectRatio=True, mask="auto")
+
+        text_center_x = x + (cell_width / 2)
+        text_max_width = cell_width - 12
+
+        pdf.setFont("Helvetica-Bold", 6.5)
+        pdf.drawCentredString(
+            text_center_x,
+            y + 16,
+            _fit_text(product_name, text_max_width, font_name="Helvetica-Bold", font_size=6.5),
+        )
+
+        pdf.setFont("Helvetica", 6)
+        pdf.drawCentredString(
+            text_center_x,
+            y + 9,
+            _fit_text(f"Art.-Nr: {product_number}", text_max_width, font_name="Helvetica", font_size=6),
+        )
+
+    pdf.save()
+    return output.getvalue()
