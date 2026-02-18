@@ -1,7 +1,7 @@
 # Phase 4 Migration Rehearsal - Legacy Cutover
 
-Datum: 2026-02-13  
-Zeitzone: UTC  
+Datum: 2026-02-13
+Zeitzone: UTC
 Status: PASS (Dry-Run Rehearsal)
 
 ## Ziel
@@ -107,5 +107,5 @@ Rehearsal-Ergebnis:
 
 ## Fazit
 
-Die Dry-Run-Rehearsal-Pipeline ist reproduzierbar und erfüllt das Parallel-Run + Delta-Cutover-Muster.  
+Die Dry-Run-Rehearsal-Pipeline ist reproduzierbar und erfüllt das Parallel-Run + Delta-Cutover-Muster.
 Für den produktiven Cutover sind ausschließlich grüne Reconciliation-Gates zulässig.

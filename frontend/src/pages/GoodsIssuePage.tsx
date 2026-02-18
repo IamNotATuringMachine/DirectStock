@@ -458,7 +458,7 @@ export default function GoodsIssuePage() {
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-[var(--ink)] truncate">{issue.issue_number}</div>
                         <div className="text-xs text-[var(--muted)] flex items-center gap-1.5 mt-0.5">
-                          <span className={`inline-block w-2 h-2 rounded-full 
+                          <span className={`inline-block w-2 h-2 rounded-full
                             ${issue.status === 'completed' ? 'bg-emerald-500' :
                               issue.status === 'cancelled' ? 'bg-red-500' : 'bg-amber-500'}
                           `}></span>

@@ -52,4 +52,3 @@ describe("uiPreferencesStore", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
   });
 });
-

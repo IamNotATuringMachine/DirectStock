@@ -462,7 +462,7 @@ export default function ReportsPage() {
                     </div>
                  )}
             </div>
-            
+
             {/* Secondary Filters */}
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
                 {(reportType === "stock" || reportType === "abc") && (
@@ -566,7 +566,7 @@ export default function ReportsPage() {
       <div className="bg-[var(--panel)] rounded-xl border border-[var(--line)] shadow-sm overflow-hidden min-h-[400px]">
         <div className="overflow-x-auto">
             {/* Conditional Tables based on Report Type */}
-            
+
             {reportType === "stock" && (
                 <table className="products-table">
                     <thead className="table-head-standard">
@@ -651,7 +651,7 @@ export default function ReportsPage() {
                     </tbody>
                 </table>
             )}
-            
+
             {reportType === "inventory-accuracy" && (
                 <table className="products-table">
                     <thead className="table-head-standard">
@@ -675,8 +675,8 @@ export default function ReportsPage() {
                                 <td>
                                     <div className="flex items-center gap-2">
                                         <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-[var(--accent)]" 
+                                            <div
+                                                className="h-full bg-[var(--accent)]"
                                                 style={{ width: `${row.accuracy_percent}%` }}
                                             />
                                         </div>
@@ -723,7 +723,7 @@ export default function ReportsPage() {
                     </tbody>
                 </table>
             )}
-            
+
             {reportType === "trends" && (
                  <>
                     <div className="p-4 bg-[var(--panel-soft)] border-b border-[var(--line)]">
@@ -768,16 +768,16 @@ export default function ReportsPage() {
             {(reportType === "returns" || reportType === "picking-performance" || reportType === "purchase-recommendations" || reportType === "demand-forecast") && (
                  <div className="p-8 text-center text-[var(--muted)]">
                      <p>Tabelle für {reportType} wird geladen...</p>
-                     {/* 
-                        Note: In a real refactor I would implement all tables. 
-                        For brevity, I'm assuming the pattern is clear. 
+                     {/*
+                        Note: In a real refactor I would implement all tables.
+                        For brevity, I'm assuming the pattern is clear.
                         Let's implement one more generic fallback or just the specific ones if needed.
                         Actually, let's implement them to be safe.
                      */}
                  </div>
             )}
         </div>
-        
+
         {/* Render the missing tables inside the container if active */}
         {reportType === "returns" && (
             <div className="overflow-x-auto -mt-[88px] relative z-10 bg-[var(--panel)]">

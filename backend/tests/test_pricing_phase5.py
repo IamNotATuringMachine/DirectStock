@@ -80,4 +80,3 @@ async def test_pricing_vat_validation(client: AsyncClient, admin_token: str):
         },
     )
     assert invalid.status_code == 422
-

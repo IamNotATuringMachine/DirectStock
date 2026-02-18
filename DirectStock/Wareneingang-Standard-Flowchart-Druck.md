@@ -1,4 +1,4 @@
-# Wareneingang 
+# Wareneingang
 
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '10px'}, 'flowchart': {'nodeSpacing': 11, 'rankSpacing': 13, 'diagramPadding': 3}}}%%

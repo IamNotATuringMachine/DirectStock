@@ -118,7 +118,7 @@ export default function UsersPage() {
     }) => updateUserAccessProfile(userId, payload),
     onSuccess: async (profile) => {
       await queryClient.invalidateQueries({ queryKey: ["users", "access-profile", profile.user_id] });
-      // We explicitly do NOT close the drawer here to allow further edits, 
+      // We explicitly do NOT close the drawer here to allow further edits,
       // but you could close it if desired: setIsDrawerOpen(false);
     },
   });

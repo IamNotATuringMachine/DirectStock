@@ -92,7 +92,7 @@ Gesamtstatus: **DONE**
 - `frontend unit`: `13 passed` (`cd frontend && npm run test`)
 - `frontend build`: erfolgreich (`cd frontend && npm run build`)
 - `frontend e2e`: erfolgreich (`cd frontend && npm run test:e2e` -> `13 passed`)
-- `lighthouse/pwa`: `1.00` (`./scripts/lighthouse_pwa.sh`, Schwellwert `>= 0.90`)  
+- `lighthouse/pwa`: `1.00` (`./scripts/lighthouse_pwa.sh`, Schwellwert `>= 0.90`)
   Artefakte: `artifacts/lighthouse/lighthouse.report.json`, `artifacts/lighthouse/lighthouse.report.html`
 - Runtime-Health: `200` auf `/health`, `/api/health`, `/api/docs`
 - `abc-batch`: erfolgreich (`docker compose exec -T backend python /app/scripts/run_abc_classification.py` -> `run_id=1, items=6`)

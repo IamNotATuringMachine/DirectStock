@@ -20,45 +20,39 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "goods_receipts",
-        sa.Column("mode", sa.String(length=20), nullable=False, server_default="po"),
-    )
-    op.add_column(
-        "goods_receipts",
-        sa.Column("source_type", sa.String(length=20), nullable=False, server_default="supplier"),
-    )
-    op.create_index("ix_goods_receipts_mode", "goods_receipts", ["mode"])
-    op.create_index("ix_goods_receipts_source_type", "goods_receipts", ["source_type"])
-    op.create_check_constraint(
-        "ck_goods_receipts_mode",
-        "goods_receipts",
-        "mode in ('po','free')",
-    )
-    op.create_check_constraint(
-        "ck_goods_receipts_source_type",
-        "goods_receipts",
-        "source_type in ('supplier','technician','other')",
-    )
+    with op.batch_alter_table("goods_receipts") as batch_op:
+        batch_op.add_column(sa.Column("mode", sa.String(length=20), nullable=False, server_default="po"))
+        batch_op.add_column(
+            sa.Column("source_type", sa.String(length=20), nullable=False, server_default="supplier")
+        )
+        batch_op.create_index("ix_goods_receipts_mode", ["mode"])
+        batch_op.create_index("ix_goods_receipts_source_type", ["source_type"])
+        batch_op.create_check_constraint(
+            "ck_goods_receipts_mode",
+            "mode in ('po','free')",
+        )
+        batch_op.create_check_constraint(
+            "ck_goods_receipts_source_type",
+            "source_type in ('supplier','technician','other')",
+        )
 
-    op.add_column(
-        "goods_receipt_items",
-        sa.Column("input_method", sa.String(length=20), nullable=False, server_default="manual"),
-    )
-    op.create_check_constraint(
-        "ck_goods_receipt_items_input_method",
-        "goods_receipt_items",
-        "input_method in ('scan','manual')",
-    )
+    with op.batch_alter_table("goods_receipt_items") as batch_op:
+        batch_op.add_column(sa.Column("input_method", sa.String(length=20), nullable=False, server_default="manual"))
+        batch_op.create_check_constraint(
+            "ck_goods_receipt_items_input_method",
+            "input_method in ('scan','manual')",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_goods_receipt_items_input_method", "goods_receipt_items", type_="check")
-    op.drop_column("goods_receipt_items", "input_method")
+    with op.batch_alter_table("goods_receipt_items") as batch_op:
+        batch_op.drop_constraint("ck_goods_receipt_items_input_method", type_="check")
+        batch_op.drop_column("input_method")
 
-    op.drop_constraint("ck_goods_receipts_source_type", "goods_receipts", type_="check")
-    op.drop_constraint("ck_goods_receipts_mode", "goods_receipts", type_="check")
-    op.drop_index("ix_goods_receipts_source_type", table_name="goods_receipts")
-    op.drop_index("ix_goods_receipts_mode", table_name="goods_receipts")
-    op.drop_column("goods_receipts", "source_type")
-    op.drop_column("goods_receipts", "mode")
+    with op.batch_alter_table("goods_receipts") as batch_op:
+        batch_op.drop_constraint("ck_goods_receipts_source_type", type_="check")
+        batch_op.drop_constraint("ck_goods_receipts_mode", type_="check")
+        batch_op.drop_index("ix_goods_receipts_source_type")
+        batch_op.drop_index("ix_goods_receipts_mode")
+        batch_op.drop_column("source_type")
+        batch_op.drop_column("mode")

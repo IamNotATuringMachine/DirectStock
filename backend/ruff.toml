@@ -1,0 +1,16 @@
+target-version = "py312"
+line-length = 120
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "B008", "E402", "I001", "F401", "F541", "UP012", "UP032", "UP037"]
+
+[lint.per-file-ignores]
+"app/routers/operations/*.py" = ["F403", "F405"]
+"app/routers/reports/*.py" = ["F403", "F405"]
+"alembic/env.py" = ["UP010"]
+"alembic/versions/*.py" = ["UP"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

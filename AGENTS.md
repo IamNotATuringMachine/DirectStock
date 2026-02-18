@@ -46,6 +46,11 @@ If instructions conflict, apply the highest-priority rule and document assumptio
 2. Project status: `directstock_phase5.md` is current baseline.
 3. Tests are part of the specification (especially auth, RBAC, inventory, operations, shipping, offline idempotency).
 
+## Vibe Coding References
+- `docs/guides/vibe-coding-playbook.md`
+- `docs/guides/module-map.md`
+- `docs/guides/refactor-runbook.md`
+
 ## Architecture Guardrails
 ### Backend
 - Endpoints under `/api/*`; health at `/health` and `/api/health`.

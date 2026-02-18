@@ -541,7 +541,7 @@ export default function PurchasingPage() {
                  Neu berechnen
               </button>
            </div>
-           
+
            <div className="overflow-x-auto">
               <table className="w-full text-left text-sm" data-testid="abc-table">
                  <thead className="bg-[var(--bg)] text-[var(--muted)] font-medium border-b border-[var(--line)]">

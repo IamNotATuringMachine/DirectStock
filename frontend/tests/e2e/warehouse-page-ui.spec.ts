@@ -254,14 +254,14 @@ test.describe("/warehouse page ui and functional regression", () => {
     await loginAndOpenWarehousePage(page, user.username, user.password);
 
     await expect(page.getByRole("heading", { name: "Lager", exact: true })).toBeVisible();
-    
+
     // Open create warehouse form
     await page.getByTitle("Neues Lager").click();
 
     const warehouseCode = `E2E-WH-${marker.slice(-6)}`;
     const warehouseName = `E2E Warehouse ${marker.slice(-6)}`;
     const warehouseAddress = `E2E Address ${marker.slice(-4)}`;
-    
+
     await page.getByPlaceholder("Code (z.B. WH-MAIN)").fill(warehouseCode);
     await page.getByPlaceholder("Name").fill(warehouseName);
     await page.getByPlaceholder("Adresse").fill(warehouseAddress);
@@ -274,12 +274,12 @@ test.describe("/warehouse page ui and functional regression", () => {
       .first();
     await expect(createdWarehouseButton).toBeVisible();
     await createdWarehouseButton.click();
-    // In the new UI, selected item has a blue/emerald highlight but not necessarily a class "active" on the button element itself, 
+    // In the new UI, selected item has a blue/emerald highlight but not necessarily a class "active" on the button element itself,
     // but we can check if it has the specific style or check for the indicator dot.
     // However, for simplicity let's just assume if we clicked it, it's selected. The UI update should reflect in the next column.
 
     await expect(page.getByRole("heading", { name: /^Zonen/ })).toBeVisible();
-    
+
     // Open create zone form
     await page.getByTitle("Neue Zone").click();
 
@@ -287,10 +287,10 @@ test.describe("/warehouse page ui and functional regression", () => {
     const zoneName = `E2E Zone ${marker.slice(-5)}`;
     await page.getByPlaceholder("Zone-Code (z.B. Z-01)").fill(zoneCode);
     await page.getByPlaceholder("Name").fill(zoneName);
-    
+
     // Zone type select
     await page.locator('select').first().selectOption("returns");
-    
+
     await page.getByRole("button", { name: "Anlegen" }).click();
 
     const createdZoneButton = page
@@ -302,11 +302,11 @@ test.describe("/warehouse page ui and functional regression", () => {
     await createdZoneButton.click();
 
     await expect(page.getByRole("heading", { name: "Lagerplätze" })).toBeVisible();
-    
+
     // Open batch create dialog
     await page.getByTitle("Batch erstellen").click();
     await expect(page.getByTestId("warehouse-batch-create-dialog")).toBeVisible();
-    
+
     // QR Dialog should be hidden initially as there are no bins
     await expect(page.getByTestId("warehouse-qr-print-dialog")).toBeHidden();
 
@@ -318,7 +318,7 @@ test.describe("/warehouse page ui and functional regression", () => {
 
     const binGrid = page.getByTestId("warehouse-bin-grid");
     await expect(binGrid).toBeVisible();
-    
+
     // Now QR print dialog should be visible
     await expect(page.getByTestId("warehouse-qr-print-dialog")).toBeVisible();
     await expect(page.getByTestId("warehouse-zone-qr-pdf")).toBeEnabled();
@@ -415,7 +415,7 @@ test.describe("/warehouse page ui and functional regression", () => {
     // Open batch dialog for layout check
     await page.getByTitle("Batch erstellen").click();
     await expect(page.getByTestId("warehouse-batch-create-dialog")).toBeVisible();
-    
+
     // QR print dialog is visible because we seeded bins
     await expect(page.getByTestId("warehouse-qr-print-dialog")).toBeVisible();
     await expect(page.getByTestId("warehouse-bin-grid")).toBeVisible();

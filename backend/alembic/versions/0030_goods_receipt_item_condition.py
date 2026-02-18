@@ -30,17 +30,15 @@ def upgrade() -> None:
             existing_nullable=False,
         )
 
-    op.add_column(
-        "goods_receipt_items",
-        sa.Column("condition", sa.String(20), nullable=False, server_default="new"),
-    )
-    op.create_check_constraint(
-        "ck_gri_condition",
-        "goods_receipt_items",
-        "condition in ('new','defective','needs_repair')",
-    )
+    with op.batch_alter_table("goods_receipt_items") as batch_op:
+        batch_op.add_column(sa.Column("condition", sa.String(20), nullable=False, server_default="new"))
+        batch_op.create_check_constraint(
+            "ck_gri_condition",
+            "condition in ('new','defective','needs_repair')",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_gri_condition", "goods_receipt_items", type_="check")
-    op.drop_column("goods_receipt_items", "condition")
+    with op.batch_alter_table("goods_receipt_items") as batch_op:
+        batch_op.drop_constraint("ck_gri_condition", type_="check")
+        batch_op.drop_column("condition")

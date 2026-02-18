@@ -61,4 +61,3 @@ describe("dashboardConfigApi", () => {
     expect(updated).toEqual({ cards: payload.cards });
   });
 });
-

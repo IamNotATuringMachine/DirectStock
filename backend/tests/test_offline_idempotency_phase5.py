@@ -71,4 +71,3 @@ async def test_idempotent_replay_for_invoice_create(client: AsyncClient, admin_t
     assert first.status_code == 201
     assert second.status_code == 201
     assert first.json()["invoice"]["id"] == second.json()["invoice"]["id"]
-

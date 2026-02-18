@@ -1,8 +1,8 @@
 # DirectStock Phase 4 - Implementierungsplan
 
 ## Kurzfassung
-Dieses Dokument ist der **decision-complete Umsetzungsplan** für Phase 4 (Features 26-30 aus `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/directstock.md`) und ist als Inhalt für `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/directstock_phase4.md` vorgesehen.  
-Planungsstand: **13. Februar 2026**  
+Dieses Dokument ist der **decision-complete Umsetzungsplan** für Phase 4 (Features 26-30 aus `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/directstock.md`) und ist als Inhalt für `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/directstock_phase4.md` vorgesehen.
+Planungsstand: **13. Februar 2026**
 Gesamtstatus: **COMPLETED**
 
 ## Festgelegte Leitentscheidungen
@@ -80,7 +80,7 @@ Status: **RESOLVED** durch ergänzte Unit-Tests für `shippingApi` und `interWar
 ## Öffentliche API-/Interface-Änderungen (additiv)
 
 ### Backend HTTP APIs
-1. `POST /api/external/token`  
+1. `POST /api/external/token`
    OAuth2-ähnlicher Client-Credentials-Flow (`client_id`, `client_secret`, `scope`) mit JWT-Token (TTL: 30 Minuten).
 2. `GET /api/external/v1/products`
 3. `GET /api/external/v1/warehouses`
@@ -111,7 +111,7 @@ Status: **RESOLVED** durch ergänzte Unit-Tests für `shippingApi` und `interWar
 ### Frontend-Typen und Routen
 1. Neue Typen in `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/frontend/src/types.ts` für `Shipment`, `ShipmentEvent`, `InterWarehouseTransfer`, `ForecastRow`.
 2. Neue Routen:
-   `/shipping` (Rollen: `admin|lagerleiter|versand`)  
+   `/shipping` (Rollen: `admin|lagerleiter|versand`)
    `/inter-warehouse-transfer` (Rollen: `admin|lagerleiter|lagermitarbeiter`)
 3. `ReportsPage` erweitert um `trends` und `demand-forecast`.
 
@@ -213,9 +213,9 @@ Status: **RESOLVED** durch ergänzte Unit-Tests für `shippingApi` und `interWar
 3. Relevante Tests grün und reproduzierbar.
 4. Legacy-Migration-Cutover-Probe erfolgreich dokumentiert.
 5. Doku aktualisiert:
-   `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/README.md`  
-   `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/directstock_phase4.md`  
-   `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/phase4-acceptance.md`  
+   `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/README.md`
+   `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/directstock_phase4.md`
+   `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/phase4-acceptance.md`
    `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/phase4-migration-rehearsal.md`
 
 ## Annahmen und Defaults

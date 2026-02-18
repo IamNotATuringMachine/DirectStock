@@ -184,7 +184,7 @@ export default function SalesOrdersPage() {
         {(ordersQuery.data?.items ?? []).map((order) => (
           <div
             key={order.id}
-            className={`relative flex flex-col justify-between overflow-hidden rounded-[var(--radius-md)] border transition-all duration-200 p-4 
+            className={`relative flex flex-col justify-between overflow-hidden rounded-[var(--radius-md)] border transition-all duration-200 p-4
                   ${selectedOrderId === order.id
                 ? "bg-[var(--panel-strong)] border-[var(--accent)] shadow-md ring-1 ring-[var(--accent)]"
                 : "bg-[var(--panel)] border-[var(--line)] hover:border-[var(--line-strong)] hover:shadow-sm"

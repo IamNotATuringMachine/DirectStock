@@ -57,5 +57,5 @@ Gesamtstatus: **DONE**
 - `frontend unit`: `13 passed` (`npm run test`)
 - `frontend build`: erfolgreich (`npm run build`)
 - `frontend e2e`: erfolgreich (`npm run test:e2e` -> `8 passed`)
-- `lighthouse/pwa`: `1.00` (`./scripts/lighthouse_pwa.sh`, Schwellwert `>= 0.90`)  
+- `lighthouse/pwa`: `1.00` (`./scripts/lighthouse_pwa.sh`, Schwellwert `>= 0.90`)
   Artefakte: `artifacts/lighthouse/lighthouse.report.json`, `artifacts/lighthouse/lighthouse.report.html`

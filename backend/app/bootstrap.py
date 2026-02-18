@@ -52,9 +52,27 @@ MVP_PRODUCT_GROUPS: list[tuple[str, str]] = [
 
 SEED_WAREHOUSE_CODE = "WH-MAIN"
 SEED_ZONE_CONFIGS = {
-    "INB": {"name": "Inbound", "zone_type": "inbound", "aisles": range(1, 6), "shelves": range(1, 3), "levels": range(1, 4)},
-    "STO": {"name": "Storage", "zone_type": "storage", "aisles": range(1, 11), "shelves": range(1, 6), "levels": range(1, 3)},
-    "OUT": {"name": "Outbound", "zone_type": "outbound", "aisles": range(1, 6), "shelves": range(1, 3), "levels": range(1, 3)},
+    "INB": {
+        "name": "Inbound",
+        "zone_type": "inbound",
+        "aisles": range(1, 6),
+        "shelves": range(1, 3),
+        "levels": range(1, 4),
+    },
+    "STO": {
+        "name": "Storage",
+        "zone_type": "storage",
+        "aisles": range(1, 11),
+        "shelves": range(1, 6),
+        "levels": range(1, 3),
+    },
+    "OUT": {
+        "name": "Outbound",
+        "zone_type": "outbound",
+        "aisles": range(1, 6),
+        "shelves": range(1, 3),
+        "levels": range(1, 3),
+    },
 }
 
 PHASE5_PAGES: list[tuple[str, str, str]] = [
@@ -101,6 +119,34 @@ PHASE5_MODULE_PERMISSIONS: list[tuple[str, str]] = [
     ("module.invoices.export", "Export invoices"),
     ("module.goods_receipts.read", "Read goods receipt operations"),
     ("module.goods_receipts.write", "Write goods receipt operations"),
+    ("module.operations.goods_issues.read", "Read goods issue operations"),
+    ("module.operations.goods_issues.write", "Write goods issue operations"),
+    ("module.operations.stock_transfers.read", "Read stock transfer operations"),
+    ("module.operations.stock_transfers.write", "Write stock transfer operations"),
+    ("module.reports.read", "Read reports"),
+    ("module.reports.write", "Recompute report data"),
+    ("module.inventory.read", "Read inventory"),
+    ("module.inventory.write", "Write inventory"),
+    ("module.warehouses.read", "Read warehouses"),
+    ("module.warehouses.write", "Write warehouses"),
+    ("module.customers.read", "Read customers"),
+    ("module.customers.write", "Write customers"),
+    ("module.suppliers.read", "Read suppliers"),
+    ("module.suppliers.write", "Write suppliers"),
+    ("module.shipping.read", "Read shipping"),
+    ("module.shipping.write", "Write shipping"),
+    ("module.returns.read", "Read returns"),
+    ("module.returns.write", "Write returns"),
+    ("module.picking.read", "Read picking"),
+    ("module.picking.write", "Write picking"),
+    ("module.documents.read", "Read documents"),
+    ("module.documents.write", "Write documents"),
+    ("module.alerts.read", "Read alerts"),
+    ("module.alerts.write", "Write alerts"),
+    ("module.purchasing.read", "Read purchasing"),
+    ("module.purchasing.write", "Write purchasing"),
+    ("module.inventory_counts.read", "Read inventory counts"),
+    ("module.inventory_counts.write", "Write inventory counts"),
     ("module.products.quick_create", "Create products from goods receipt workflow"),
 ]
 
@@ -121,6 +167,34 @@ PHASE5_ROLE_MODULE_PERMISSIONS: dict[str, set[str]] = {
         "module.invoices.export",
         "module.goods_receipts.read",
         "module.goods_receipts.write",
+        "module.operations.goods_issues.read",
+        "module.operations.goods_issues.write",
+        "module.operations.stock_transfers.read",
+        "module.operations.stock_transfers.write",
+        "module.reports.read",
+        "module.reports.write",
+        "module.inventory.read",
+        "module.inventory.write",
+        "module.warehouses.read",
+        "module.warehouses.write",
+        "module.customers.read",
+        "module.customers.write",
+        "module.suppliers.read",
+        "module.suppliers.write",
+        "module.shipping.read",
+        "module.shipping.write",
+        "module.returns.read",
+        "module.returns.write",
+        "module.picking.read",
+        "module.picking.write",
+        "module.documents.read",
+        "module.documents.write",
+        "module.alerts.read",
+        "module.alerts.write",
+        "module.purchasing.read",
+        "module.purchasing.write",
+        "module.inventory_counts.read",
+        "module.inventory_counts.write",
     },
     "lagermitarbeiter": {
         "module.permissions.read",
@@ -131,6 +205,16 @@ PHASE5_ROLE_MODULE_PERMISSIONS: dict[str, set[str]] = {
         "module.sales_orders.read",
         "module.goods_receipts.read",
         "module.goods_receipts.write",
+        "module.operations.goods_issues.read",
+        "module.operations.goods_issues.write",
+        "module.operations.stock_transfers.read",
+        "module.operations.stock_transfers.write",
+        "module.inventory.read",
+        "module.warehouses.read",
+        "module.picking.read",
+        "module.picking.write",
+        "module.alerts.read",
+        "module.inventory_counts.read",
     },
     "einkauf": {
         "module.permissions.read",
@@ -145,6 +229,14 @@ PHASE5_ROLE_MODULE_PERMISSIONS: dict[str, set[str]] = {
         "module.invoices.read",
         "module.goods_receipts.read",
         "module.goods_receipts.write",
+        "module.purchasing.read",
+        "module.purchasing.write",
+        "module.suppliers.read",
+        "module.suppliers.write",
+        "module.customers.read",
+        "module.reports.read",
+        "module.inventory.read",
+        "module.documents.read",
     },
     "versand": {
         "module.permissions.read",
@@ -157,6 +249,16 @@ PHASE5_ROLE_MODULE_PERMISSIONS: dict[str, set[str]] = {
         "module.invoices.read",
         "module.invoices.write",
         "module.invoices.export",
+        "module.operations.goods_issues.read",
+        "module.operations.goods_issues.write",
+        "module.shipping.read",
+        "module.shipping.write",
+        "module.returns.read",
+        "module.returns.write",
+        "module.documents.read",
+        "module.documents.write",
+        "module.customers.read",
+        "module.customers.write",
     },
     "controller": {
         "module.permissions.read",
@@ -167,6 +269,10 @@ PHASE5_ROLE_MODULE_PERMISSIONS: dict[str, set[str]] = {
         "module.pricing.read",
         "module.sales_orders.read",
         "module.invoices.read",
+        "module.reports.read",
+        "module.inventory.read",
+        "module.documents.read",
+        "module.alerts.read",
     },
     "auditor": {
         "module.permissions.read",
@@ -177,6 +283,8 @@ PHASE5_ROLE_MODULE_PERMISSIONS: dict[str, set[str]] = {
         "module.pricing.read",
         "module.sales_orders.read",
         "module.invoices.read",
+        "module.reports.read",
+        "module.documents.read",
     },
 }
 
@@ -278,12 +386,7 @@ def _expected_bin_codes(zone_code: str) -> list[str]:
 
 async def _seed_roles(db: AsyncSession) -> dict[str, Role]:
     existing_roles = {
-        role.name: role
-        for role in (
-            await db.execute(
-                select(Role).options(selectinload(Role.permissions))
-            )
-        ).scalars()
+        role.name: role for role in (await db.execute(select(Role).options(selectinload(Role.permissions)))).scalars()
     }
 
     for role_name, description in DEFAULT_ROLES:
@@ -301,17 +404,10 @@ async def _seed_roles(db: AsyncSession) -> dict[str, Role]:
 
 async def _seed_phase5_rbac_and_dashboard(db: AsyncSession, role_map: dict[str, Role]) -> None:
     existing_permissions = {
-        permission.code: permission
-        for permission in (await db.execute(select(Permission))).scalars()
+        permission.code: permission for permission in (await db.execute(select(Permission))).scalars()
     }
-    existing_pages = {
-        page.slug: page
-        for page in (await db.execute(select(AppPage))).scalars()
-    }
-    existing_cards = {
-        card.card_key: card
-        for card in (await db.execute(select(DashboardCard))).scalars()
-    }
+    existing_pages = {page.slug: page for page in (await db.execute(select(AppPage))).scalars()}
+    existing_cards = {card.card_key: card for card in (await db.execute(select(DashboardCard))).scalars()}
 
     permissions: list[tuple[str, str]] = [
         *[(f"page.{slug}.view", f"View access for page '{slug}'") for slug, _, _ in PHASE5_PAGES],
@@ -352,9 +448,7 @@ async def _seed_phase5_rbac_and_dashboard(db: AsyncSession, role_map: dict[str, 
             desired_codes.update({f"page.{slug}.view" for slug in pages})
 
         desired_permission_ids = [
-            existing_permissions[code].id
-            for code in sorted(desired_codes)
-            if code in existing_permissions
+            existing_permissions[code].id for code in sorted(desired_codes) if code in existing_permissions
         ]
         await db.execute(delete(role_permissions).where(role_permissions.c.role_id == role.id))
         if desired_permission_ids:
@@ -424,11 +518,7 @@ async def _seed_users(db: AsyncSession, role_map: dict[str, Role]) -> User:
     existing_users = {
         user.username: user
         for user in (
-            await db.execute(
-                select(User)
-                .where(User.username.in_(usernames))
-                .options(selectinload(User.roles))
-            )
+            await db.execute(select(User).where(User.username.in_(usernames)).options(selectinload(User.roles)))
         ).scalars()
     }
 
@@ -466,9 +556,7 @@ async def _seed_users(db: AsyncSession, role_map: dict[str, Role]) -> User:
 
 
 async def _seed_warehouse_structure(db: AsyncSession) -> tuple[Warehouse, dict[str, WarehouseZone], list[BinLocation]]:
-    warehouse = (
-        await db.execute(select(Warehouse).where(Warehouse.code == SEED_WAREHOUSE_CODE))
-    ).scalar_one_or_none()
+    warehouse = (await db.execute(select(Warehouse).where(Warehouse.code == SEED_WAREHOUSE_CODE))).scalar_one_or_none()
     if warehouse is None:
         warehouse = Warehouse(
             code=SEED_WAREHOUSE_CODE,
@@ -486,9 +574,7 @@ async def _seed_warehouse_structure(db: AsyncSession) -> tuple[Warehouse, dict[s
     existing_zones = {
         zone.code: zone
         for zone in (
-            await db.execute(
-                select(WarehouseZone).where(WarehouseZone.warehouse_id == warehouse.id)
-            )
+            await db.execute(select(WarehouseZone).where(WarehouseZone.warehouse_id == warehouse.id))
         ).scalars()
     }
 
@@ -516,9 +602,7 @@ async def _seed_warehouse_structure(db: AsyncSession) -> tuple[Warehouse, dict[s
     for zone_code, zone in zone_map.items():
         existing_bins = {
             bin_location.code: bin_location
-            for bin_location in (
-                await db.execute(select(BinLocation).where(BinLocation.zone_id == zone.id))
-            ).scalars()
+            for bin_location in (await db.execute(select(BinLocation).where(BinLocation.zone_id == zone.id))).scalars()
         }
 
         expected_codes = _expected_bin_codes(zone_code)
@@ -551,9 +635,7 @@ async def _seed_product_groups(db: AsyncSession) -> list[ProductGroup]:
     group_names = [name for name, _ in MVP_PRODUCT_GROUPS]
     existing_groups = {
         group.name: group
-        for group in (
-            await db.execute(select(ProductGroup).where(ProductGroup.name.in_(group_names)))
-        ).scalars()
+        for group in (await db.execute(select(ProductGroup).where(ProductGroup.name.in_(group_names)))).scalars()
     }
 
     groups: list[ProductGroup] = []
@@ -575,9 +657,7 @@ async def _seed_products(db: AsyncSession, groups: list[ProductGroup]) -> list[P
     product_numbers = [f"DS-ART-{index:04d}" for index in range(1, 51)]
     existing_products = {
         product.product_number: product
-        for product in (
-            await db.execute(select(Product).where(Product.product_number.in_(product_numbers)))
-        ).scalars()
+        for product in (await db.execute(select(Product).where(Product.product_number.in_(product_numbers)))).scalars()
     }
 
     seeded_products: list[Product] = []
@@ -675,9 +755,7 @@ async def _seed_initial_inventory_and_movements(
     product_ids = [product.id for product in seeded_products]
     existing_inventory = {
         (row.product_id, row.bin_location_id): row
-        for row in (
-            await db.execute(select(Inventory).where(Inventory.product_id.in_(product_ids)))
-        ).scalars()
+        for row in (await db.execute(select(Inventory).where(Inventory.product_id.in_(product_ids)))).scalars()
     }
 
     reference_numbers = [f"SEED-WE-{index:04d}" for index in range(1, len(seeded_products) + 1)]

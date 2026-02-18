@@ -1,0 +1,58 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.13
+    hooks:
+      - id: ruff
+        name: backend-ruff-check
+        files: ^backend/
+        pass_filenames: false
+        args:
+          [
+            "--config",
+            "backend/ruff.toml",
+            "backend/app/routers/operations",
+            "backend/app/routers/reports",
+            "backend/app/services/operations",
+            "backend/app/services/reports",
+            "backend/app/bootstrap.py",
+            "backend/tests/test_seed.py",
+          ]
+      - id: ruff-format
+        name: backend-ruff-format-check
+        files: ^backend/
+        pass_filenames: false
+        args:
+          [
+            "--config",
+            "backend/ruff.toml",
+            "--check",
+            "backend/app/routers/operations",
+            "backend/app/routers/reports",
+            "backend/app/services/operations",
+            "backend/app/services/reports",
+            "backend/app/bootstrap.py",
+            "backend/tests/test_seed.py",
+          ]
+
+  - repo: local
+    hooks:
+      - id: frontend-eslint
+        name: frontend-eslint
+        language: system
+        entry: bash -lc 'cd frontend && npm run lint'
+        pass_filenames: false
+        files: ^frontend/
+      - id: frontend-prettier-check
+        name: frontend-prettier-check
+        language: system
+        entry: bash -lc 'cd frontend && npm run format:check'
+        pass_filenames: false
+        files: ^frontend/

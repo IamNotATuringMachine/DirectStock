@@ -16,7 +16,7 @@ describe("accessRouting", () => {
       resolvePostLoginPath({
         requestedPath: "/reports",
         userPermissions: ["page.reports.view"],
-      }),
+      })
     ).toBe("/reports");
   });
 
@@ -25,7 +25,7 @@ describe("accessRouting", () => {
       resolvePostLoginPath({
         requestedPath: "/reports",
         userPermissions: ["page.documents.view"],
-      }),
+      })
     ).toBe("/documents");
   });
 
@@ -34,4 +34,3 @@ describe("accessRouting", () => {
     expect(canAccessPath("/products/123", ["page.dashboard.view"])).toBe(false);
   });
 });
-

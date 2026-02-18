@@ -80,4 +80,3 @@ test("sales and invoice partial flow enforces over-invoicing guard", async ({ re
   });
   expect(partial.status()).toBe(409);
 });
-

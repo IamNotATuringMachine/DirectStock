@@ -286,7 +286,9 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
-python -m pytest
+ruff check --config ruff.toml app/routers/operations app/routers/reports app/services/operations app/services/reports app/bootstrap.py tests/test_seed.py
+ruff format --config ruff.toml --check app/routers/operations app/routers/reports app/services/operations app/services/reports app/bootstrap.py tests/test_seed.py
+python -m pytest -q
 ```
 
 Frontend Unit:
@@ -294,6 +296,8 @@ Frontend Unit:
 ```bash
 cd frontend
 npm install
+npm run lint
+npm run format:check
 npm run test
 ```
 
@@ -317,6 +321,12 @@ One-time Cleanup fuer bereits bestehende E2E/Testdaten:
 ```bash
 python3 scripts/cleanup_test_data.py --mode dry-run
 python3 scripts/cleanup_test_data.py --mode apply
+```
+
+Repository-Gates (optional, empfohlen vor PR):
+
+```bash
+pre-commit run --all-files
 ```
 
 ## Prod Verification Checklist

@@ -1,8 +1,8 @@
 # DirectStock Phase 5 - Implementierungsplan
 
 ## Kurzfassung
-Dieses Dokument ist der **decision-complete Umsetzungsplan** fuer Phase 5 (Features 31-38 aus `directstock.md`) und dient als Source-of-Truth fuer die naechste Ausbauphase.  
-Planungsstand: **14. Februar 2026**  
+Dieses Dokument ist der **decision-complete Umsetzungsplan** fuer Phase 5 (Features 31-38 aus `directstock.md`) und dient als Source-of-Truth fuer die naechste Ausbauphase.
+Planungsstand: **14. Februar 2026**
 Gesamtstatus: **IMPLEMENTED (validated)**
 
 ## Abnahme-Update 2026-02-14
@@ -288,9 +288,9 @@ Status: **ADDRESSED IN PLAN** durch XRechnung-/ZUGFeRD-Export, Pflichtfeldpruefu
 2. Relevante Backend-/Frontend-/E2E-Tests gruen.
 3. Breaking Changes nur bei expliziter Freigabe; Services-Removal 2026-02-17 ist freigegeben und dokumentiert.
 4. Doku aktualisiert:
-   `README.md`  
-   `directstock.md`  
-   `directstock_phase5.md`  
+   `README.md`
+   `directstock.md`
+   `directstock_phase5.md`
    `docs/validation/phase5-acceptance.md`
 
 ## Annahmen und Defaults

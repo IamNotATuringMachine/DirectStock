@@ -20,22 +20,20 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "products",
-        sa.Column("default_bin_id", sa.Integer(), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_products_default_bin_id",
-        "products",
-        "bin_locations",
-        ["default_bin_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.create_index("ix_products_default_bin_id", "products", ["default_bin_id"])
+    with op.batch_alter_table("products") as batch_op:
+        batch_op.add_column(sa.Column("default_bin_id", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_products_default_bin_id",
+            "bin_locations",
+            ["default_bin_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+        batch_op.create_index("ix_products_default_bin_id", ["default_bin_id"])
 
 
 def downgrade() -> None:
-    op.drop_index("ix_products_default_bin_id", table_name="products")
-    op.drop_constraint("fk_products_default_bin_id", "products", type_="foreignkey")
-    op.drop_column("products", "default_bin_id")
+    with op.batch_alter_table("products") as batch_op:
+        batch_op.drop_index("ix_products_default_bin_id")
+        batch_op.drop_constraint("fk_products_default_bin_id", type_="foreignkey")
+        batch_op.drop_column("default_bin_id")

@@ -1,40 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, matchPath } from "react-router-dom";
-import {
-  Menu,
-  X,
-  Moon,
-  Sun,
-  LogOut,
-  User,
-  ChevronRight,
-  LayoutDashboard,
-  Package,
-  Factory,
-  Combine,
-  ClipboardList,
-  ShoppingCart,
-  Truck,
-  RotateCcw,
-  CheckSquare,
-  FileText,
-  History,
-  BarChart3,
-  Bell,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  ArrowRightLeft,
-  Warehouse,
-  ScanBarcode,
-  FileSpreadsheet,
-  Receipt,
-  Users,
-  Building2,
-} from "lucide-react";
+import { ChevronRight, LogOut, Menu, Moon, Sun, User, X } from "lucide-react";
 
 import OfflineSyncPanel from "./offline/OfflineSyncPanel";
 import PwaStatus from "./pwa/PwaStatus";
 import directServicesLogo from "../assets/directservices-logo-only-letter.png";
+import { routeCatalog, navigableRoutes } from "../routing/routeCatalog";
 import { fetchMyUiPreferences, updateMyUiPreferences } from "../services/uiPreferencesApi";
 import { useAuthStore } from "../stores/authStore";
 import { useUiPreferencesStore } from "../stores/uiPreferencesStore";
@@ -44,68 +15,34 @@ type NavItem = {
   label: string;
   shortLabel: string;
   icon: React.ElementType;
-  requiredPermissions?: string[];
+  requiredPermission: string;
 };
 
-const navItems: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", shortLabel: "DB", icon: LayoutDashboard, requiredPermissions: ["page.dashboard.view"] },
-  { to: "/products", label: "Artikelstamm", shortLabel: "AR", icon: Package, requiredPermissions: ["page.products.view"] },
-  { to: "/warehouse", label: "Lagerstruktur", shortLabel: "LG", icon: Factory, requiredPermissions: ["page.warehouse.view"] },
-  { to: "/inventory", label: "Bestandsübersicht", shortLabel: "BS", icon: Combine, requiredPermissions: ["page.inventory.view"] },
-  { to: "/inventory-counts", label: "Inventur", shortLabel: "IV", icon: ClipboardList, requiredPermissions: ["page.inventory-counts.view"] },
-  { to: "/purchasing", label: "Einkauf", shortLabel: "EK", icon: ShoppingCart, requiredPermissions: ["page.purchasing.view"] },
-  { to: "/picking", label: "Kommissionierung", shortLabel: "PK", icon: CheckSquare, requiredPermissions: ["page.picking.view"] },
-  { to: "/returns", label: "Retouren", shortLabel: "RT", icon: RotateCcw, requiredPermissions: ["page.returns.view"] },
-  { to: "/approvals", label: "Genehmigungen", shortLabel: "GN", icon: CheckSquare, requiredPermissions: ["page.approvals.view"] },
-  { to: "/documents", label: "Dokumente", shortLabel: "DM", icon: FileText, requiredPermissions: ["page.documents.view"] },
-  { to: "/audit-trail", label: "Audit-Trail", shortLabel: "AT", icon: History, requiredPermissions: ["page.audit-trail.view"] },
-  { to: "/reports", label: "Berichte", shortLabel: "RP", icon: BarChart3, requiredPermissions: ["page.reports.view"] },
-  { to: "/alerts", label: "Warnungen", shortLabel: "AL", icon: Bell, requiredPermissions: ["page.alerts.view"] },
-  { to: "/goods-receipt", label: "Wareneingang", shortLabel: "WE", icon: ArrowDownToLine, requiredPermissions: ["page.goods-receipt.view"] },
-  { to: "/goods-issue", label: "Warenausgang", shortLabel: "WA", icon: ArrowUpFromLine, requiredPermissions: ["page.goods-issue.view"] },
-  { to: "/stock-transfer", label: "Umlagerung", shortLabel: "UM", icon: ArrowRightLeft, requiredPermissions: ["page.stock-transfer.view"] },
-  {
-    to: "/inter-warehouse-transfer",
-    label: "Zwischenlager",
-    shortLabel: "IW",
-    icon: Warehouse,
-    requiredPermissions: ["page.inter-warehouse-transfer.view"],
-  },
-  { to: "/shipping", label: "Versand", shortLabel: "SH", icon: Truck, requiredPermissions: ["page.shipping.view"] },
-  { to: "/customers", label: "Kunden", shortLabel: "KD", icon: Building2, requiredPermissions: ["page.customers.view"] },
-  { to: "/scanner", label: "Scanner", shortLabel: "SC", icon: ScanBarcode, requiredPermissions: ["page.scanner.view"] },
-  { to: "/sales-orders", label: "Verkaufsaufträge", shortLabel: "SO", icon: FileSpreadsheet, requiredPermissions: ["page.sales-orders.view"] },
-  { to: "/invoices", label: "Rechnungen", shortLabel: "RE", icon: Receipt, requiredPermissions: ["page.invoices.view"] },
-  { to: "/users", label: "Benutzerverwaltung", shortLabel: "BU", icon: Users, requiredPermissions: ["page.users.view"] },
-];
+const navItems: NavItem[] = navigableRoutes.map((route) => ({
+  to: route.path,
+  label: route.navLabel,
+  shortLabel: route.shortLabel,
+  icon: route.icon,
+  requiredPermission: route.requiredPermission,
+}));
 
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 
-function canAccess(requiredPermissions: string[] | undefined, granted: Set<string>) {
-  if (!requiredPermissions || requiredPermissions.length === 0) {
-    return true;
-  }
-  return requiredPermissions.some((permission) => granted.has(permission));
+function canAccess(requiredPermission: string, granted: Set<string>) {
+  return granted.has(requiredPermission);
 }
 
 function getPageTitle(pathname: string) {
-  // Exact match first
-  const exactMatch = navItems.find((item) => item.to === pathname);
-  if (exactMatch) return exactMatch.label;
-
-  // Sub-route matching logic
-  // /products/:id -> Artikelstamm / Details
-  // /products/new -> Artikelstamm / Neu
-  if (pathname.startsWith("/products/")) {
-    if (pathname.endsWith("/new")) return "Artikelstamm / Neu";
-    if (pathname.endsWith("/edit")) return "Artikelstamm / Bearbeiten";
-    return "Artikelstamm / Details";
+  const exactMatch = routeCatalog.find((route) => route.path === pathname);
+  if (exactMatch) {
+    return exactMatch.title ?? exactMatch.navLabel;
   }
 
-  // Generic fallback if partially matching a known root
-  const rootMatch = navItems.find(item => pathname.startsWith(item.to) && item.to !== "/");
-  if (rootMatch) {
-    return `${rootMatch.label} / ...`
+  for (const route of routeCatalog) {
+    const matched = matchPath({ path: route.path, end: true }, pathname);
+    if (matched) {
+      return route.title ?? route.navLabel;
+    }
   }
 
   return "DirectStock";
@@ -272,7 +209,7 @@ export default function AppLayout() {
         </div>
         <nav>
           {navItems
-            .filter((item) => canAccess(item.requiredPermissions, grantedPermissions))
+            .filter((item) => canAccess(item.requiredPermission, grantedPermissions))
             .map((item) => (
               <NavLink
                 key={item.to}
@@ -324,12 +261,10 @@ export default function AppLayout() {
               }
               aria-label="Toggle Navigation"
             >
-              {isMobileLayout ? (isMobileNavOpen ? <X size={20} /> : <Menu size={20} />) : <Menu size={20} />}
+              {isMobileLayout ? isMobileNavOpen ? <X size={20} /> : <Menu size={20} /> : <Menu size={20} />}
             </button>
 
-            <div className="topbar-title text-lg font-semibold tracking-tight text-[var(--ink)]">
-              {currentTitle}
-            </div>
+            <div className="topbar-title text-lg font-semibold tracking-tight text-[var(--ink)]">{currentTitle}</div>
           </div>
 
           <div className="topbar-right flex items-center gap-3" data-testid="topbar-right">
@@ -349,7 +284,10 @@ export default function AppLayout() {
 
             <div className="h-6 w-px bg-[var(--line)] mx-2"></div>
 
-            <div className="topbar-user flex items-center gap-3 px-3 py-1.5 rounded-full bg-[var(--panel-soft)] hover:bg-[var(--line)]/30 transition-colors cursor-default border border-[var(--line)]/50" title={`Angemeldet als ${user?.username}`}>
+            <div
+              className="topbar-user flex items-center gap-3 px-3 py-1.5 rounded-full bg-[var(--panel-soft)] hover:bg-[var(--line)]/30 transition-colors cursor-default border border-[var(--line)]/50"
+              title={`Angemeldet als ${user?.username}`}
+            >
               <div className="user-avatar w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-sm">
                 <User size={16} />
               </div>

@@ -182,7 +182,7 @@ export default function InventoryCountPage() {
           <div className="p-4 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 flex items-center gap-2">
             <h3 className="section-title text-zinc-900 dark:text-zinc-100">1. Session anlegen</h3>
           </div>
-          
+
           <div className="p-4 space-y-6 flex-1 flex flex-col">
             <form className="form-grid grid gap-4" onSubmit={(event) => void onCreateSession(event)} data-testid="inventory-count-create-form">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -238,24 +238,24 @@ export default function InventoryCountPage() {
                   />
                 </label>
               </div>
-              <button 
-                className="btn h-10 w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
-                type="submit" 
-                disabled={createSessionMutation.isPending} 
+              <button
+                className="btn h-10 w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="submit"
+                disabled={createSessionMutation.isPending}
                 data-testid="inventory-count-create-btn"
               >
                 <Plus className="w-4 h-4" />
                 Session erstellen
               </button>
             </form>
-            
+
             <div className="list-stack small flex-1 overflow-y-auto min-h-[150px] border border-zinc-200 dark:border-zinc-700 rounded-lg divide-y divide-zinc-100 dark:divide-zinc-700 bg-zinc-50 dark:bg-zinc-900/30" data-testid="inventory-count-session-list">
               {(sessionsQuery.data ?? []).map((session) => (
                 <button
                   key={session.id}
                   className={`list-item w-full text-left p-3 transition-colors flex items-center justify-between group ${
-                    selectedSessionId === session.id 
-                      ? "active bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500" 
+                    selectedSessionId === session.id
+                      ? "active bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500"
                       : "hover:bg-zinc-100 dark:hover:bg-zinc-800 border-l-4 border-l-transparent"
                   }`}
                   onClick={() => setSelectedSessionId(session.id)}
@@ -300,7 +300,7 @@ export default function InventoryCountPage() {
                     <span className="opacity-75">({selectedSession.status})</span>
                    </p>
                 </div>
-                
+
                 <div className="actions-cell flex flex-col gap-2">
                   <button
                     className="btn h-10 w-full rounded-lg bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -394,20 +394,20 @@ export default function InventoryCountPage() {
                 />
               </div>
             </div>
-            
+
             {focusedQuickItem ? (
               <div className="workflow-block p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 space-y-4" data-testid="inventory-count-quick-capture">
                 <div>
                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Treffer</span>
                    <p className="mt-1 text-zinc-800 dark:text-zinc-200">
-                    <strong className="text-blue-700 dark:text-blue-300">{focusedQuickItem.bin_code}</strong> 
-                    <span className="mx-2 text-zinc-400">|</span> 
+                    <strong className="text-blue-700 dark:text-blue-300">{focusedQuickItem.bin_code}</strong>
+                    <span className="mx-2 text-zinc-400">|</span>
                     {focusedQuickItem.product_number}
                     <br/>
                     <span className="text-sm text-zinc-500 dark:text-zinc-400">{focusedQuickItem.product_name}</span>
                   </p>
                 </div>
-                
+
                 <div className="actions-cell grid grid-cols-2 gap-2">
                    <div className="relative">
                      <Calculator className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -493,8 +493,8 @@ export default function InventoryCountPage() {
                   </td>
                   <td className="px-6 py-4 text-sm text-right font-mono" data-testid={`inventory-count-item-diff-${item.id}`}>
                      <span className={`${
-                        Number(item.difference_quantity) < 0 ? 'text-rose-600 font-bold' : 
-                        Number(item.difference_quantity) > 0 ? 'text-emerald-600 font-bold' : 
+                        Number(item.difference_quantity) < 0 ? 'text-rose-600 font-bold' :
+                        Number(item.difference_quantity) > 0 ? 'text-emerald-600 font-bold' :
                         'text-zinc-400'
                      }`}>
                         {item.difference_quantity && Number(item.difference_quantity) > 0 ? '+' : ''}

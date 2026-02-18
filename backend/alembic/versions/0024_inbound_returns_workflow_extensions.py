@@ -37,84 +37,55 @@ def upgrade() -> None:
         ["requires_item_tracking"],
     )
 
-    op.add_column(
-        "goods_receipts",
-        sa.Column("purchase_order_id", sa.Integer(), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_goods_receipts_purchase_order_id",
-        "goods_receipts",
-        "purchase_orders",
-        ["purchase_order_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.create_index(
-        "ix_goods_receipts_purchase_order_id",
-        "goods_receipts",
-        ["purchase_order_id"],
-    )
+    with op.batch_alter_table("goods_receipts") as batch_op:
+        batch_op.add_column(sa.Column("purchase_order_id", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_goods_receipts_purchase_order_id",
+            "purchase_orders",
+            ["purchase_order_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+        batch_op.create_index(
+            "ix_goods_receipts_purchase_order_id",
+            ["purchase_order_id"],
+        )
 
-    op.add_column(
-        "return_orders",
-        sa.Column("source_type", sa.String(length=24), nullable=True),
-    )
-    op.add_column(
-        "return_orders",
-        sa.Column("source_reference", sa.String(length=255), nullable=True),
-    )
-    op.create_check_constraint(
-        "ck_return_orders_source_type",
-        "return_orders",
-        "source_type in ('customer','technician') or source_type is null",
-    )
-    op.create_index(
-        "ix_return_orders_source_type",
-        "return_orders",
-        ["source_type"],
-    )
+    with op.batch_alter_table("return_orders") as batch_op:
+        batch_op.add_column(sa.Column("source_type", sa.String(length=24), nullable=True))
+        batch_op.add_column(sa.Column("source_reference", sa.String(length=255), nullable=True))
+        batch_op.create_check_constraint(
+            "ck_return_orders_source_type",
+            "source_type in ('customer','technician') or source_type is null",
+        )
+        batch_op.create_index(
+            "ix_return_orders_source_type",
+            ["source_type"],
+        )
 
-    op.add_column(
-        "return_order_items",
-        sa.Column("repair_mode", sa.String(length=24), nullable=True),
-    )
-    op.add_column(
-        "return_order_items",
-        sa.Column("external_status", sa.String(length=40), nullable=True),
-    )
-    op.add_column(
-        "return_order_items",
-        sa.Column("external_partner", sa.String(length=255), nullable=True),
-    )
-    op.add_column(
-        "return_order_items",
-        sa.Column("external_dispatched_at", sa.DateTime(timezone=True), nullable=True),
-    )
-    op.add_column(
-        "return_order_items",
-        sa.Column("external_returned_at", sa.DateTime(timezone=True), nullable=True),
-    )
-    op.create_check_constraint(
-        "ck_return_order_items_repair_mode",
-        "return_order_items",
-        "repair_mode in ('internal','external') or repair_mode is null",
-    )
-    op.create_check_constraint(
-        "ck_return_order_items_external_status",
-        "return_order_items",
-        "external_status in ('waiting_external_provider','at_external_provider','ready_for_use') "
-        "or external_status is null",
-    )
-    op.create_index(
-        "ix_return_order_items_repair_mode",
-        "return_order_items",
-        ["repair_mode"],
-    )
-    op.create_index(
-        "ix_return_order_items_external_status",
-        "return_order_items",
-        ["external_status"],
-    )
+    with op.batch_alter_table("return_order_items") as batch_op:
+        batch_op.add_column(sa.Column("repair_mode", sa.String(length=24), nullable=True))
+        batch_op.add_column(sa.Column("external_status", sa.String(length=40), nullable=True))
+        batch_op.add_column(sa.Column("external_partner", sa.String(length=255), nullable=True))
+        batch_op.add_column(sa.Column("external_dispatched_at", sa.DateTime(timezone=True), nullable=True))
+        batch_op.add_column(sa.Column("external_returned_at", sa.DateTime(timezone=True), nullable=True))
+        batch_op.create_check_constraint(
+            "ck_return_order_items_repair_mode",
+            "repair_mode in ('internal','external') or repair_mode is null",
+        )
+        batch_op.create_check_constraint(
+            "ck_return_order_items_external_status",
+            "external_status in ('waiting_external_provider','at_external_provider','ready_for_use') "
+            "or external_status is null",
+        )
+        batch_op.create_index(
+            "ix_return_order_items_repair_mode",
+            ["repair_mode"],
+        )
+        batch_op.create_index(
+            "ix_return_order_items_external_status",
+            ["external_status"],
+        )
 
     bind = op.get_bind()
     bind.execute(
@@ -169,24 +140,27 @@ def downgrade() -> None:
         {"code": _QUICK_CREATE_PERMISSION},
     )
 
-    op.drop_index("ix_return_order_items_external_status", table_name="return_order_items")
-    op.drop_index("ix_return_order_items_repair_mode", table_name="return_order_items")
-    op.drop_constraint("ck_return_order_items_external_status", "return_order_items", type_="check")
-    op.drop_constraint("ck_return_order_items_repair_mode", "return_order_items", type_="check")
-    op.drop_column("return_order_items", "external_returned_at")
-    op.drop_column("return_order_items", "external_dispatched_at")
-    op.drop_column("return_order_items", "external_partner")
-    op.drop_column("return_order_items", "external_status")
-    op.drop_column("return_order_items", "repair_mode")
+    with op.batch_alter_table("return_order_items") as batch_op:
+        batch_op.drop_index("ix_return_order_items_external_status")
+        batch_op.drop_index("ix_return_order_items_repair_mode")
+        batch_op.drop_constraint("ck_return_order_items_external_status", type_="check")
+        batch_op.drop_constraint("ck_return_order_items_repair_mode", type_="check")
+        batch_op.drop_column("external_returned_at")
+        batch_op.drop_column("external_dispatched_at")
+        batch_op.drop_column("external_partner")
+        batch_op.drop_column("external_status")
+        batch_op.drop_column("repair_mode")
 
-    op.drop_index("ix_return_orders_source_type", table_name="return_orders")
-    op.drop_constraint("ck_return_orders_source_type", "return_orders", type_="check")
-    op.drop_column("return_orders", "source_reference")
-    op.drop_column("return_orders", "source_type")
+    with op.batch_alter_table("return_orders") as batch_op:
+        batch_op.drop_index("ix_return_orders_source_type")
+        batch_op.drop_constraint("ck_return_orders_source_type", type_="check")
+        batch_op.drop_column("source_reference")
+        batch_op.drop_column("source_type")
 
-    op.drop_index("ix_goods_receipts_purchase_order_id", table_name="goods_receipts")
-    op.drop_constraint("fk_goods_receipts_purchase_order_id", "goods_receipts", type_="foreignkey")
-    op.drop_column("goods_receipts", "purchase_order_id")
+    with op.batch_alter_table("goods_receipts") as batch_op:
+        batch_op.drop_index("ix_goods_receipts_purchase_order_id")
+        batch_op.drop_constraint("fk_goods_receipts_purchase_order_id", type_="foreignkey")
+        batch_op.drop_column("purchase_order_id")
 
     op.drop_index("ix_products_requires_item_tracking", table_name="products")
     op.drop_column("products", "requires_item_tracking")

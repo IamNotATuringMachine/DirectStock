@@ -1,37 +1,8 @@
-# DirectStock Code Review & QA Report
+  # DirectStock Code Review & QA Report
 
 Datum: 2026-02-14 (UTC)
 Reviewer: Codex (Tech Lead SWE)
 Scope: Vollprüfung gegen `directstock.md` inkl. Backend, Frontend, E2E, Jobs, Migration, PWA.
-
-## 0. Remediation-Update (Stand: 2026-02-14 UTC)
-
-Status der in diesem Dokument erfassten Findings:
-
-| Finding | Status | Umsetzung |
-| --- | --- | --- |
-| CR-001 Path Traversal Dokumente | ✅ Behoben | Harte Validierung + `resolve()`-Root-Check in `backend/app/routers/documents.py` |
-| CR-002 Storage-Path Leak | ✅ Behoben | `storage_path` aus API-Responses entfernt (`backend/app/schemas/phase3.py`, `backend/app/routers/documents.py`) |
-| CR-003 Exception-Details Leak | ✅ Behoben | 500-Response ohne interne Fehltexte (`backend/app/middleware/error_handler.py`) |
-| CR-004 Unsichere Defaults | ✅ Behoben | Sichere Admin-/Secret-Defaults + Produktions-Fail-Fast (`backend/app/config.py`, `.env.example`, Compose-Dateien) |
-| CR-005 CORS Inkonsistenz | ✅ Behoben | `cors_allow_credentials` eingeführt + Konfig-Validierung (`backend/app/config.py`, `backend/app/main.py`) |
-| CR-006 Dokument-Orphans | ✅ Behoben | Entity-Existenzprüfung bei Upload (`backend/app/routers/documents.py`) |
-| CR-007 Fehlende Pagination | ✅ Behoben | Pagination für Dokumente/Shipping/IWT eingeführt (`backend/app/routers/documents.py`, `backend/app/routers/shipping.py`, `backend/app/routers/inter_warehouse_transfers.py`) |
-| CR-008 Offline-Queue Phase-4-Gap | ✅ Behoben | `/shipments` + `/inter-warehouse-transfers` in Queue und Sync-Invalidation integriert (`frontend/src/services/offlineQueue.ts`, `frontend/src/services/shippingApi.ts`, `frontend/src/services/interWarehouseTransfersApi.ts`, `frontend/src/components/offline/OfflineSyncPanel.tsx`) |
-| CR-009 Reports nur CSV | ✅ Behoben | XLSX/PDF Export ergänzt (`backend/app/routers/reports.py`, `backend/pyproject.toml`) |
-| CR-010 Users-UI Placeholder | ✅ Behoben | Vollwertige Users-Page + Service implementiert (`frontend/src/pages/UsersPage.tsx`, `frontend/src/services/usersApi.ts`) |
-| CR-011 Auth Umfang (2FA/Reset/Idle) | 🟡 Teilweise behoben | Idle-Logout umgesetzt (`frontend/src/components/AppLayout.tsx`), 2FA/Passwort-Reset weiterhin offen |
-| CR-012 Mobile E2E nur Desktop-Script | ✅ Behoben | E2E-Skript auf Desktop+iPhone+iPad erweitert (`frontend/package.json`) |
-| CR-013 Dirty Worktree Artefakte | ✅ Behoben | `.documents` und `egg-info` in `.gitignore` ergänzt |
-| CR-014 NPM Vulnerabilities | ✅ Behoben | Vitest-Upgrade + Audit grün (`frontend/package.json`, `frontend/package-lock.json`) |
-| CR-015 Auth Rate-Limit fehlend | ✅ Behoben | Rate-Limits für `/api/auth/login` und `/api/auth/refresh` in Nginx ergänzt |
-
-Aktuelle Verifikation nach Remediation:
-
-1. `cd backend && source .venv/bin/activate && PYTHONPATH=. pytest -q` → `79 passed`
-2. `cd frontend && npm run test -- --run` → `19 passed`
-3. `cd frontend && npm run build` → erfolgreich
-4. `cd frontend && npm run test:e2e` → `59 passed, 4 skipped, 0 failed`
 
 ## 1. Vorgehen
 
@@ -44,23 +15,23 @@ Aktuelle Verifikation nach Remediation:
 
 ### 2.1 Erfolgreiche Läufe
 
-1. `cd backend && source .venv/bin/activate && pytest -q`  
+1. `cd backend && source .venv/bin/activate && pytest -q`
    Ergebnis: `79 passed in 38.23s`
-2. `cd frontend && npm run test -- --run`  
+2. `cd frontend && npm run test -- --run`
    Ergebnis: `5 files, 19 tests passed`
-3. `cd frontend && npm run build`  
+3. `cd frontend && npm run build`
    Ergebnis: erfolgreicher Typecheck + Vite Build
-4. `docker compose up -d --build` + Health-Check  
+4. `docker compose up -d --build` + Health-Check
    Ergebnis: `/health` und `/api/health` jeweils `{"status":"ok"}`
-5. `cd frontend && npm run test:e2e`  
+5. `cd frontend && npm run test:e2e`
    Ergebnis: `19 passed, 2 skipped` (Desktop-Projekt)
-6. `docker compose exec -T backend python /app/scripts/migrate_legacy_full.py --mode dry-run --domain all --source /app/backend/tests/fixtures/legacy_full`  
+6. `docker compose exec -T backend python /app/scripts/migrate_legacy_full.py --mode dry-run --domain all --source /app/backend/tests/fixtures/legacy_full`
    Ergebnis: alle 4 Domains erfolgreich, `errors=0`
-7. `docker compose exec -T backend python /app/scripts/run_demand_forecast.py`  
+7. `docker compose exec -T backend python /app/scripts/run_demand_forecast.py`
    Ergebnis: `Demand forecast completed ... items=17`
-8. `docker compose exec -T backend python /app/scripts/run_alert_checks.py`  
+8. `docker compose exec -T backend python /app/scripts/run_alert_checks.py`
    Ergebnis: `created=0`
-9. `./scripts/lighthouse_pwa.sh`  
+9. `./scripts/lighthouse_pwa.sh`
    Ergebnis: `PWA score: 1 (threshold: 0.9)`
 
 ### 2.2 QA-Coverage-Hinweis
@@ -69,7 +40,7 @@ Aktuelle Verifikation nach Remediation:
 
 ## 3. Executive Summary
 
-Fazit: **Nicht alle Funktionen aus `directstock.md` sind vollständig implementiert.**  
+Fazit: **Nicht alle Funktionen aus `directstock.md` sind vollständig implementiert.**
 Der Phase-4-Stand ist technisch stabil und testbar, aber der Masterplan enthält deutlich breiteren Endausbau als der aktuelle Implementierungsumfang.
 
 Priorisierte Gesamtlage:

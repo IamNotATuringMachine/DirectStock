@@ -13,6 +13,8 @@ frontend/node_modules/
 
 # Build and runtime artifacts
 dist/
+frontend/dist/
+frontend/output/
 build/
 *.log
 .coverage
@@ -24,6 +26,8 @@ frontend/test-results/
 output/
 backend/.documents/
 backend/directstock_backend.egg-info/
+backend/app/**/__pycache__/
+*.tsbuildinfo
 
 
 # Env

@@ -213,7 +213,7 @@ export default function AlertsPage() {
               <Filter className="w-4 h-4" />
               <span className="font-medium">Filter:</span>
             </div>
-            
+
             <div className="relative min-w-[140px] flex-1 lg:flex-none">
               <select
                 className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
@@ -301,8 +301,8 @@ export default function AlertsPage() {
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
               {(alertsQuery.data?.items ?? []).map((alert) => (
-                <tr 
-                  key={alert.id} 
+                <tr
+                  key={alert.id}
                   className={`hover:bg-[var(--panel-strong)] transition-colors ${alert.status === 'open' ? 'bg-[var(--panel)]' : 'bg-[var(--panel-soft)]'}`}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -330,7 +330,7 @@ export default function AlertsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                      alert.status === 'open' 
+                      alert.status === 'open'
                         ? 'bg-[color-mix(in_srgb,#2563eb_16%,var(--panel)_84%)] text-[color:color-mix(in_srgb,#2563eb_78%,var(--ink)_22%)] border-[color:color-mix(in_srgb,#2563eb_42%,var(--line)_58%)]'
                         : 'bg-[var(--success-bg)] text-[var(--success-ink)] border-[color:color-mix(in_srgb,var(--success-ink)_30%,var(--line)_70%)]'
                     }`}>
@@ -361,7 +361,7 @@ export default function AlertsPage() {
                       </div>
                       <p>Keine Warnungen gefunden.</p>
                       {(statusFilter !== "open" || severityFilter || typeFilter) && (
-                        <button 
+                        <button
                           onClick={resetFilters}
                           className="text-sm text-[var(--accent)] hover:underline"
                         >

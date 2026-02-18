@@ -12,7 +12,10 @@
     "test:e2e:raw": "sh -c 'playwright test --project=web-desktop --project=ios-iphone-se --project=ios-ipad \"$@\"; code=$?; rm -rf test-results playwright-report blob-report; exit $code' --",
     "test:e2e:responsive": "sh -c 'playwright test tests/e2e/shell-navigation-smoke.spec.ts --project=ios-iphone-se --project=ios-ipad; code=$?; rm -rf test-results playwright-report blob-report; exit $code'",
     "test:ui": "playwright test --ui",
-    "playwright:install": "playwright install --with-deps"
+    "playwright:install": "playwright install --with-deps",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write \"src/App.tsx\" \"src/components/AppLayout.tsx\" \"src/routing/**/*.{ts,tsx}\" \"src/pages/product-form/**/*.{ts,tsx}\" \"src/pages/goods-receipt/**/*.{ts,tsx}\" \"eslint.config.js\"",
+    "format:check": "prettier --check \"src/App.tsx\" \"src/components/AppLayout.tsx\" \"src/routing/**/*.{ts,tsx}\" \"src/pages/product-form/**/*.{ts,tsx}\" \"src/pages/goods-receipt/**/*.{ts,tsx}\" \"eslint.config.js\""
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.1",
@@ -21,25 +24,35 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "html5-qrcode": "^2.3.8",
-    "lucide-react": "^0.469.0",
+    "lucide-react": "^0.574.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.1",
-    "tailwind-merge": "^2.6.0",
+    "tailwind-merge": "^3.4.1",
     "vite-plugin-pwa": "^1.2.0",
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@playwright/test": "^1.51.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^25.2.3",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "@vitejs/plugin-react": "^4.3.4",
-    "jsdom": "^26.0.0",
+    "@vitejs/plugin-react": "^5.1.4",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^16.5.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.3",
+    "typescript-eslint": "^8.56.0",
+    "vite": "^7.3.1",
     "vitest": "^4.0.18"
   }
 }

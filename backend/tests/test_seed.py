@@ -5,10 +5,11 @@ from pathlib import Path
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 
 from app.bootstrap import seed_defaults
 from app.models import Base
-from app.models.auth import User
+from app.models.auth import Permission, Role, User
 from app.models.catalog import Product, ProductGroup, ProductWarehouseSetting
 from app.models.inventory import Inventory, StockMovement
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
@@ -78,27 +79,19 @@ async def test_seed_defaults_is_idempotent(tmp_path: Path):
 
         duplicate_usernames = await _duplicate_count(
             session,
-            select(User.username, func.count())
-            .group_by(User.username)
-            .having(func.count() > 1),
+            select(User.username, func.count()).group_by(User.username).having(func.count() > 1),
         )
         duplicate_product_numbers = await _duplicate_count(
             session,
-            select(Product.product_number, func.count())
-            .group_by(Product.product_number)
-            .having(func.count() > 1),
+            select(Product.product_number, func.count()).group_by(Product.product_number).having(func.count() > 1),
         )
         duplicate_warehouse_codes = await _duplicate_count(
             session,
-            select(Warehouse.code, func.count())
-            .group_by(Warehouse.code)
-            .having(func.count() > 1),
+            select(Warehouse.code, func.count()).group_by(Warehouse.code).having(func.count() > 1),
         )
         duplicate_group_names = await _duplicate_count(
             session,
-            select(ProductGroup.name, func.count())
-            .group_by(ProductGroup.name)
-            .having(func.count() > 1),
+            select(ProductGroup.name, func.count()).group_by(ProductGroup.name).having(func.count() > 1),
         )
         duplicate_bins = await _duplicate_count(
             session,
@@ -112,5 +105,39 @@ async def test_seed_defaults_is_idempotent(tmp_path: Path):
         assert duplicate_warehouse_codes == 0
         assert duplicate_group_names == 0
         assert duplicate_bins == 0
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_seeded_roles_include_wave1_module_permissions(tmp_path: Path):
+    db_path = tmp_path / "seed_rbac_permissions.db"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", future=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with session_factory() as session:
+        await seed_defaults(session, include_mvp=False, inventory_seed_size=0)
+
+    async with session_factory() as session:
+        roles = list((await session.execute(select(Role).options(selectinload(Role.permissions)))).scalars())
+        permissions = list((await session.execute(select(Permission))).scalars())
+        permission_by_id = {permission.id: permission.code for permission in permissions}
+
+        role_permissions = {
+            role.name: {permission_by_id.get(permission.id, "") for permission in role.permissions} for role in roles
+        }
+
+        assert "module.reports.read" in role_permissions["lagerleiter"]
+        assert "module.operations.goods_issues.write" in role_permissions["lagerleiter"]
+        assert "module.operations.stock_transfers.write" in role_permissions["lagerleiter"]
+        assert "module.operations.goods_issues.write" in role_permissions["lagermitarbeiter"]
+        assert "module.operations.stock_transfers.write" in role_permissions["lagermitarbeiter"]
+        assert "module.reports.read" in role_permissions["controller"]
+        assert "module.reports.read" in role_permissions["auditor"]
+        assert "module.purchasing.write" in role_permissions["einkauf"]
+        assert "module.shipping.write" in role_permissions["versand"]
 
     await engine.dispose()

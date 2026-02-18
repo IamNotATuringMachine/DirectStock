@@ -298,7 +298,7 @@ export default function ReturnsPage() {
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-[var(--ink)] truncate">{order.return_number}</div>
                         <div className="text-xs text-[var(--muted)] flex items-center gap-1.5 mt-0.5">
-                          <span className={`inline-block w-2 h-2 rounded-full 
+                          <span className={`inline-block w-2 h-2 rounded-full
                             ${order.status === 'resolved' ? 'bg-emerald-500' :
                               order.status === 'cancelled' ? 'bg-red-500' :
                                 order.status === 'registered' ? 'bg-blue-500' : 'bg-amber-500'}

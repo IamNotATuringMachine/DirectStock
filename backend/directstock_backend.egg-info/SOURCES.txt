@@ -16,12 +16,17 @@ tests/test_alerts.py
 tests/test_audit.py
 tests/test_audit_trail_phase3.py
 tests/test_auth.py
+tests/test_auth_seed_contract.py
 tests/test_batch_tracking.py
 tests/test_customers.py
+tests/test_customers_hierarchy.py
 tests/test_dashboard.py
+tests/test_dhl_express_adapter.py
 tests/test_documents.py
+tests/test_error_contracts.py
 tests/test_external_api_auth.py
 tests/test_external_api_contract.py
+tests/test_inbound_returns_workflow_extensions.py
 tests/test_inter_warehouse_transfers.py
 tests/test_inventory.py
 tests/test_inventory_counts.py
@@ -40,6 +45,7 @@ tests/test_product_settings.py
 tests/test_products.py
 tests/test_purchase_orders.py
 tests/test_purchase_recommendations.py
+tests/test_qr_generator.py
 tests/test_rbac_permissions_phase5.py
 tests/test_rbac_phase2.py
 tests/test_reports.py
@@ -48,7 +54,6 @@ tests/test_returns.py
 tests/test_sales_orders_phase5.py
 tests/test_seed.py
 tests/test_serial_tracking.py
-tests/test_services_catalog_phase5.py
 tests/test_shipping_carriers.py
 tests/test_suppliers.py
 tests/test_ui_preferences_phase5.py

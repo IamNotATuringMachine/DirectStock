@@ -1,13 +1,13 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { 
-  Package, 
-  Play, 
-  Check, 
-  X, 
-  Scan, 
-  List, 
-  Search, 
+import {
+  Package,
+  Play,
+  Check,
+  X,
+  Scan,
+  List,
+  Search,
   RefreshCw,
   CheckCircle2
 } from "lucide-react";
@@ -173,7 +173,7 @@ export default function PickingPage() {
   return (
     <section className="page flex flex-col gap-6" data-testid="picking-page">
       <ExternalScannerListener enabled={Boolean(selectedWave)} onScan={(value) => void processScan(value)} />
-      
+
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[var(--line)] pb-6">
         <div>
@@ -199,7 +199,7 @@ export default function PickingPage() {
               {createWaveMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
             </button>
           </div>
-          
+
           <div className="overflow-y-auto p-2 space-y-2 flex-1" data-testid="pick-wave-list">
             {(wavesQuery.data ?? []).length === 0 && !wavesQuery.isLoading ? (
               <div className="text-center py-8 px-4 text-[var(--muted)] text-sm">
@@ -208,7 +208,7 @@ export default function PickingPage() {
                 Erstellen Sie eine neue Wave.
               </div>
             ) : null}
-            
+
             {(wavesQuery.data ?? []).map((wave) => (
               <button
                 key={wave.id}
@@ -292,7 +292,7 @@ export default function PickingPage() {
                       <Scan className="w-5 h-5" />
                       <h4 className="font-semibold">Scanner-Erfassung</h4>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <div>
@@ -312,7 +312,7 @@ export default function PickingPage() {
                             ))}
                           </select>
                         </div>
-                        
+
                         <form onSubmit={(event) => void onScanSubmit(event)} className="flex gap-2">
                           <div className="relative flex-grow">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -342,7 +342,7 @@ export default function PickingPage() {
                       <div className="bg-[var(--panel)] rounded-[var(--radius-sm)] border border-[var(--line)] p-4 flex flex-col justify-center">
                         <div className="flex items-start gap-3">
                           <div className={`mt-0.5 p-1.5 rounded-full ${
-                            scanStatus.includes("bestätigt") || scanStatus.includes("picked") 
+                            scanStatus.includes("bestätigt") || scanStatus.includes("picked")
                               ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
                               : scanStatus.includes("Falsch") || scanStatus.includes("Fehler")
                                 ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
