@@ -40,7 +40,12 @@ if [[ "${RUN_GITLEAKS:-1}" == "1" ]]; then
   fi
 
   echo "==> Running gitleaks"
-  gitleaks detect --source . --redact --no-banner --no-git --config .gitleaks.toml
+  (
+    scan_dir="$(mktemp -d)"
+    trap 'rm -rf "${scan_dir}"' EXIT
+    git archive --format=tar HEAD | tar -xf - -C "${scan_dir}"
+    gitleaks detect --source "${scan_dir}" --redact --no-banner --no-git --config .gitleaks.toml
+  )
 fi
 
 echo "Security gates passed."
