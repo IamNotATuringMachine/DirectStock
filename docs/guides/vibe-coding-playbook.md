@@ -28,7 +28,8 @@ Schnelle, sichere Iterationen mit kleinen, validierten Schritten und reproduzier
 1. Keine Route-/Schema-Breaks ohne explizite Freigabe.
 2. `ApiError` Format unverändert.
 3. `X-Client-Operation-Id` Verhalten unverändert.
-4. Vor Merge: lint, tests, build, smoke.
+4. PR-Scope gegen `docs/guides/refactor-scope-allowlist.md` prüfen.
+5. Vor Merge: lint, tests, build, smoke.
 
 ## Command Matrix
 ```bash

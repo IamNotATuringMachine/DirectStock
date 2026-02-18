@@ -329,6 +329,11 @@ Repository-Gates (optional, empfohlen vor PR):
 pre-commit run --all-files
 ```
 
+Refactor-Review-Hilfen:
+- Scope-Allowlist: `docs/guides/refactor-scope-allowlist.md`
+- Vibe-Playbook: `docs/guides/vibe-coding-playbook.md`
+- Modulkarte: `docs/guides/module-map.md`
+
 ## Prod Verification Checklist
 
 1. Prod-Stack starten:

@@ -18,3 +18,11 @@
 - Added GitHub Actions pipeline: `.github/workflows/ci.yml`.
 - Updated `.gitignore` for frontend artifacts and `*.tsbuildinfo`.
 - Removed tracked artifact: `frontend/tsconfig.tsbuildinfo`.
+
+## Architecture Follow-up
+- `ProductFormPage` and `GoodsReceiptPage` are now container-only entry files.
+- Main implementation moved to:
+  - `frontend/src/pages/product-form/ProductFormWorkspace.tsx`
+  - `frontend/src/pages/goods-receipt/GoodsReceiptWorkspace.tsx`
+- Operations router common helpers now delegate to operation service modules.
+- Reports quantization now delegates to `backend/app/services/reports/aggregation_service.py`.

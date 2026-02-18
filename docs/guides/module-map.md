@@ -7,6 +7,9 @@
 - Domain pages:
   - Product Form: `frontend/src/pages/product-form/`
   - Goods Receipt: `frontend/src/pages/goods-receipt/`
+  - Container-only page entries:
+    - `frontend/src/pages/product-form/ProductFormPage.tsx`
+    - `frontend/src/pages/goods-receipt/GoodsReceiptPage.tsx`
 
 ## Backend
 - Router packages:

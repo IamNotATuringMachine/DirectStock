@@ -50,6 +50,7 @@ If instructions conflict, apply the highest-priority rule and document assumptio
 - `docs/guides/vibe-coding-playbook.md`
 - `docs/guides/module-map.md`
 - `docs/guides/refactor-runbook.md`
+- `docs/guides/refactor-scope-allowlist.md`
 
 ## Architecture Guardrails
 ### Backend
