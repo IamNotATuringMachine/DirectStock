@@ -18,3 +18,4 @@
 1. No drive-by schema changes.
 2. No breaking API changes without approval.
 3. Keep audit/idempotency behavior intact.
+4. Scope must follow `docs/guides/refactor-scope-allowlist.md`.
