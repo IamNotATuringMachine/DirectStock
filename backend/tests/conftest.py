@@ -6,7 +6,9 @@ from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 test_db_path = Path(tempfile.gettempdir()) / f"directstock_test_{uuid4().hex}.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{test_db_path}"
@@ -22,6 +24,8 @@ from app.bootstrap import seed_defaults
 from app.database import AsyncSessionLocal, engine
 from app.main import app
 from app.models import Base
+from app.models.auth import User
+from app.utils.security import create_access_token
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -69,10 +73,14 @@ async def client(setup_database) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest.fixture
-async def admin_token(client: AsyncClient) -> str:
-    response = await client.post(
-        "/api/auth/login",
-        json={"username": "admin", "password": "change-me-admin-password"},
+async def admin_token(db_session: AsyncSession) -> str:
+    result = await db_session.execute(
+        select(User).where(User.username == "admin").options(selectinload(User.roles))
     )
-    payload = response.json()
-    return payload["access_token"]
+    user = result.scalar_one()
+    return create_access_token(
+        user_id=user.id,
+        username=user.username,
+        roles=[role.name for role in user.roles],
+        token_version=user.token_version,
+    )
