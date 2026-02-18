@@ -1,5 +1,4 @@
-# ruff: noqa: F403, F405
-from .common import *  # noqa: F403, F405
+from .common import *
 
 
 @router.get("/trends", response_model=TrendResponse)
