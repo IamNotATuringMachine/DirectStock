@@ -1,0 +1,146 @@
+{
+    "metrics": {
+        "vus": {
+            "value": 3,
+            "min": 3,
+            "max": 3
+        },
+        "http_req_sending": {
+            "avg": 0.03608606750675067,
+            "min": 0.003209,
+            "med": 0.026875,
+            "max": 0.855042,
+            "p(90)": 0.053583,
+            "p(95)": 0.08441649999999995
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 1111,
+            "value": 0
+        },
+        "vus_max": {
+            "value": 3,
+            "min": 3,
+            "max": 3
+        },
+        "checks": {
+            "passes": 1111,
+            "fails": 0,
+            "value": 1
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(90)": 45.56075,
+            "p(95)": 48.467875,
+            "avg": 40.759837648964975,
+            "min": 20.419125,
+            "med": 39.065709,
+            "max": 281.728334
+        },
+        "http_req_receiving": {
+            "avg": 0.3644410819081912,
+            "min": 0.03175,
+            "med": 0.339958,
+            "max": 3.021958,
+            "p(90)": 0.50225,
+            "p(95)": 0.5813125
+        },
+        "http_reqs": {
+            "rate": 12.29022014107434,
+            "count": 1111
+        },
+        "data_sent": {
+            "count": 459735,
+            "rate": 5085.728493750506
+        },
+        "iterations": {
+            "rate": 12.279157836716937,
+            "count": 1110
+        },
+        "http_req_blocked": {
+            "p(90)": 0.017125,
+            "p(95)": 0.023041999999999972,
+            "avg": 0.013786641764176382,
+            "min": 0.001166,
+            "med": 0.009417,
+            "max": 1.09775
+        },
+        "data_received": {
+            "count": 548078,
+            "rate": 6063.0056475965275
+        },
+        "iteration_duration": {
+            "p(95)": 253.5639939,
+            "avg": 243.49853935045016,
+            "min": 221.5885,
+            "med": 241.4227295,
+            "max": 349.610292,
+            "p(90)": 250.0707586
+        },
+        "http_req_connecting": {
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.0006864320432043205,
+            "min": 0,
+            "med": 0,
+            "max": 0.340125
+        },
+        "http_req_duration": {
+            "avg": 40.759837648964975,
+            "min": 20.419125,
+            "med": 39.065709,
+            "max": 281.728334,
+            "p(90)": 45.56075,
+            "p(95)": 48.467875
+        },
+        "http_req_waiting": {
+            "avg": 40.35931049955001,
+            "min": 20.066959,
+            "med": 38.686667,
+            "max": 281.556958,
+            "p(90)": 45.169583,
+            "p(95)": 48.0132295
+        }
+    },
+    "setup_data": {
+        "token": "<redacted>"
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "setup": {
+                "name": "setup",
+                "path": "::setup",
+                "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+                "groups": {},
+                "checks": {
+                    "login status is 200": {
+                        "passes": 1,
+                        "fails": 0,
+                        "name": "login status is 200",
+                        "path": "::setup::login status is 200",
+                        "id": "bb27b460b057923f4a083e3603c038b9"
+                    }
+                }
+            }
+        },
+        "checks": {
+            "reports kpis is 200": {
+                "name": "reports kpis is 200",
+                "path": "::reports kpis is 200",
+                "id": "f874ff6cee0bca078bdb032f1a81a56a",
+                "passes": 1110,
+                "fails": 0
+            }
+        }
+    }
+}

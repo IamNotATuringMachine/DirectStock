@@ -1,6 +1,6 @@
 # Performance Budget Snapshot
 
-Generated at: 2026-02-18T16:20:35.309122Z
+Generated at: 2026-02-18T18:14:32.781995Z
 
 ## Budget Targets
 
@@ -19,7 +19,7 @@ Generated at: 2026-02-18T16:20:35.309122Z
 
 ## Raw Result Files
 
-- `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/goods_receipt-smoke.json`
-- `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/picking-smoke.json`
-- `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/reports-smoke.json`
-- `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/returns-smoke.json`
+- `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/goods_receipt-full.json`
+- `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/picking-full.json`
+- `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/reports-full.json`
+- `/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/returns-full.json`
