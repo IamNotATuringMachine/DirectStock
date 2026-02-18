@@ -69,6 +69,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `backend/tests/test_rbac_phase2.py`
    - `backend/tests/test_rbac_permissions_phase5.py`
    - `backend/tests/test_seed.py`
+   - `backend/tests/conftest.py`
    - `backend/tests/test_idempotency_regressions_phase6.py`
    - `backend/tests/test_audit_mutations_phase6.py`
 4. Doku/Validierung:
