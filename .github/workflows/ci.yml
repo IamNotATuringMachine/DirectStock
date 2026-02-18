@@ -167,8 +167,7 @@ jobs:
             tests/test_audit_mutations_phase6.py
 
       - name: OpenAPI contract drift guard
-        working-directory: ..
-        run: ./scripts/check_api_contract_drift.sh
+        run: bash ../scripts/check_api_contract_drift.sh
 
       - name: Backend tests
         run: python -m pytest -q
