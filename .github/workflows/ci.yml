@@ -156,25 +156,13 @@ jobs:
       - name: Ruff format check
         run: |
           ruff format --config ruff.toml --check \
-            app/bootstrap.py \
-            app/bootstrap_seed.py \
-            app/bootstrap_permissions.py \
-            app/bootstrap_roles.py \
             app/config.py \
             app/database.py \
             app/main.py \
+            app/middleware/idempotency.py \
             app/observability/metrics.py \
             app/observability/tracing.py \
-            app/routers/returns.py \
-            app/routers/operations/goods_receipts.py \
             app/services/carriers/sandbox_stub.py \
-            app/services/operations/goods_receipt_items.py \
-            app/services/operations/goods_receipt_finalize.py \
-            app/services/returns/commands.py \
-            app/services/returns/queries.py \
-            tests/test_seed.py \
-            tests/test_rbac_phase2.py \
-            tests/test_rbac_permissions_phase5.py \
             tests/test_idempotency_regressions_phase6.py \
             tests/test_audit_mutations_phase6.py
 

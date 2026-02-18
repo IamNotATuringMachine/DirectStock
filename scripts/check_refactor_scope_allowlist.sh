@@ -107,10 +107,18 @@ resolve_base_ref() {
     return
   fi
   if [ -n "${GITHUB_BASE_REF:-}" ]; then
-    echo "${GITHUB_BASE_REF}"
+    if git rev-parse --verify "origin/${GITHUB_BASE_REF}" >/dev/null 2>&1; then
+      echo "origin/${GITHUB_BASE_REF}"
+      return
+    fi
+    if git rev-parse --verify "${GITHUB_BASE_REF}" >/dev/null 2>&1; then
+      echo "${GITHUB_BASE_REF}"
+      return
+    fi
+    echo ""
     return
   fi
-  for candidate in origin/main origin/master main master; do
+  for candidate in origin/main origin/master refs/heads/main refs/heads/master main master; do
     if git rev-parse --verify "${candidate}" >/dev/null 2>&1; then
       echo "${candidate}"
       return
@@ -121,8 +129,12 @@ resolve_base_ref() {
 
 BASE_REF="$(resolve_base_ref)"
 if [ -n "${BASE_REF}" ]; then
-  MERGE_BASE="$(git merge-base HEAD "${BASE_REF}")"
-  CHANGED_FILES_RAW="$(git diff --name-only "${MERGE_BASE}"...HEAD)"
+  MERGE_BASE="$(git merge-base HEAD "${BASE_REF}" 2>/dev/null || true)"
+  if [ -n "${MERGE_BASE}" ]; then
+    CHANGED_FILES_RAW="$(git diff --name-only "${MERGE_BASE}"...HEAD)"
+  else
+    CHANGED_FILES_RAW="$(git diff --name-only HEAD~1...HEAD 2>/dev/null || git diff --name-only)"
+  fi
 else
   CHANGED_FILES_RAW="$(git diff --name-only HEAD~1...HEAD 2>/dev/null || git diff --name-only)"
 fi
