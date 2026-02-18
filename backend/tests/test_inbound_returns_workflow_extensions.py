@@ -226,6 +226,40 @@ async def test_goods_receipt_ad_hoc_product_creation_requires_permission(client:
     assert created.status_code == 201
     assert created.json()["requires_item_tracking"] is True
 
+    created_with_new_group = await client.post(
+        f"/api/goods-receipts/{receipt_id}/ad-hoc-product",
+        headers=_auth_headers(admin_token),
+        json={
+            "product_number": f"{prefix}-ADHOC-2",
+            "name": f"{prefix} AdHoc New Group",
+            "description": "Ad-hoc from WE dialog with group creation",
+            "product_group_id": None,
+            "product_group_name": f"{prefix}-ADHOC-GROUP",
+            "unit": "piece",
+            "status": "active",
+            "requires_item_tracking": False,
+        },
+    )
+    assert created_with_new_group.status_code == 201
+    assert created_with_new_group.json()["group_name"] == f"{prefix}-ADHOC-GROUP"
+    assert created_with_new_group.json()["product_group_id"] is not None
+
+    invalid_both_group_fields = await client.post(
+        f"/api/goods-receipts/{receipt_id}/ad-hoc-product",
+        headers=_auth_headers(admin_token),
+        json={
+            "product_number": f"{prefix}-ADHOC-3",
+            "name": f"{prefix} AdHoc Invalid",
+            "description": "Invalid dual group input",
+            "product_group_id": data["group_id"],
+            "product_group_name": f"{prefix}-ADHOC-GROUP-2",
+            "unit": "piece",
+            "status": "active",
+            "requires_item_tracking": False,
+        },
+    )
+    assert invalid_both_group_fields.status_code == 422
+
 
 @pytest.mark.asyncio
 async def test_external_repair_dispatch_and_receive_flow_creates_document_and_moves_stock(

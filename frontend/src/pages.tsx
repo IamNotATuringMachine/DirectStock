@@ -19,7 +19,6 @@ import ScannerPage from "./pages/ScannerPage";
 import SalesOrdersPage from "./pages/SalesOrdersPage";
 import ShippingPage from "./pages/ShippingPage";
 import StockTransferPage from "./pages/StockTransferPage";
-import ServicesPage from "./pages/ServicesPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import CustomersPage from "./pages/CustomersPage";
 import UsersPage from "./pages/UsersPage";
@@ -48,7 +47,6 @@ export {
   SalesOrdersPage,
   ShippingPage,
   StockTransferPage,
-  ServicesPage,
   InvoicesPage,
   UsersPage,
   WarehousePage,

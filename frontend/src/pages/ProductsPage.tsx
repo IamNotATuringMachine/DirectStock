@@ -119,7 +119,7 @@ export default function ProductsPage() {
         <div>
           <h2 className="page-title">Artikelstamm</h2>
           <p className="section-subtitle mt-1">
-            Verwalten Sie alle Produkte, Dienstleistungen und Lagerartikel zentral.
+            Verwalten Sie alle Produkte und Lagerartikel zentral. Dienstleistungen werden über Produktgruppen abgebildet.
           </p>
         </div>
         {isAdmin && (

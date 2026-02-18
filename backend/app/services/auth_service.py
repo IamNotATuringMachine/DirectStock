@@ -1,8 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.auth import Role, User
+from app.models.auth import Role, User, UserPermissionOverride
 from app.schemas.auth import AuthUser, TokenResponse
 from app.utils.security import (
     create_access_token,
@@ -16,7 +16,23 @@ async def get_user_by_username(db: AsyncSession, username: str) -> User | None:
     stmt = (
         select(User)
         .where(User.username == username)
-        .options(selectinload(User.roles).selectinload(Role.permissions))
+        .options(
+            selectinload(User.roles).selectinload(Role.permissions),
+            selectinload(User.permission_overrides).selectinload(UserPermissionOverride.permission),
+        )
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
+    stmt = (
+        select(User)
+        .where(func.lower(User.email) == email.casefold())
+        .options(
+            selectinload(User.roles).selectinload(Role.permissions),
+            selectinload(User.permission_overrides).selectinload(UserPermissionOverride.permission),
+        )
     )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
@@ -26,14 +42,23 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
     stmt = (
         select(User)
         .where(User.id == user_id)
-        .options(selectinload(User.roles).selectinload(Role.permissions))
+        .options(
+            selectinload(User.roles).selectinload(Role.permissions),
+            selectinload(User.permission_overrides).selectinload(UserPermissionOverride.permission),
+        )
     )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def authenticate_user(db: AsyncSession, username: str, password: str) -> User | None:
-    user = await get_user_by_username(db, username)
+    identifier = username.strip()
+    if not identifier:
+        return None
+
+    user = await get_user_by_username(db, identifier)
+    if user is None:
+        user = await get_user_by_email(db, identifier)
     if not user or not user.is_active:
         return None
     if not verify_password(password, user.hashed_password):
@@ -46,7 +71,24 @@ def _user_roles(user: User) -> list[str]:
 
 
 def _user_permissions(user: User) -> list[str]:
-    return sorted({permission.code for role in user.roles for permission in role.permissions})
+    return compute_effective_permissions(user)
+
+
+def compute_effective_permissions(user: User) -> list[str]:
+    role_permission_codes = {permission.code for role in user.roles for permission in role.permissions}
+
+    allow_permissions = {
+        override.permission.code
+        for override in user.permission_overrides
+        if override.effect == "allow" and override.permission is not None
+    }
+    deny_permissions = {
+        override.permission.code
+        for override in user.permission_overrides
+        if override.effect == "deny" and override.permission is not None
+    }
+
+    return sorted((role_permission_codes - deny_permissions).union(allow_permissions))
 
 
 def create_token_response(user: User, access_expire_minutes: int) -> TokenResponse:

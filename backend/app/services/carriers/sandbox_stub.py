@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from hashlib import sha1
+from typing import Any
 
 from app.services.carriers.base import CarrierAdapter, CarrierCreateLabelResult, CarrierTrackingEvent
 
@@ -15,7 +16,14 @@ class SandboxCarrierAdapter(CarrierAdapter):
     def __init__(self, carrier_code: str):
         self.carrier_code = carrier_code
 
-    def create_label(self, *, shipment_number: str, recipient_name: str | None, shipping_address: str | None) -> CarrierCreateLabelResult:
+    def create_label(
+        self,
+        *,
+        shipment_number: str,
+        recipient_name: str | None,
+        shipping_address: str | None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CarrierCreateLabelResult:
         tracking_number = f"{self.carrier_code.upper()}-{_tracking_from(shipment_number)}"
         now = datetime.now(UTC).isoformat()
         content = (
@@ -37,5 +45,5 @@ class SandboxCarrierAdapter(CarrierAdapter):
             )
         ]
 
-    def cancel(self, *, tracking_number: str) -> bool:
+    def cancel(self, *, tracking_number: str, metadata: dict[str, Any] | None = None) -> bool:
         return True

@@ -27,6 +27,7 @@ from app.schemas.phase4 import (
 )
 from app.schemas.user import MessageResponse
 from app.services.carriers import get_carrier_adapter
+from app.services.carriers.base import CarrierAdapterError
 
 router = APIRouter(prefix="/api", tags=["shipping"])
 settings = get_settings()
@@ -126,11 +127,39 @@ def _webhook_secret_for_carrier(carrier: str) -> str:
     normalized = carrier.lower()
     if normalized == "dhl":
         return settings.dhl_webhook_secret
+    if normalized == "dhl_express":
+        return settings.dhl_express_webhook_secret
     if normalized == "dpd":
         return settings.dpd_webhook_secret
     if normalized == "ups":
         return settings.ups_webhook_secret
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unsupported carrier")
+
+
+def _format_dhl_express_address(dhl_payload: dict[str, object]) -> str:
+    line1 = str(dhl_payload.get("recipient_address_line1") or "").strip()
+    line2 = str(dhl_payload.get("recipient_address_line2") or "").strip()
+    postal = str(dhl_payload.get("recipient_postal_code") or "").strip()
+    city = str(dhl_payload.get("recipient_city") or "").strip()
+    country = str(dhl_payload.get("recipient_country_code") or "").strip().upper()
+    parts = [line1]
+    if line2:
+        parts.append(line2)
+    location = " ".join(part for part in [postal, city] if part).strip()
+    if location:
+        parts.append(location)
+    if country:
+        parts.append(country)
+    return ", ".join(part for part in parts if part)
+
+
+def _build_shipment_metadata(payload: ShipmentCreate) -> dict[str, object] | None:
+    metadata: dict[str, object] = {}
+    if payload.notes:
+        metadata["notes"] = payload.notes
+    if payload.dhl_express is not None:
+        metadata["dhl_express"] = payload.dhl_express.model_dump(mode="json")
+    return metadata or None
 
 
 @router.get("/shipments", response_model=list[ShipmentResponse])
@@ -174,6 +203,15 @@ async def create_shipment(
         customer_location_id=payload.customer_location_id,
     )
 
+    recipient_name = payload.recipient_name
+    shipping_address = payload.shipping_address
+    if payload.carrier == "dhl_express" and payload.dhl_express is not None:
+        dhl_payload = payload.dhl_express.model_dump(mode="json")
+        if not recipient_name:
+            recipient_name = payload.dhl_express.recipient_contact_name
+        if not shipping_address:
+            shipping_address = _format_dhl_express_address(dhl_payload)
+
     item = Shipment(
         shipment_number=payload.shipment_number or _generate_number("SHP"),
         carrier=payload.carrier,
@@ -181,10 +219,10 @@ async def create_shipment(
         goods_issue_id=payload.goods_issue_id,
         customer_id=customer_id,
         customer_location_id=customer_location_id,
-        recipient_name=payload.recipient_name,
-        shipping_address=payload.shipping_address,
+        recipient_name=recipient_name,
+        shipping_address=shipping_address,
         created_by=current_user.id,
-        metadata_json={"notes": payload.notes} if payload.notes else None,
+        metadata_json=_build_shipment_metadata(payload),
     )
     db.add(item)
     try:
@@ -221,11 +259,15 @@ async def create_shipment_label(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Shipment already cancelled")
 
     adapter = get_carrier_adapter(item.carrier)
-    result = adapter.create_label(
-        shipment_number=item.shipment_number,
-        recipient_name=item.recipient_name,
-        shipping_address=item.shipping_address,
-    )
+    try:
+        result = adapter.create_label(
+            shipment_number=item.shipment_number,
+            recipient_name=item.recipient_name,
+            shipping_address=item.shipping_address,
+            metadata=item.metadata_json,
+        )
+    except CarrierAdapterError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     max_version = (
         await db.execute(
@@ -263,6 +305,13 @@ async def create_shipment_label(
     item.tracking_number = result.tracking_number
     item.status = "label_created"
     item.shipped_at = _now()
+    if result.metadata:
+        metadata = dict(item.metadata_json or {})
+        runtime = metadata.get("carrier_runtime")
+        runtime_payload = runtime if isinstance(runtime, dict) else {}
+        runtime_payload[item.carrier] = result.metadata
+        metadata["carrier_runtime"] = runtime_payload
+        item.metadata_json = metadata
 
     db.add(
         ShipmentEvent(
@@ -295,7 +344,11 @@ async def get_shipment_tracking(
 
     if refresh and item.tracking_number:
         adapter = get_carrier_adapter(item.carrier)
-        for event in adapter.track(tracking_number=item.tracking_number):
+        try:
+            events = adapter.track(tracking_number=item.tracking_number)
+        except CarrierAdapterError as exc:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        for event in events:
             event_time = datetime.fromisoformat(event.event_at_iso)
             existing = (
                 await db.execute(
@@ -348,7 +401,10 @@ async def cancel_shipment(
 
     if item.tracking_number:
         adapter = get_carrier_adapter(item.carrier)
-        adapter.cancel(tracking_number=item.tracking_number)
+        try:
+            adapter.cancel(tracking_number=item.tracking_number, metadata=item.metadata_json)
+        except CarrierAdapterError as exc:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     item.status = "cancelled"
     item.cancelled_at = _now()

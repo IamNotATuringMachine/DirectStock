@@ -12,6 +12,7 @@ test("shipping flow supports create label tracking and cancel", async ({ page, r
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto("/shipping");
   await expect(page.getByTestId("shipping-page")).toBeVisible();
+  await expect(page.getByTestId("shipping-carrier-select").locator('option[value="dhl_express"]')).toHaveCount(1);
 
   await page.getByTestId("shipping-carrier-select").selectOption("dhl");
   await page.getByTestId("shipping-recipient-input").fill("E2E Shipping Empfaenger");

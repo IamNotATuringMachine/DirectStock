@@ -13,12 +13,17 @@ async function loginUi(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
-async function loginWithCredentials(page: Page, username: string, password: string): Promise<void> {
+async function loginWithCredentials(
+  page: Page,
+  username: string,
+  password: string,
+  expectedPath: RegExp = /\/dashboard$/,
+): Promise<void> {
   await page.goto("/login");
   await page.getByTestId("login-username").fill(username);
   await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(expectedPath);
 }
 
 test.describe("auth guards and session behavior", () => {
@@ -41,6 +46,24 @@ test.describe("auth guards and session behavior", () => {
   test("valid login redirects to dashboard", async ({ page }) => {
     await loginUi(page);
     await expect(page.getByTestId("dashboard-page")).toBeVisible();
+  });
+
+  test("user without dashboard permission redirects to first accessible page after login", async ({ page, request }) => {
+    const scopedUser = await createE2EUserWithRoles(request, ["auditor"]);
+    await loginWithCredentials(page, scopedUser.username, scopedUser.password, /\/documents$/);
+  });
+
+  test("deep-link to inaccessible page falls back to first accessible page after login", async ({ page, request }) => {
+    const scopedUser = await createE2EUserWithRoles(request, ["auditor"]);
+
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/login$/);
+
+    await page.getByTestId("login-username").fill(scopedUser.username);
+    await page.getByTestId("login-password").fill(scopedUser.password);
+    await page.getByTestId("login-submit").click();
+
+    await expect(page).toHaveURL(/\/documents$/);
   });
 
   test("logout clears session and revokes current API token", async ({ page, request }) => {

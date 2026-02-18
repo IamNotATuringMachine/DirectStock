@@ -78,6 +78,7 @@ class GoodsReceiptItem(TimestampMixin, Base):
         nullable=True,
         index=True,
     )
+    condition: Mapped[str] = mapped_column(String(20), default="new", server_default="new")
 
 
 class GoodsIssue(TimestampMixin, Base):

@@ -1,10 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, ChevronRight, CheckCircle, Clock, Truck, FileText, ShoppingCart } from "lucide-react";
+import { Plus, ChevronRight, CheckCircle, Clock, Truck, FileText, ShoppingCart } from "lucide-react";
 
 import { fetchCustomerLocations, fetchCustomers } from "../services/customersApi";
 import { fetchAllProducts } from "../services/productsApi";
-import { fetchServices } from "../services/servicesApi";
 import {
   addSalesOrderItem,
   createDeliveryNote,
@@ -18,9 +17,7 @@ export default function SalesOrdersPage() {
   const queryClient = useQueryClient();
   const [customerId, setCustomerId] = useState<string>("");
   const [customerLocationId, setCustomerLocationId] = useState<string>("");
-  const [itemType, setItemType] = useState<"product" | "service">("product");
   const [productId, setProductId] = useState<string>("");
-  const [serviceId, setServiceId] = useState<string>("");
   const [quantity, setQuantity] = useState("1");
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
@@ -41,10 +38,6 @@ export default function SalesOrdersPage() {
     queryKey: ["products", "sales-order"],
     queryFn: () => fetchAllProducts(),
   });
-  const servicesQuery = useQuery({
-    queryKey: ["services", "sales-order"],
-    queryFn: () => fetchServices({ page: 1, pageSize: 200, status: "active" }),
-  });
 
   const selectedOrderQuery = useQuery({
     queryKey: ["sales-order", selectedOrderId],
@@ -63,9 +56,8 @@ export default function SalesOrdersPage() {
   const addItemMutation = useMutation({
     mutationFn: ({ orderId }: { orderId: number }) =>
       addSalesOrderItem(orderId, {
-        item_type: itemType,
-        product_id: itemType === "product" ? Number(productId) : undefined,
-        service_id: itemType === "service" ? Number(serviceId) : undefined,
+        item_type: "product",
+        product_id: Number(productId),
         quantity,
         unit: "piece",
       }),
@@ -110,18 +102,15 @@ export default function SalesOrdersPage() {
     if (selectedOrderId === null) {
       return true;
     }
-    if (itemType === "product") {
-      return !productId;
-    }
-    return !serviceId;
-  }, [itemType, productId, selectedOrderId, serviceId]);
+    return !productId;
+  }, [productId, selectedOrderId]);
 
   return (
     <section className="page flex flex-col gap-6" data-testid="sales-orders-page">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="page-title">Verkaufsaufträge</h2>
-          <p className="section-subtitle mt-1">Aufträge mit Produkt- und Servicepositionen verwalten.</p>
+          <p className="section-subtitle mt-1">Aufträge mit Produktpositionen verwalten.</p>
         </div>
       </header>
 
@@ -273,56 +262,22 @@ export default function SalesOrdersPage() {
 
           <div className="bg-[var(--bg)] p-4 rounded-[var(--radius-md)] border border-[var(--line)] mb-8">
             <h4 className="section-title uppercase tracking-wider mb-3">Position hinzufügen</h4>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
-              <div className="space-y-1.5 lg:col-span-1">
-                <label className="text-xs font-medium text-[var(--ink)]">Typ</label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
+              <div className="space-y-1.5 lg:col-span-2">
+                <label className="text-xs font-medium text-[var(--ink)]">Produkt</label>
                 <div className="relative">
                   <select
                     className="input w-full appearance-none"
-                    value={itemType}
-                    onChange={(event) => setItemType(event.target.value as "product" | "service")}
+                    value={productId}
+                    onChange={(event) => setProductId(event.target.value)}
                   >
-                    <option value="product">Produkt</option>
-                    <option value="service">Service</option>
+                    <option value="">Produkt wählen...</option>
+                    {(productsQuery.data?.items ?? []).map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.product_number} | {product.name}
+                      </option>
+                    ))}
                   </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted)]">
-                    <ChevronRight className="w-4 h-4 rotate-90" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1.5 lg:col-span-2">
-                <label className="text-xs font-medium text-[var(--ink)]">
-                  {itemType === "product" ? "Produkt" : "Service"}
-                </label>
-                <div className="relative">
-                  {itemType === "product" ? (
-                    <select
-                      className="input w-full appearance-none"
-                      value={productId}
-                      onChange={(event) => setProductId(event.target.value)}
-                    >
-                      <option value="">Produkt wählen...</option>
-                      {(productsQuery.data?.items ?? []).map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.product_number} | {product.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <select
-                      className="input w-full appearance-none"
-                      value={serviceId}
-                      onChange={(event) => setServiceId(event.target.value)}
-                    >
-                      <option value="">Service wählen...</option>
-                      {(servicesQuery.data?.items ?? []).map((service) => (
-                        <option key={service.id} value={service.id}>
-                          {service.service_number} | {service.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted)]">
                     <ChevronRight className="w-4 h-4 rotate-90" />
                   </div>
@@ -368,17 +323,12 @@ export default function SalesOrdersPage() {
                   <tr key={item.id} className="hover:bg-[var(--panel-soft)] transition-colors">
                     <td className="px-4 py-3 text-center text-[var(--muted)] font-mono text-sm">{item.line_no}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium border
-                               ${item.item_type === 'product'
-                          ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800"
-                          : "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800"
-                        }
-                            `}>
+                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800">
                         {item.item_type}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-[var(--ink)] font-mono">
-                      {item.item_type === "product" ? item.product_id : item.service_id}
+                      {item.product_id}
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-[var(--ink)] font-semibold">{item.quantity}</td>
                     <td className="px-4 py-3 text-right text-sm text-[var(--muted)]">{item.invoiced_quantity}</td>

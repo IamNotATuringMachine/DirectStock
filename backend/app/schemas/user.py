@@ -1,6 +1,8 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic_core import PydanticCustomError
 
 
 class UserBase(BaseModel):
@@ -35,6 +37,35 @@ class UserResponse(BaseModel):
 
 class UserListResponse(BaseModel):
     items: list[UserResponse]
+
+
+PermissionOverrideEffect = Literal["allow", "deny"]
+
+
+class UserAccessProfileResponse(BaseModel):
+    user_id: int
+    username: str
+    roles: list[str]
+    allow_permissions: list[str] = Field(default_factory=list)
+    deny_permissions: list[str] = Field(default_factory=list)
+    effective_permissions: list[str] = Field(default_factory=list)
+
+
+class UserAccessProfileUpdate(BaseModel):
+    roles: list[str] = Field(default_factory=list)
+    allow_permissions: list[str] = Field(default_factory=list)
+    deny_permissions: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_disjoint_permission_sets(self) -> "UserAccessProfileUpdate":
+        overlap = sorted(set(self.allow_permissions).intersection(self.deny_permissions))
+        if overlap:
+            raise PydanticCustomError(
+                "permission_overlap",
+                "Permissions cannot exist in both allow and deny: {permissions}",
+                {"permissions": ", ".join(overlap)},
+            )
+        return self
 
 
 class MessageResponse(BaseModel):

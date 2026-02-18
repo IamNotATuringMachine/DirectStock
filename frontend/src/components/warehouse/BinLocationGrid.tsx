@@ -1,14 +1,24 @@
-import { QrCode } from "lucide-react";
+import { QrCode, Trash2 } from "lucide-react";
 
 import type { BinLocation } from "../../types";
 
 type BinLocationGridProps = {
   bins: BinLocation[];
+  canWrite: boolean;
   downloadingBinId: number | null;
+  deletingBinId: number | null;
   onDownloadQr: (bin: BinLocation) => Promise<void> | void;
+  onDeleteBin: (bin: BinLocation) => Promise<void> | void;
 };
 
-export default function BinLocationGrid({ bins, downloadingBinId, onDownloadQr }: BinLocationGridProps) {
+export default function BinLocationGrid({
+  bins,
+  canWrite,
+  downloadingBinId,
+  deletingBinId,
+  onDownloadQr,
+  onDeleteBin,
+}: BinLocationGridProps) {
   if (bins.length === 0) {
     return <p className="text-sm text-zinc-500 text-center py-8">Keine Lagerplätze in dieser Zone vorhanden.</p>;
   }
@@ -53,19 +63,36 @@ export default function BinLocationGrid({ bins, downloadingBinId, onDownloadQr }
               {bin.is_occupied ? `Belegt (${bin.occupied_quantity})` : "Leer"}
             </span>
 
-            <button
-              onClick={() => void onDownloadQr(bin)}
-              disabled={downloadingBinId === bin.id}
-              className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              title="QR-Code herunterladen"
-              data-testid={`warehouse-bin-qr-${bin.id}`}
-            >
-              {downloadingBinId === bin.id ? (
-                <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <QrCode className="w-4 h-4" />
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => void onDownloadQr(bin)}
+                disabled={downloadingBinId === bin.id}
+                className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                title="QR-Code herunterladen"
+                data-testid={`warehouse-bin-qr-${bin.id}`}
+              >
+                {downloadingBinId === bin.id ? (
+                  <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <QrCode className="w-4 h-4" />
+                )}
+              </button>
+              {canWrite && (
+                <button
+                  onClick={() => void onDeleteBin(bin)}
+                  disabled={deletingBinId === bin.id}
+                  className="text-zinc-400 hover:text-rose-600 dark:hover:text-rose-300 p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-60"
+                  title="Lagerplatz löschen"
+                  data-testid={`warehouse-bin-delete-${bin.id}`}
+                >
+                  {deletingBinId === bin.id ? (
+                    <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
               )}
-            </button>
+            </div>
           </div>
         </div>
       ))}

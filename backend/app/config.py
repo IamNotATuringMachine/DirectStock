@@ -24,8 +24,28 @@ class Settings(BaseSettings):
     integration_access_token_expire_minutes: int = 30
 
     dhl_webhook_secret: str = "dhl-webhook-secret"
+    dhl_express_webhook_secret: str = "dhl-express-webhook-secret"
     dpd_webhook_secret: str = "dpd-webhook-secret"
     ups_webhook_secret: str = "ups-webhook-secret"
+    dhl_express_api_base_url: str = "https://express.api.dhl.com/mydhlapi/test"
+    dhl_express_api_username: str = ""
+    dhl_express_api_password: str = ""
+    dhl_express_api_version: str = "3.2.0"
+    dhl_express_timeout_seconds: int = 20
+    dhl_express_account_number: str = ""
+    dhl_express_product_code: str = "P"
+    dhl_express_incoterm: str = "DAP"
+    dhl_express_label_template_name: str = "ECOM26_84_001"
+    dhl_express_shipper_company_name: str = "DirectStock"
+    dhl_express_shipper_contact_name: str = "Versand Team"
+    dhl_express_shipper_email: str = ""
+    dhl_express_shipper_phone: str = "+4900000000"
+    dhl_express_shipper_address_line1: str = "Musterstrasse 1"
+    dhl_express_shipper_address_line2: str = ""
+    dhl_express_shipper_postal_code: str = "56068"
+    dhl_express_shipper_city: str = "Koblenz"
+    dhl_express_shipper_country_code: str = "DE"
+    dhl_express_shipper_state_code: str = ""
 
     default_admin_username: str = Field(
         default="admin", validation_alias="DIRECTSTOCK_ADMIN_USERNAME"
@@ -51,6 +71,8 @@ class Settings(BaseSettings):
             insecure_defaults.append("JWT_SECRET_KEY")
         if self.dhl_webhook_secret == "dhl-webhook-secret":
             insecure_defaults.append("DHL_WEBHOOK_SECRET")
+        if self.dhl_express_webhook_secret == "dhl-express-webhook-secret":
+            insecure_defaults.append("DHL_EXPRESS_WEBHOOK_SECRET")
         if self.dpd_webhook_secret == "dpd-webhook-secret":
             insecure_defaults.append("DPD_WEBHOOK_SECRET")
         if self.ups_webhook_secret == "ups-webhook-secret":

@@ -1,18 +1,28 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, User, Lock, ArrowRight, Check } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, User, Lock, ArrowRight, Check, Eye, EyeOff } from "lucide-react";
 
+import { resolvePostLoginPath } from "./routing/accessRouting";
 import { useAuthStore } from "./stores/authStore";
 import logo from "./assets/logo.png";
+
+type LoginLocationState = {
+  from?: {
+    pathname?: string;
+  };
+};
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const login = useAuthStore((state) => state.login);
+  const logout = useAuthStore((state) => state.logout);
   const loading = useAuthStore((state) => state.isLoading);
+  const location = useLocation();
   const navigate = useNavigate();
 
   const onSubmit = async (event: FormEvent) => {
@@ -21,7 +31,25 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
-      navigate("/dashboard", { replace: true });
+      const authenticatedUser = useAuthStore.getState().user;
+      const requestedPath = (location.state as LoginLocationState | null)?.from?.pathname;
+      const targetPath = resolvePostLoginPath({
+        requestedPath,
+        userPermissions: authenticatedUser?.permissions,
+      });
+
+      if (!targetPath) {
+        try {
+          await logout();
+        } catch {
+          // keep login error handling deterministic when logout endpoint fails.
+        }
+        setError("Keine Seitenberechtigung vorhanden. Bitte Administrator kontaktieren.");
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      navigate(targetPath, { replace: true });
     } catch {
       setError("Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.");
     }
@@ -90,7 +118,7 @@ export default function LoginPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-[var(--ink)] ml-1" htmlFor="username">
-                  Benutzername
+                  Benutzername oder E-Mail
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -99,7 +127,7 @@ export default function LoginPage() {
                   <input
                     id="username"
                     className="block w-full pl-10 pr-3 py-3 border border-[var(--line)] rounded-xl text-[var(--ink)] bg-[var(--panel)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all outline-none"
-                    placeholder="Ihr Benutzername"
+                    placeholder="Ihr Benutzername oder Ihre E-Mail"
                     data-testid="login-username"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
@@ -123,14 +151,28 @@ export default function LoginPage() {
                   </div>
                   <input
                     id="password"
-                    className="block w-full pl-10 pr-3 py-3 border border-[var(--line)] rounded-xl text-[var(--ink)] bg-[var(--panel)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all outline-none"
+                    className="block w-full pl-10 pr-10 py-3 border border-[var(--line)] rounded-xl text-[var(--ink)] bg-[var(--panel)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all outline-none"
                     placeholder="••••••••"
                     data-testid="login-password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     autoComplete="current-password"
                   />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--muted)] hover:text-[var(--ink)] focus:outline-none focus:text-[var(--ink)] transition-colors"
+                    aria-label={
+                      showPassword
+                        ? "Passwort ist sichtbar (klicken zum Verbergen)"
+                        : "Passwort ist verborgen (klicken zum Anzeigen)"
+                    }
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((current) => !current)}
+                    data-testid="login-password-toggle"
+                  >
+                    {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
             </div>

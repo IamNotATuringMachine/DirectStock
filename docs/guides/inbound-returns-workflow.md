@@ -59,9 +59,14 @@ Dieser Guide beschreibt den kombinierten Ablauf fuer:
     - Status -> `ready_for_use`
 
 ## 3. Berechtigungen
+- Wareneingang-Endpunkte:
+  - `module.goods_receipts.read` (WE lesen, Positionen lesen, Serienlabel-PDF)
+  - `module.goods_receipts.write` (WE anlegen/aendern/stornieren/abschliessen, Positionen schreiben)
+- Page-Zugriff Frontend:
+  - `page.goods-receipt.view`
 - Neue Permission: `module.products.quick_create`
 - Sichtbar im Rollen-Editor ueber Bootstrap-Seed.
-- Admin kann die Permission dynamisch Rollen zuweisen.
+- Admin kann alle Permissions dynamisch Rollen oder direkt Benutzern (allow/deny) zuweisen.
 
 ## 4. Reporting
 - Returns-Report erweitert um:

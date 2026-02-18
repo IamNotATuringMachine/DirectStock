@@ -1,8 +1,16 @@
 import { api } from "./api";
-import type { User, UserCreatePayload, UserListResponse, UserUpdatePayload } from "../types";
+import type {
+  User,
+  UserAccessProfile,
+  UserAccessProfileUpdatePayload,
+  UserCreatePayload,
+  UserListResponse,
+  UserUpdatePayload,
+} from "../types";
 
-export async function fetchUsers(): Promise<User[]> {
-  const response = await api.get<UserListResponse>("/users");
+export async function fetchUsers(options?: { managedOnly?: boolean }): Promise<User[]> {
+  const params = options?.managedOnly ? { managed_only: true } : undefined;
+  const response = await api.get<UserListResponse>("/users", { params });
   return response.data.items;
 }
 
@@ -26,5 +34,18 @@ export async function changeUserPassword(
 
 export async function deleteUser(userId: number): Promise<{ message: string }> {
   const response = await api.delete<{ message: string }>(`/users/${userId}`);
+  return response.data;
+}
+
+export async function fetchUserAccessProfile(userId: number): Promise<UserAccessProfile> {
+  const response = await api.get<UserAccessProfile>(`/users/${userId}/access-profile`);
+  return response.data;
+}
+
+export async function updateUserAccessProfile(
+  userId: number,
+  payload: UserAccessProfileUpdatePayload
+): Promise<UserAccessProfile> {
+  const response = await api.put<UserAccessProfile>(`/users/${userId}/access-profile`, payload);
   return response.data;
 }

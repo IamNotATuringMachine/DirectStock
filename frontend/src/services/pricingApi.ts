@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { CustomerProductPrice, ProductPrice } from "../types";
+import type { CustomerProductPrice, ProductPrice, ResolvedPrice } from "../types";
 
 export async function fetchProductBasePrices(productId: number): Promise<ProductPrice[]> {
   const response = await api.get<{ items: ProductPrice[] }>(`/pricing/products/${productId}/base-prices`);
@@ -48,5 +48,12 @@ export async function upsertCustomerProductPrice(
     `/pricing/customers/${customerId}/product-prices/${productId}`,
     payload
   );
+  return response.data;
+}
+
+export async function resolveProductPrice(productId: number): Promise<ResolvedPrice> {
+  const response = await api.get<ResolvedPrice>("/pricing/resolve", {
+    params: { product_id: productId },
+  });
   return response.data;
 }

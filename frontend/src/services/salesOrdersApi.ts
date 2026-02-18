@@ -29,9 +29,8 @@ export async function createSalesOrder(payload: {
   currency?: string;
   notes?: string | null;
   items: Array<{
-    item_type: "product" | "service";
-    product_id?: number;
-    service_id?: number;
+    item_type: "product";
+    product_id: number;
     description?: string | null;
     quantity: string;
     unit?: string;
@@ -60,9 +59,8 @@ export async function updateSalesOrder(
 export async function addSalesOrderItem(
   orderId: number,
   payload: {
-    item_type: "product" | "service";
-    product_id?: number;
-    service_id?: number;
+    item_type: "product";
+    product_id: number;
     description?: string | null;
     quantity: string;
     unit?: string;

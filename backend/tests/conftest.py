@@ -1,15 +1,16 @@
 import os
 from pathlib import Path
 import tempfile
+from uuid import uuid4
 from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-test_db_path = Path(tempfile.gettempdir()) / "directstock_test.db"
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{test_db_path}")
-os.environ.setdefault("ASYNC_DATABASE_URL", f"sqlite+aiosqlite:///{test_db_path}")
+test_db_path = Path(tempfile.gettempdir()) / f"directstock_test_{uuid4().hex}.db"
+os.environ["DATABASE_URL"] = f"sqlite:///{test_db_path}"
+os.environ["ASYNC_DATABASE_URL"] = f"sqlite+aiosqlite:///{test_db_path}"
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_USERNAME", "admin")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_EMAIL", "admin@example.com")
@@ -23,6 +24,16 @@ from app.models import Base
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_database() -> AsyncGenerator[None, None]:
+    database_url = os.environ.get("DATABASE_URL", "")
+    async_database_url = os.environ.get("ASYNC_DATABASE_URL", "")
+    if not database_url.startswith("sqlite:///") or not async_database_url.startswith(
+        "sqlite+aiosqlite:///"
+    ):
+        raise RuntimeError(
+            "Unsafe test database configuration detected. "
+            "Expected SQLite URLs for DATABASE_URL and ASYNC_DATABASE_URL."
+        )
+
     if test_db_path.exists():
         test_db_path.unlink()
 

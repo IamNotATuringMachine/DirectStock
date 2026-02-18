@@ -87,19 +87,6 @@ class CustomerProductPrice(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean(), default=True, server_default="true")
 
 
-class Service(TimestampMixin, Base):
-    __tablename__ = "services"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    service_number: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    name: Mapped[str] = mapped_column(String(255), index=True)
-    description: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    net_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, server_default="0")
-    vat_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=19, server_default="19")
-    currency: Mapped[str] = mapped_column(String(3), default="EUR", server_default="EUR")
-    status: Mapped[str] = mapped_column(String(20), default="active", server_default="active", index=True)
-
-
 class SalesOrder(TimestampMixin, Base):
     __tablename__ = "sales_orders"
 
@@ -125,9 +112,8 @@ class SalesOrderItem(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     sales_order_id: Mapped[int] = mapped_column(ForeignKey("sales_orders.id", ondelete="CASCADE"), index=True)
     line_no: Mapped[int] = mapped_column(Integer(), default=1, server_default="1")
-    item_type: Mapped[str] = mapped_column(String(20), index=True)  # product | service
+    item_type: Mapped[str] = mapped_column(String(20), index=True)  # product
     product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=True, index=True)
-    service_id: Mapped[int | None] = mapped_column(ForeignKey("services.id", ondelete="RESTRICT"), nullable=True, index=True)
     description: Mapped[str | None] = mapped_column(Text(), nullable=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=0, server_default="0")
     delivered_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=0, server_default="0")

@@ -29,6 +29,10 @@ export async function createZone(
   return response.data;
 }
 
+export async function deleteZone(zoneId: number): Promise<void> {
+  await api.delete(`/zones/${zoneId}`);
+}
+
 export async function fetchBins(zoneId: number): Promise<BinLocation[]> {
   const response = await api.get<BinLocation[]>(`/zones/${zoneId}/bins`);
   return response.data;
@@ -52,6 +56,10 @@ export async function createBinBatch(
     payload
   );
   return response.data;
+}
+
+export async function deleteBin(binId: number): Promise<void> {
+  await api.delete(`/bins/${binId}`);
 }
 
 export async function fetchBinByQr(qrData: string): Promise<BinLocation> {

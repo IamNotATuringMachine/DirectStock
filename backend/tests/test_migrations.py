@@ -43,6 +43,7 @@ def test_alembic_upgrade_creates_schema(tmp_path, monkeypatch):
         "purchase_order_items",
         "client_operation_log",
         "audit_log",
+        "user_permission_overrides",
     }
 
     assert expected_tables.issubset(table_names)

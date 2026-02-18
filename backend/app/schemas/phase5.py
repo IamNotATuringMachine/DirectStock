@@ -165,50 +165,9 @@ class ResolvedPriceResponse(BaseModel):
     currency: str | None
 
 
-class ServiceCreate(BaseModel):
-    service_number: str | None = Field(default=None, max_length=64)
-    name: str = Field(min_length=1, max_length=255)
-    description: str | None = None
-    net_price: Decimal = Field(ge=Decimal("0"))
-    vat_rate: Decimal
-    currency: str = Field(default="EUR", min_length=3, max_length=3)
-    status: Literal["active", "blocked", "archived"] = "active"
-
-
-class ServiceUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=255)
-    description: str | None = None
-    net_price: Decimal | None = Field(default=None, ge=Decimal("0"))
-    vat_rate: Decimal | None = None
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    status: Literal["active", "blocked", "archived"] | None = None
-
-
-class ServiceResponse(BaseModel):
-    id: int
-    service_number: str
-    name: str
-    description: str | None
-    net_price: Decimal
-    vat_rate: Decimal
-    gross_price: Decimal
-    currency: str
-    status: str
-    created_at: datetime
-    updated_at: datetime
-
-
-class ServiceListResponse(BaseModel):
-    items: list[ServiceResponse]
-    total: int
-    page: int
-    page_size: int
-
-
 class SalesOrderItemCreate(BaseModel):
-    item_type: Literal["product", "service"]
-    product_id: int | None = None
-    service_id: int | None = None
+    item_type: Literal["product"] = "product"
+    product_id: int
     description: str | None = None
     quantity: Decimal = Field(gt=Decimal("0"))
     unit: str = Field(default="piece", min_length=1, max_length=20)
@@ -237,9 +196,8 @@ class SalesOrderItemResponse(BaseModel):
     id: int
     sales_order_id: int
     line_no: int
-    item_type: str
+    item_type: Literal["product"]
     product_id: int | None
-    service_id: int | None
     description: str | None
     quantity: Decimal
     delivered_quantity: Decimal

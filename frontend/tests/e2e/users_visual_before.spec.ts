@@ -31,36 +31,59 @@ test('verify users page layout before modernization', async ({ page }) => {
     });
 
     // Mock Users Data
-    await page.route('**/api/users', async route => {
+    await page.route('**/api/users*', async route => {
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify([
-                {
-                    id: 1,
-                    username: 'admin',
-                    email: 'admin@directstock.local',
-                    full_name: 'Administrator',
-                    roles: ['admin'],
-                    is_active: true
-                },
-                {
-                    id: 2,
-                    username: 'lager1',
-                    email: 'lager1@directstock.local',
-                    full_name: 'Lager Mitarbeiter 1',
-                    roles: ['lagermitarbeiter'],
-                    is_active: true
-                },
-                {
-                    id: 3,
-                    username: 'inactive_user',
-                    email: 'inactive@directstock.local',
-                    full_name: 'Inactive User',
-                    roles: ['viewer'],
-                    is_active: false
-                }
-            ])
+            body: JSON.stringify({
+                items: [
+                    {
+                        id: 1,
+                        username: 'admin',
+                        email: 'admin@directstock.local',
+                        full_name: 'Administrator',
+                        roles: ['admin'],
+                        is_active: true,
+                        created_at: '2026-01-01T00:00:00Z',
+                        updated_at: '2026-01-01T00:00:00Z'
+                    },
+                    {
+                        id: 2,
+                        username: 'lager1',
+                        email: 'lager1@directstock.local',
+                        full_name: 'Lager Mitarbeiter 1',
+                        roles: ['lagermitarbeiter'],
+                        is_active: true,
+                        created_at: '2026-01-01T00:00:00Z',
+                        updated_at: '2026-01-01T00:00:00Z'
+                    },
+                    {
+                        id: 3,
+                        username: 'inactive_user',
+                        email: 'inactive@directstock.local',
+                        full_name: 'Inactive User',
+                        roles: ['viewer'],
+                        is_active: false,
+                        created_at: '2026-01-01T00:00:00Z',
+                        updated_at: '2026-01-01T00:00:00Z'
+                    }
+                ]
+            })
+        });
+    });
+
+    await page.route('**/api/users/*/access-profile', async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                user_id: 2,
+                username: 'lager1',
+                roles: ['lagermitarbeiter'],
+                allow_permissions: [],
+                deny_permissions: [],
+                effective_permissions: ['page.dashboard.view']
+            })
         });
     });
 

@@ -1,7 +1,7 @@
 # Guide: Sales + Invoice
 
 ## Ziel
-Verkaufsauftraege mit Produkt- und Servicepositionen, Rechnungen inklusive Ueberfakturierungs-Schutz.
+Verkaufsauftraege mit Produktpositionen, Rechnungen inklusive Ueberfakturierungs-Schutz.
 
 ## Endpunkte
 1. `GET/POST /api/sales-orders`

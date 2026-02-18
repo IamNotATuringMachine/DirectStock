@@ -35,10 +35,15 @@ class ProductBase(BaseModel):
     unit: str = Field(default="piece", min_length=1, max_length=20)
     status: str = Field(default="active", pattern="^(active|blocked|deprecated|archived)$")
     requires_item_tracking: bool = False
+    default_bin_id: int | None = None
 
 
 class ProductCreate(ProductBase):
     pass
+
+
+class ProductAdHocCreate(ProductCreate):
+    product_group_name: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class ProductUpdate(BaseModel):
@@ -48,11 +53,13 @@ class ProductUpdate(BaseModel):
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     status: str | None = Field(default=None, pattern="^(active|blocked|deprecated|archived)$")
     requires_item_tracking: bool | None = None
+    default_bin_id: int | None = None
 
 
 class ProductResponse(ProductBase):
     id: int
     group_name: str | None = None
+    default_bin_id: int | None = None
     created_at: datetime
     updated_at: datetime
 

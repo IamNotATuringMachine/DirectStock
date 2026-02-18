@@ -8,11 +8,10 @@ describe("ProtectedRoute permission helper", () => {
   });
 
   it("allows access when at least one required permission is present", () => {
-    expect(hasAnyPermission(["module.pages.read", "module.services.read"], ["module.services.read"])).toBe(true);
+    expect(hasAnyPermission(["module.pages.read", "module.invoices.read"], ["module.invoices.read"])).toBe(true);
   });
 
   it("blocks access when no required permission is granted", () => {
     expect(hasAnyPermission(["module.pages.read"], ["module.invoices.write"])).toBe(false);
   });
 });
-

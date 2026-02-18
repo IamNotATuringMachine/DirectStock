@@ -32,6 +32,9 @@ class Product(TimestampMixin, Base):
     unit: Mapped[str] = mapped_column(String(20), default="piece", server_default="piece")
     status: Mapped[str] = mapped_column(String(20), default="active", server_default="active")
     requires_item_tracking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    default_bin_id: Mapped[int | None] = mapped_column(
+        ForeignKey("bin_locations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     group: Mapped[ProductGroup | None] = relationship("ProductGroup", lazy="selectin")
 

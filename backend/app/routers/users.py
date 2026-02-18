@@ -1,18 +1,29 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import get_settings
 from app.dependencies import get_db, require_admin
-from app.models.auth import User
+from app.models.auth import Permission, Role, User, UserPermissionOverride
 from app.schemas.auth import PasswordChangeRequest
-from app.schemas.user import MessageResponse, UserCreate, UserListResponse, UserResponse, UserUpdate
-from app.services.auth_service import create_user, ensure_roles
+from app.schemas.user import (
+    MessageResponse,
+    UserAccessProfileResponse,
+    UserAccessProfileUpdate,
+    UserCreate,
+    UserListResponse,
+    UserResponse,
+    UserUpdate,
+)
+from app.services.auth_service import compute_effective_permissions, create_user, ensure_roles
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
 from app.utils.security import hash_password, verify_password
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+settings = get_settings()
+SYSTEM_SEED_USERNAMES = {"lagerleiter", "lagermitarbeiter"}
 
 
 def _to_response(user: User) -> UserResponse:
@@ -28,9 +39,57 @@ def _to_response(user: User) -> UserResponse:
     )
 
 
+def _managed_system_usernames() -> set[str]:
+    return {settings.default_admin_username, *SYSTEM_SEED_USERNAMES}
+
+
+def _to_access_profile_response(user: User) -> UserAccessProfileResponse:
+    allow_permissions = sorted(
+        {
+            row.permission.code
+            for row in user.permission_overrides
+            if row.effect == "allow" and row.permission is not None
+        }
+    )
+    deny_permissions = sorted(
+        {
+            row.permission.code
+            for row in user.permission_overrides
+            if row.effect == "deny" and row.permission is not None
+        }
+    )
+    return UserAccessProfileResponse(
+        user_id=user.id,
+        username=user.username,
+        roles=sorted(role.name for role in user.roles),
+        allow_permissions=allow_permissions,
+        deny_permissions=deny_permissions,
+        effective_permissions=compute_effective_permissions(user),
+    )
+
+
+async def _load_user_with_access_profile(db: AsyncSession, user_id: int) -> User | None:
+    stmt = (
+        select(User)
+        .where(User.id == user_id)
+        .execution_options(populate_existing=True)
+        .options(
+            selectinload(User.roles).selectinload(Role.permissions),
+            selectinload(User.permission_overrides).selectinload(UserPermissionOverride.permission),
+        )
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
 @router.get("", response_model=UserListResponse, dependencies=[Depends(require_admin)])
-async def list_users(db: AsyncSession = Depends(get_db)) -> UserListResponse:
+async def list_users(
+    managed_only: bool = False,
+    db: AsyncSession = Depends(get_db),
+) -> UserListResponse:
     stmt = select(User).options(selectinload(User.roles)).order_by(User.id.asc())
+    if managed_only:
+        stmt = stmt.where(~User.username.in_(_managed_system_usernames()))
     result = await db.execute(stmt)
     users = list(result.scalars())
     return UserListResponse(items=[_to_response(user) for user in users])
@@ -59,6 +118,72 @@ async def create_user_endpoint(payload: UserCreate, db: AsyncSession = Depends(g
     stmt = select(User).where(User.id == user.id).options(selectinload(User.roles))
     result = await db.execute(stmt)
     return _to_response(result.scalar_one())
+
+
+@router.get("/{user_id}/access-profile", response_model=UserAccessProfileResponse, dependencies=[Depends(require_admin)])
+async def get_user_access_profile(user_id: int, db: AsyncSession = Depends(get_db)) -> UserAccessProfileResponse:
+    user = await _load_user_with_access_profile(db, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return _to_access_profile_response(user)
+
+
+@router.put("/{user_id}/access-profile", response_model=UserAccessProfileResponse, dependencies=[Depends(require_admin)])
+async def update_user_access_profile(
+    user_id: int,
+    payload: UserAccessProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> UserAccessProfileResponse:
+    user = await _load_user_with_access_profile(db, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    try:
+        user.roles = await ensure_roles(db, payload.roles)
+    except ValueError as exc:
+        raise HTTPException(status_code=HTTP_422_UNPROCESSABLE, detail=str(exc)) from exc
+
+    requested_codes = sorted(set(payload.allow_permissions + payload.deny_permissions))
+    permission_map: dict[str, Permission] = {}
+    if requested_codes:
+        permissions = list(
+            (
+                await db.execute(
+                    select(Permission).where(Permission.code.in_(requested_codes))
+                )
+            ).scalars()
+        )
+        permission_map = {permission.code: permission for permission in permissions}
+        missing = sorted(set(requested_codes) - set(permission_map))
+        if missing:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE,
+                detail=f"Unknown permission codes: {', '.join(missing)}",
+            )
+
+    await db.execute(delete(UserPermissionOverride).where(UserPermissionOverride.user_id == user.id))
+    for code in sorted(set(payload.allow_permissions)):
+        db.add(
+            UserPermissionOverride(
+                user_id=user.id,
+                permission_id=permission_map[code].id,
+                effect="allow",
+            )
+        )
+    for code in sorted(set(payload.deny_permissions)):
+        db.add(
+            UserPermissionOverride(
+                user_id=user.id,
+                permission_id=permission_map[code].id,
+                effect="deny",
+            )
+        )
+
+    await db.commit()
+    user = await _load_user_with_access_profile(db, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return _to_access_profile_response(user)
 
 
 @router.put("/{user_id}", response_model=UserResponse, dependencies=[Depends(require_admin)])

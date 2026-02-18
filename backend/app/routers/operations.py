@@ -10,7 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from app.dependencies import get_db, require_permissions, require_roles
 from app.models.auth import User
-from app.models.catalog import Customer, CustomerLocation, Product
+from app.models.catalog import Customer, CustomerLocation, Product, ProductGroup
 from app.models.inventory import (
     GoodsIssue,
     GoodsIssueItem,
@@ -23,8 +23,11 @@ from app.models.inventory import (
     StockTransfer,
     StockTransferItem,
 )
+from app.models.phase3 import ReturnOrder, ReturnOrderItem
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem
+from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 from app.schemas.operations import (
+    BinSuggestion,
     GoodsIssueCreate,
     GoodsIssueItemCreate,
     GoodsIssueItemResponse,
@@ -44,7 +47,7 @@ from app.schemas.operations import (
     StockTransferResponse,
     StockTransferUpdate,
 )
-from app.schemas.product import ProductCreate, ProductResponse
+from app.schemas.product import ProductAdHocCreate, ProductResponse
 from app.schemas.user import MessageResponse
 from app.services.alerts import evaluate_alerts
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
@@ -52,7 +55,8 @@ from app.utils.qr_generator import generate_serial_labels_pdf
 
 router = APIRouter(prefix="/api", tags=["operations"])
 
-GOODS_RECEIPT_ROLES = ("admin", "lagerleiter", "lagermitarbeiter", "einkauf")
+GOODS_RECEIPT_READ_PERMISSION = "module.goods_receipts.read"
+GOODS_RECEIPT_WRITE_PERMISSION = "module.goods_receipts.write"
 GOODS_ISSUE_ROLES = ("admin", "lagerleiter", "lagermitarbeiter", "versand")
 STOCK_TRANSFER_ROLES = ("admin", "lagerleiter", "lagermitarbeiter")
 
@@ -126,6 +130,13 @@ def _ensure_draft(entity_name: str, current_status: str) -> None:
             status_code=status.HTTP_409_CONFLICT,
             detail=f"{entity_name} is not in draft status",
         )
+
+
+def _normalize_group_name(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
 
 
 def _normalize_serial_numbers(values: list[str] | None) -> list[str]:
@@ -314,6 +325,7 @@ def _to_product_response(item: Product) -> ProductResponse:
         unit=item.unit,
         status=item.status,
         requires_item_tracking=item.requires_item_tracking,
+        default_bin_id=item.default_bin_id,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -349,6 +361,7 @@ def _to_goods_receipt_item_response(item: GoodsReceiptItem) -> GoodsReceiptItemR
         manufactured_at=item.manufactured_at,
         serial_numbers=item.serial_numbers,
         purchase_order_item_id=item.purchase_order_item_id,
+        condition=item.condition,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -422,7 +435,7 @@ def _to_stock_transfer_item_response(item: StockTransferItem) -> StockTransferIt
 async def list_goods_receipts(
     status_filter: str | None = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_READ_PERMISSION)),
 ) -> list[GoodsReceiptResponse]:
     stmt = select(GoodsReceipt).order_by(GoodsReceipt.id.desc())
     if status_filter:
@@ -435,7 +448,7 @@ async def list_goods_receipts(
 async def create_goods_receipt(
     payload: GoodsReceiptCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    current_user: User = Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> GoodsReceiptResponse:
     purchase_order: PurchaseOrder | None = None
     if payload.purchase_order_id is not None:
@@ -468,11 +481,159 @@ async def create_goods_receipt(
     return _to_goods_receipt_response(item)
 
 
+@router.get("/products/{product_id}/bin-suggestions", response_model=list[BinSuggestion])
+async def get_product_bin_suggestions(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_permissions(GOODS_RECEIPT_READ_PERMISSION)),
+) -> list[BinSuggestion]:
+    product = (
+        await db.execute(select(Product).where(Product.id == product_id))
+    ).scalar_one_or_none()
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    suggestions: list[BinSuggestion] = []
+    seen_bin_ids: set[int] = set()
+
+    if product.default_bin_id is not None:
+        row = (
+            await db.execute(
+                select(BinLocation, WarehouseZone, Warehouse)
+                .join(WarehouseZone, BinLocation.zone_id == WarehouseZone.id)
+                .join(Warehouse, WarehouseZone.warehouse_id == Warehouse.id)
+                .where(BinLocation.id == product.default_bin_id)
+            )
+        ).one_or_none()
+        if row is not None:
+            bin_loc, zone, warehouse = row
+            inv = (
+                await db.execute(
+                    select(Inventory).where(
+                        Inventory.product_id == product_id,
+                        Inventory.bin_location_id == bin_loc.id,
+                    )
+                )
+            ).scalar_one_or_none()
+            suggestions.append(
+                BinSuggestion(
+                    bin_id=bin_loc.id,
+                    bin_code=bin_loc.code,
+                    zone_id=zone.id,
+                    zone_code=zone.code,
+                    warehouse_id=warehouse.id,
+                    warehouse_code=warehouse.code,
+                    priority="default",
+                    current_quantity=Decimal(inv.quantity) if inv else Decimal("0"),
+                )
+            )
+            seen_bin_ids.add(bin_loc.id)
+
+    existing_rows = list(
+        (
+            await db.execute(
+                select(Inventory, BinLocation, WarehouseZone, Warehouse)
+                .join(BinLocation, Inventory.bin_location_id == BinLocation.id)
+                .join(WarehouseZone, BinLocation.zone_id == WarehouseZone.id)
+                .join(Warehouse, WarehouseZone.warehouse_id == Warehouse.id)
+                .where(
+                    Inventory.product_id == product_id,
+                    Inventory.quantity > 0,
+                )
+                .order_by(Inventory.quantity.desc())
+                .limit(5)
+            )
+        ).all()
+    )
+    for inv, bin_loc, zone, warehouse in existing_rows:
+        if bin_loc.id in seen_bin_ids:
+            continue
+        suggestions.append(
+            BinSuggestion(
+                bin_id=bin_loc.id,
+                bin_code=bin_loc.code,
+                zone_id=zone.id,
+                zone_code=zone.code,
+                warehouse_id=warehouse.id,
+                warehouse_code=warehouse.code,
+                priority="existing",
+                current_quantity=Decimal(inv.quantity),
+            )
+        )
+        seen_bin_ids.add(bin_loc.id)
+
+    return suggestions
+
+
+@router.post(
+    "/goods-receipts/from-po/{po_id}",
+    response_model=GoodsReceiptResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_goods_receipt_from_po(
+    po_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
+) -> GoodsReceiptResponse:
+    purchase_order = (
+        await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == po_id))
+    ).scalar_one_or_none()
+    if purchase_order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
+
+    _ensure_purchase_order_ready_for_receipt(purchase_order)
+
+    existing_receipt = (
+        await db.execute(
+            select(GoodsReceipt).where(
+                GoodsReceipt.purchase_order_id == po_id,
+                GoodsReceipt.status == "draft",
+            )
+        )
+    ).scalar_one_or_none()
+    if existing_receipt is not None:
+        return _to_goods_receipt_response(existing_receipt)
+
+    receipt = GoodsReceipt(
+        receipt_number=_generate_number("WE"),
+        purchase_order_id=po_id,
+        supplier_id=purchase_order.supplier_id,
+        created_by=current_user.id,
+    )
+    db.add(receipt)
+    await db.flush()
+
+    po_items = list(
+        (
+            await db.execute(
+                select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id == po_id)
+            )
+        ).scalars()
+    )
+    for po_item in po_items:
+        remaining = Decimal(po_item.ordered_quantity) - Decimal(po_item.received_quantity)
+        if remaining > 0:
+            db.add(
+                GoodsReceiptItem(
+                    goods_receipt_id=receipt.id,
+                    product_id=po_item.product_id,
+                    expected_quantity=remaining,
+                    received_quantity=remaining,
+                    unit=po_item.unit,
+                    purchase_order_item_id=po_item.id,
+                )
+            )
+
+    await db.commit()
+    await db.refresh(receipt)
+    return _to_goods_receipt_response(receipt)
+
+
 @router.get("/goods-receipts/{receipt_id}", response_model=GoodsReceiptResponse)
 async def get_goods_receipt(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_READ_PERMISSION)),
 ) -> GoodsReceiptResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -485,7 +646,7 @@ async def update_goods_receipt(
     receipt_id: int,
     payload: GoodsReceiptUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> GoodsReceiptResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -520,7 +681,7 @@ async def update_goods_receipt(
 async def delete_goods_receipt(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -537,7 +698,7 @@ async def delete_goods_receipt(
 async def list_goods_receipt_items(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_READ_PERMISSION)),
 ) -> list[GoodsReceiptItemResponse]:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -564,7 +725,7 @@ async def create_goods_receipt_item(
     receipt_id: int,
     payload: GoodsReceiptItemCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> GoodsReceiptItemResponse:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -625,7 +786,7 @@ async def update_goods_receipt_item(
     item_id: int,
     payload: GoodsReceiptItemUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> GoodsReceiptItemResponse:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -695,7 +856,7 @@ async def delete_goods_receipt_item(
     receipt_id: int,
     item_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> MessageResponse:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -726,16 +887,43 @@ async def delete_goods_receipt_item(
 )
 async def create_goods_receipt_adhoc_product(
     receipt_id: int,
-    payload: ProductCreate,
+    payload: ProductAdHocCreate,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(require_permissions("module.products.quick_create")),
+    _current_user: User = Depends(require_permissions("module.products.quick_create", GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> ProductResponse:
     receipt = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if receipt is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt not found")
     _ensure_draft("Goods receipt", receipt.status)
 
-    product = Product(**payload.model_dump())
+    group_name = _normalize_group_name(payload.product_group_name)
+    if payload.product_group_id is not None and group_name is not None:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE,
+            detail="Provide either product_group_id or product_group_name, not both",
+        )
+
+    group_id = payload.product_group_id
+    if group_name is not None:
+        group = (await db.execute(select(ProductGroup).where(ProductGroup.name == group_name))).scalar_one_or_none()
+        if group is None:
+            group = ProductGroup(name=group_name, description=None, is_active=True)
+            db.add(group)
+            try:
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                group = (await db.execute(select(ProductGroup).where(ProductGroup.name == group_name))).scalar_one_or_none()
+                if group is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Conflict while creating product group",
+                    )
+        group_id = group.id
+
+    product_payload = payload.model_dump(exclude={"product_group_name"})
+    product_payload["product_group_id"] = group_id
+    product = Product(**product_payload)
     db.add(product)
     try:
         await db.commit()
@@ -756,7 +944,7 @@ async def get_goods_receipt_item_serial_labels_pdf(
     receipt_id: int,
     item_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_READ_PERMISSION)),
 ) -> Response:
     parent = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if parent is None:
@@ -809,7 +997,7 @@ async def get_goods_receipt_item_serial_labels_pdf(
 async def complete_goods_receipt(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    current_user: User = Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
@@ -1032,6 +1220,44 @@ async def complete_goods_receipt(
         if item.received_at is None:
             item.received_at = now
 
+        non_new = [ri for ri in receipt_items if ri.condition != "new"]
+        if non_new:
+            repair_bin = (
+                await db.execute(
+                    select(BinLocation)
+                    .join(WarehouseZone, BinLocation.zone_id == WarehouseZone.id)
+                    .where(
+                        WarehouseZone.zone_type == "returns",
+                        BinLocation.is_active == True,  # noqa: E712
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+
+            return_order = ReturnOrder(
+                return_number=_generate_number("RT"),
+                source_type="technician",
+                source_reference=item.receipt_number,
+                status="registered",
+                registered_at=now,
+                created_by=current_user.id,
+            )
+            db.add(return_order)
+            await db.flush()
+
+            for ri in non_new:
+                db.add(
+                    ReturnOrderItem(
+                        return_order_id=return_order.id,
+                        product_id=ri.product_id,
+                        quantity=ri.received_quantity,
+                        unit=ri.unit,
+                        decision="repair",
+                        reason=f"Zustand bei Wareneingang: {ri.condition}",
+                        target_bin_id=repair_bin.id if repair_bin else None,
+                    )
+                )
+
         await evaluate_alerts(
             db,
             trigger="goods_receipt_completed",
@@ -1049,7 +1275,7 @@ async def complete_goods_receipt(
 async def cancel_goods_receipt(
     receipt_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*GOODS_RECEIPT_ROLES)),
+    _=Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> MessageResponse:
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:

@@ -93,3 +93,35 @@ async def test_shipping_webhook_signature_and_status_update(client: AsyncClient,
     )
     assert updated.status_code == 200
     assert updated.json()["status"] == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_shipping_dhl_express_requires_payload(client: AsyncClient, admin_token: str):
+    missing_payload = await client.post(
+        "/api/shipments",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"carrier": "dhl_express"},
+    )
+    assert missing_payload.status_code == 422
+
+    create_with_payload = await client.post(
+        "/api/shipments",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "carrier": "dhl_express",
+            "dhl_express": {
+                "recipient_company_name": "Muster GmbH",
+                "recipient_contact_name": "Max Mustermann",
+                "recipient_phone": "+4926112345",
+                "recipient_address_line1": "Musterstrasse 1",
+                "recipient_postal_code": "56068",
+                "recipient_city": "Koblenz",
+                "recipient_country_code": "DE",
+                "package_weight_kg": "1.0",
+            },
+        },
+    )
+    assert create_with_payload.status_code == 201
+    payload = create_with_payload.json()
+    assert payload["carrier"] == "dhl_express"
+    assert payload["metadata_json"]["dhl_express"]["recipient_company_name"] == "Muster GmbH"

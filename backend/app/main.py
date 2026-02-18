@@ -36,7 +36,6 @@ from app.routers.returns import router as returns_router
 from app.routers.roles import router as roles_router
 from app.routers.sales_orders import router as sales_orders_router
 from app.routers.shipping import router as shipping_router
-from app.routers.services_catalog import router as services_catalog_router
 from app.routers.suppliers import router as suppliers_router
 from app.routers.ui_preferences import router as ui_preferences_router
 from app.routers.users import router as users_router
@@ -94,7 +93,6 @@ app.include_router(roles_router)
 app.include_router(ui_preferences_router)
 app.include_router(dashboard_config_router)
 app.include_router(pricing_router)
-app.include_router(services_catalog_router)
 app.include_router(sales_orders_router)
 app.include_router(invoices_router)
 app.include_router(audit_log_router)

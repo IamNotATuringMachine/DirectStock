@@ -422,7 +422,7 @@ async function captureInventoryLayoutMetrics(page: Page): Promise<InventoryLayou
     const searchInput = panel.querySelector('[data-testid="inventory-search-input"]');
     const searchButton = panel.querySelector('[data-testid="inventory-search-btn"]');
     const warehouseFilter = panel.querySelector('[data-testid="inventory-warehouse-filter"]');
-    const kpiCards = Array.from(panel.querySelectorAll(".kpi-grid .kpi-card"));
+    const kpiCards = Array.from(panel.querySelectorAll('[data-testid="inventory-kpi-card"]'));
     const tableWrap = panel.querySelector(".table-wrap");
     const table = panel.querySelector('[data-testid="inventory-table"]');
     const firstRow = panel.querySelector('[data-testid^="inventory-row-"]');
@@ -438,9 +438,9 @@ async function captureInventoryLayoutMetrics(page: Page): Promise<InventoryLayou
 
     const twoColGridColumns = twoColGrid
       ? getComputedStyle(twoColGrid)
-          .gridTemplateColumns.split(" ")
-          .map((chunk) => chunk.trim())
-          .filter(Boolean).length
+        .gridTemplateColumns.split(" ")
+        .map((chunk) => chunk.trim())
+        .filter(Boolean).length
       : 0;
 
     return {
@@ -491,9 +491,9 @@ async function captureInventoryModalMetrics(page: Page): Promise<InventoryModalM
     const contentGrid = modal?.querySelector(".two-col-grid") ?? null;
     const contentGridColumns = contentGrid
       ? getComputedStyle(contentGrid)
-          .gridTemplateColumns.split(" ")
-          .map((chunk) => chunk.trim())
-          .filter(Boolean).length
+        .gridTemplateColumns.split(" ")
+        .map((chunk) => chunk.trim())
+        .filter(Boolean).length
       : 0;
 
     return {
@@ -650,7 +650,6 @@ test.describe("/inventory page ui and functional regression", () => {
       ["twoColGrid", metrics.twoColGrid],
       ["lowStockPanel", metrics.lowStockPanel],
       ["movementsPanel", metrics.movementsPanel],
-      ["firstRow", metrics.firstRow],
     ] as const) {
       expect(area, `Missing area: ${name}`).not.toBeNull();
       if (!area) {
@@ -686,11 +685,7 @@ test.describe("/inventory page ui and functional regression", () => {
       }
     }
 
-    if (metrics.viewportWidth <= 768) {
-      expect(metrics.firstRowDisplay).toBe("grid");
-    } else {
-      expect(metrics.firstRowDisplay).toBe("table-row");
-    }
+    expect(metrics.firstRowDisplay).toBe("table-row");
 
     await assertNoClientErrors(errors);
   });

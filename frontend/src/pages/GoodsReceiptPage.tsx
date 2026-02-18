@@ -8,8 +8,11 @@ import {
   completeGoodsReceipt,
   createGoodsReceiptAdHocProduct,
   createGoodsReceipt,
+  createGoodsReceiptFromPo,
   createGoodsReceiptItem,
+  deleteGoodsReceipt,
   downloadGoodsReceiptItemSerialLabelsPdf,
+  fetchBinSuggestions,
   fetchGoodsReceiptItems,
   fetchGoodsReceipts,
 } from "../services/operationsApi";
@@ -49,6 +52,8 @@ export default function GoodsReceiptPage() {
   const [adHocProductNumber, setAdHocProductNumber] = useState("");
   const [adHocProductName, setAdHocProductName] = useState("");
   const [adHocProductGroupId, setAdHocProductGroupId] = useState("");
+  const [adHocCreateProductGroup, setAdHocCreateProductGroup] = useState(false);
+  const [adHocProductGroupName, setAdHocProductGroupName] = useState("");
   const [adHocRequiresTracking, setAdHocRequiresTracking] = useState(false);
 
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
@@ -62,6 +67,9 @@ export default function GoodsReceiptPage() {
   const [flowLoading, setFlowLoading] = useState(false);
   const [flowFeedbackStatus, setFlowFeedbackStatus] = useState<"idle" | "success" | "error">("idle");
   const [flowFeedbackMessage, setFlowFeedbackMessage] = useState<string | null>(null);
+  const [leftPanelTab, setLeftPanelTab] = useState<"belege" | "auftragsvorrat">("belege");
+  const [flowCondition, setFlowCondition] = useState<"new" | "defective" | "needs_repair">("new");
+  const [manualCondition, setManualCondition] = useState<"new" | "defective" | "needs_repair">("new");
 
   const receiptsQuery = useQuery({
     queryKey: ["goods-receipts"],
@@ -114,6 +122,12 @@ export default function GoodsReceiptPage() {
     enabled: Boolean(selectedReceipt?.purchase_order_id),
   });
 
+  const binSuggestionsQuery = useQuery({
+    queryKey: ["bin-suggestions", flowProduct?.id],
+    queryFn: () => fetchBinSuggestions(flowProduct!.id),
+    enabled: flowProduct !== null && flowStep === "bin_scan",
+  });
+
   const productGroupsQuery = useQuery({
     queryKey: ["product-groups", "goods-receipt-adhoc"],
     queryFn: fetchProductGroups,
@@ -148,6 +162,15 @@ export default function GoodsReceiptPage() {
     },
   });
 
+  const createReceiptFromPoMutation = useMutation({
+    mutationFn: createGoodsReceiptFromPo,
+    onSuccess: async (receipt) => {
+      await queryClient.invalidateQueries({ queryKey: ["goods-receipts"] });
+      setSelectedReceiptId(receipt.id);
+      setLeftPanelTab("belege");
+    },
+  });
+
   const createItemMutation = useMutation({
     mutationFn: ({
       receiptId,
@@ -156,6 +179,7 @@ export default function GoodsReceiptPage() {
       targetBinId,
       serialNumbers,
       purchaseOrderItemId,
+      condition,
     }: {
       receiptId: number;
       productId: number;
@@ -163,6 +187,7 @@ export default function GoodsReceiptPage() {
       targetBinId: number;
       serialNumbers?: string[];
       purchaseOrderItemId?: number;
+      condition?: string;
     }) =>
       createGoodsReceiptItem(receiptId, {
         product_id: productId,
@@ -171,6 +196,7 @@ export default function GoodsReceiptPage() {
         unit: "piece",
         serial_numbers: serialNumbers,
         purchase_order_item_id: purchaseOrderItemId,
+        condition: condition ?? "new",
       }),
     onSuccess: async () => {
       setReceivedQuantity("1");
@@ -198,6 +224,15 @@ export default function GoodsReceiptPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteGoodsReceipt,
+    onSuccess: async () => {
+      setSelectedReceiptId(null);
+      await queryClient.invalidateQueries({ queryKey: ["goods-receipts"] });
+      await queryClient.invalidateQueries({ queryKey: ["goods-receipt-items"] });
+    },
+  });
+
   const adHocProductMutation = useMutation({
     mutationFn: ({
       receiptId,
@@ -207,12 +242,15 @@ export default function GoodsReceiptPage() {
       payload: Parameters<typeof createGoodsReceiptAdHocProduct>[1];
     }) => createGoodsReceiptAdHocProduct(receiptId, payload),
     onSuccess: async (product) => {
+      await queryClient.invalidateQueries({ queryKey: ["product-groups", "goods-receipt-adhoc"] });
       await queryClient.invalidateQueries({ queryKey: ["products", "goods-receipt-picker"] });
       setSelectedProductId(String(product.id));
       setShowAdHocModal(false);
       setAdHocProductNumber("");
       setAdHocProductName("");
       setAdHocProductGroupId("");
+      setAdHocCreateProductGroup(false);
+      setAdHocProductGroupName("");
       setAdHocRequiresTracking(false);
     },
   });
@@ -282,6 +320,7 @@ export default function GoodsReceiptPage() {
     setFlowProduct(null);
     setFlowBin(null);
     setFlowQuantity("1");
+    setFlowCondition("new");
     setFlowFeedback("idle", null);
   };
 
@@ -401,7 +440,9 @@ export default function GoodsReceiptPage() {
       targetBinId: Number(selectedBinId),
       serialNumbers: serialNumbers.length > 0 ? serialNumbers : undefined,
       purchaseOrderItemId: selectedPurchaseOrderItemId ? Number(selectedPurchaseOrderItemId) : undefined,
+      condition: manualCondition,
     });
+    setManualCondition("new");
     if (selectedProduct?.requires_item_tracking && createdItem.id) {
       await triggerSerialLabelDownload(selectedReceiptId, createdItem.id);
     }
@@ -430,6 +471,7 @@ export default function GoodsReceiptPage() {
       quantity: flowQuantity,
       targetBinId: flowBin.id,
       purchaseOrderItemId: matchingPoItem?.id,
+      condition: flowCondition,
     });
 
     setFlowFeedback("success", "Position erfasst");
@@ -447,7 +489,8 @@ export default function GoodsReceiptPage() {
         product_number: adHocProductNumber.trim(),
         name: adHocProductName.trim(),
         description: null,
-        product_group_id: adHocProductGroupId ? Number(adHocProductGroupId) : null,
+        product_group_id: adHocCreateProductGroup ? null : adHocProductGroupId ? Number(adHocProductGroupId) : null,
+        product_group_name: adHocCreateProductGroup ? adHocProductGroupName.trim() : undefined,
         unit: "piece",
         status: "active",
         requires_item_tracking: adHocRequiresTracking,
@@ -476,95 +519,183 @@ export default function GoodsReceiptPage() {
             <h3 className="section-title">
               1. Beleg anlegen
             </h3>
+            <div className="flex gap-1 mt-2">
+              <button
+                className={`px-3 py-1 text-xs rounded font-medium transition-colors ${leftPanelTab === "belege" ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:text-[var(--ink)]"}`}
+                onClick={() => setLeftPanelTab("belege")}
+                data-testid="goods-receipt-tab-belege"
+              >
+                Belege
+              </button>
+              <button
+                className={`px-3 py-1 text-xs rounded font-medium transition-colors ${leftPanelTab === "auftragsvorrat" ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:text-[var(--ink)]"}`}
+                onClick={() => setLeftPanelTab("auftragsvorrat")}
+                data-testid="goods-receipt-tab-auftragsvorrat"
+              >
+                Auftragsvorrat
+              </button>
+            </div>
           </div>
 
-          <div className="p-4 flex-1 overflow-hidden flex flex-col gap-4">
-            <form
-              className="flex flex-col gap-3"
-              onSubmit={(event) => void onCreateReceipt(event)}
-              data-testid="goods-receipt-create-form"
-            >
-              <select
-                className="input w-full min-w-0"
-                value={purchaseOrderId}
-                onChange={(event) => setPurchaseOrderId(event.target.value)}
-                data-testid="goods-receipt-po-select"
+          {leftPanelTab === "belege" ? (
+            <div className="p-4 flex-1 overflow-hidden flex flex-col gap-4">
+              <form
+                className="flex flex-col gap-3"
+                onSubmit={(event) => void onCreateReceipt(event)}
+                data-testid="goods-receipt-create-form"
               >
-                <option value="">Keine Bestellung</option>
-                {(purchaseOrdersQuery.data ?? []).map((purchaseOrder) => (
-                  <option key={purchaseOrder.id} value={purchaseOrder.id}>
-                    {purchaseOrder.order_number} ({purchaseOrder.status})
-                  </option>
-                ))}
-              </select>
+                <div className="space-y-1">
+                  <label
+                    className="block text-sm font-medium text-[var(--ink)] mb-1.5"
+                    htmlFor="goods-receipt-po-select"
+                  >
+                    Bestellauftrag
+                  </label>
+                  <select
+                    id="goods-receipt-po-select"
+                    className="input w-full min-w-0"
+                    value={purchaseOrderId}
+                    onChange={(event) => setPurchaseOrderId(event.target.value)}
+                    data-testid="goods-receipt-po-select"
+                  >
+                    <option value="">Kein Auftrag</option>
+                    {(purchaseOrdersQuery.data ?? []).map((purchaseOrder) => (
+                      <option key={purchaseOrder.id} value={purchaseOrder.id}>
+                        {purchaseOrder.order_number} ({purchaseOrder.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <select
-                className="input w-full min-w-0"
-                value={supplierId}
-                onChange={(event) => setSupplierId(event.target.value)}
-                data-testid="goods-receipt-supplier-select"
-              >
-                <option value="">Kein Lieferant</option>
-                {(suppliersQuery.data?.items ?? []).map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.supplier_number} - {supplier.company_name}
-                  </option>
-                ))}
-              </select>
+                <div className="space-y-1">
+                  <label
+                    className="block text-sm font-medium text-[var(--ink)] mb-1.5"
+                    htmlFor="goods-receipt-supplier-select"
+                  >
+                    Warenlieferant
+                  </label>
+                  <select
+                    id="goods-receipt-supplier-select"
+                    className="input w-full min-w-0"
+                    value={supplierId}
+                    onChange={(event) => setSupplierId(event.target.value)}
+                    data-testid="goods-receipt-supplier-select"
+                  >
+                    <option value="">Kein Warenlieferant</option>
+                    {(suppliersQuery.data?.items ?? []).map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.supplier_number} - {supplier.company_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="flex gap-2">
-                <input
-                  className="input w-full min-w-0"
-                  placeholder="Notiz (optional)"
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  data-testid="goods-receipt-notes-input"
-                />
-                <button
-                  className="btn btn-primary shrink-0"
-                  type="submit"
-                  disabled={createReceiptMutation.isPending}
-                  data-testid="goods-receipt-create-btn"
-                >
-                  Neu
-                </button>
+                <div className="flex gap-2">
+                  <input
+                    className="input w-full min-w-0"
+                    placeholder="Notiz (optional)"
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
+                    data-testid="goods-receipt-notes-input"
+                  />
+                  <button
+                    className="btn btn-primary shrink-0"
+                    type="submit"
+                    disabled={createReceiptMutation.isPending}
+                    data-testid="goods-receipt-create-btn"
+                  >
+                    Neu
+                  </button>
+                </div>
+              </form>
+
+              <div className="border-b border-[var(--line)] my-1"></div>
+
+              <div className="flex-1 overflow-y-auto border border-[var(--line)] rounded-[var(--radius-sm)] bg-[var(--bg)]" data-testid="goods-receipt-list">
+                {(receiptsQuery.data ?? []).length === 0 ? (
+                  <div className="p-8 text-center text-[var(--muted)] italic text-sm">
+                    Keine offenen Belege gefunden.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--line)]">
+                    {(receiptsQuery.data ?? []).map((receipt) => (
+                      <div
+                        key={receipt.id}
+                        className={`w-full p-3 hover:bg-[var(--panel-soft)] transition-colors flex items-center justify-between gap-3 group
+                            ${selectedReceiptId === receipt.id ? "bg-[var(--panel-strong)] border-l-4 border-l-[var(--accent)] pl-[calc(0.75rem-4px)]" : "border-l-4 border-l-transparent"}
+                          `}
+                      >
+                        <button
+                          className="text-left min-w-0 flex-1"
+                          onClick={() => setSelectedReceiptId(receipt.id)}
+                          data-testid={`goods-receipt-item-${receipt.id}`}
+                        >
+                          <div className="font-medium text-[var(--ink)] truncate">{receipt.receipt_number}</div>
+                          <div className="text-xs text-[var(--muted)] flex items-center gap-1.5 mt-0.5">
+                            <span className={`inline-block w-2 h-2 rounded-full
+                                ${receipt.status === "completed" ? "bg-emerald-500" :
+                                receipt.status === "cancelled" ? "bg-red-500" : "bg-amber-500"}
+                              `}></span>
+                            {receipt.status}
+                          </div>
+                        </button>
+
+                        {receipt.status === "draft" ? (
+                          <button
+                            type="button"
+                            className="btn btn-ghost shrink-0 text-xs text-[var(--destructive)] hover:bg-red-50"
+                            disabled={deleteMutation.isPending}
+                            onClick={() => {
+                              if (!window.confirm("Diesen Draft-Beleg wirklich loeschen?")) {
+                                return;
+                              }
+                              void deleteMutation.mutateAsync(receipt.id);
+                            }}
+                            data-testid={`goods-receipt-item-delete-btn-${receipt.id}`}
+                          >
+                            Loeschen
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </form>
-
-            <div className="border-b border-[var(--line)] my-1"></div>
-
-            <div className="flex-1 overflow-y-auto border border-[var(--line)] rounded-[var(--radius-sm)] bg-[var(--bg)]" data-testid="goods-receipt-list">
-              {(receiptsQuery.data ?? []).length === 0 ? (
-                <div className="p-8 text-center text-[var(--muted)] italic text-sm">
-                  Keine offenen Belege gefunden.
+            </div>
+          ) : (
+            <div className="p-4 flex-1 overflow-y-auto" data-testid="goods-receipt-auftragsvorrat">
+              {(purchaseOrdersQuery.data ?? []).length === 0 ? (
+                <div className="p-8 text-center text-[var(--muted)] italic text-sm border border-dashed border-[var(--line)] rounded-[var(--radius-md)]">
+                  Keine offenen Bestellungen gefunden.
                 </div>
               ) : (
-                <div className="divide-y divide-[var(--line)]">
-                  {(receiptsQuery.data ?? []).map((receipt) => (
+                <div className="divide-y divide-[var(--line)] border border-[var(--line)] rounded-[var(--radius-sm)] bg-[var(--bg)]">
+                  {(purchaseOrdersQuery.data ?? []).map((po) => (
                     <button
-                      key={receipt.id}
-                      className={`w-full text-left p-3 hover:bg-[var(--panel-soft)] transition-colors flex items-center justify-between gap-3 group
-                          ${selectedReceiptId === receipt.id ? "bg-[var(--panel-strong)] border-l-4 border-l-[var(--accent)] pl-[calc(0.75rem-4px)]" : "border-l-4 border-l-transparent"}
-                        `}
-                      onClick={() => setSelectedReceiptId(receipt.id)}
-                      data-testid={`goods-receipt-item-${receipt.id}`}
+                      key={po.id}
+                      type="button"
+                      className="w-full p-3 text-left hover:bg-[var(--panel-soft)] transition-colors flex items-center justify-between gap-3"
+                      disabled={createReceiptFromPoMutation.isPending}
+                      onClick={() => void createReceiptFromPoMutation.mutateAsync(po.id)}
+                      data-testid={`goods-receipt-po-item-${po.id}`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-[var(--ink)] truncate">{receipt.receipt_number}</div>
-                        <div className="text-xs text-[var(--muted)] flex items-center gap-1.5 mt-0.5">
-                          <span className={`inline-block w-2 h-2 rounded-full 
-                              ${receipt.status === 'completed' ? 'bg-emerald-500' :
-                              receipt.status === 'cancelled' ? 'bg-red-500' : 'bg-amber-500'}
-                            `}></span>
-                          {receipt.status}
-                        </div>
+                      <div>
+                        <div className="font-medium text-[var(--ink)] text-sm">{po.order_number}</div>
+                        {po.expected_delivery_at ? (
+                          <div className="text-xs text-[var(--muted)] mt-0.5">
+                            Lieferung: {new Date(po.expected_delivery_at).toLocaleDateString("de-DE")}
+                          </div>
+                        ) : null}
                       </div>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                        {po.status}
+                      </span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Panel 2: Scanner Workflow */}
@@ -624,6 +755,27 @@ export default function GoodsReceiptPage() {
                       autoFocus
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-[var(--muted)]">Zustand</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["new", "defective", "needs_repair"] as const).map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className={`btn py-2 text-xs ${flowCondition === c ? "btn-primary" : "btn-ghost border border-[var(--line)]"}`}
+                          onClick={() => setFlowCondition(c)}
+                          data-testid={`goods-receipt-flow-condition-${c}`}
+                        >
+                          {c === "new" ? "Neuware" : c === "defective" ? "Defekt" : "Reparaturbedarf"}
+                        </button>
+                      ))}
+                    </div>
+                    {flowCondition !== "new" ? (
+                      <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                        Artikel wird als Retoure/Reparatur eingetragen
+                      </div>
+                    ) : null}
+                  </div>
                   <button
                     className="btn btn-primary w-full justify-center py-3"
                     onClick={() => setFlowStep("bin_scan")}
@@ -634,14 +786,72 @@ export default function GoodsReceiptPage() {
               )}
 
               {flowStep === "bin_scan" && (
-                <WorkflowScanInput
-                  enabled
-                  isLoading={flowLoading}
-                  label="Lagerplatz scannen"
-                  placeholder="Lagerplatzcode scannen"
-                  onScan={(value) => onFlowBinScan(value)}
-                  testIdPrefix="goods-receipt-flow-bin-scan"
-                />
+                <div className="space-y-4 animate-in fade-in zoom-in duration-300">
+                  {(binSuggestionsQuery.data?.length ?? 0) > 0 ? (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-[var(--muted)]">Vorgeschlagene Lagerplätze</label>
+                      <div className="space-y-1.5">
+                        {(binSuggestionsQuery.data ?? []).map((suggestion) => (
+                          <button
+                            key={suggestion.bin_id}
+                            type="button"
+                            className="w-full text-left p-2.5 rounded border border-[var(--line)] hover:border-[var(--accent)] hover:bg-[var(--panel-soft)] transition-colors flex items-center justify-between gap-2"
+                            onClick={() => {
+                              const selectedBin: BinLocation = {
+                                id: suggestion.bin_id,
+                                zone_id: suggestion.zone_id,
+                                code: suggestion.bin_code,
+                                bin_type: "storage",
+                                max_weight: null,
+                                max_volume: null,
+                                qr_code_data: null,
+                                is_active: true,
+                                is_occupied: false,
+                                occupied_quantity: suggestion.current_quantity,
+                                created_at: "",
+                                updated_at: "",
+                              };
+                              setFlowBin(selectedBin);
+                              setSelectedBinId(String(suggestion.bin_id));
+                              setFlowStep("confirm");
+                              setFlowFeedback("success", `Lagerplatz ausgewählt: ${suggestion.bin_code}`);
+                            }}
+                            data-testid={`goods-receipt-bin-suggestion-${suggestion.bin_id}`}
+                          >
+                            <div>
+                              <div className="font-medium text-sm text-[var(--ink)]">
+                                {suggestion.bin_code}
+                                {suggestion.priority === "default" ? (
+                                  <span className="ml-2 inline-block px-1.5 py-0.5 text-xs rounded bg-emerald-100 text-emerald-800">Standard</span>
+                                ) : null}
+                              </div>
+                              <div className="text-xs text-[var(--muted)]">
+                                {suggestion.warehouse_code} / {suggestion.zone_code}
+                              </div>
+                            </div>
+                            <span className="text-xs text-[var(--muted)] shrink-0">{suggestion.current_quantity} Stk.</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="relative my-2">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t border-[var(--line)]"></span>
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-[var(--panel)] px-2 text-[var(--muted)] font-medium">oder manuell scannen</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                  <WorkflowScanInput
+                    enabled
+                    isLoading={flowLoading}
+                    label="Lagerplatz scannen"
+                    placeholder="Lagerplatzcode scannen"
+                    onScan={(value) => onFlowBinScan(value)}
+                    testIdPrefix="goods-receipt-flow-bin-scan"
+                  />
+                </div>
               )}
 
               {flowStep === "confirm" && (
@@ -659,6 +869,14 @@ export default function GoodsReceiptPage() {
                       <span className="text-sm text-[var(--muted)]">Zielplatz:</span>
                       <span className="font-medium text-[var(--ink)]">{flowBin?.code}</span>
                     </div>
+                    {flowCondition !== "new" ? (
+                      <div className={`flex justify-between border-t border-[var(--line)] pt-2 ${flowCondition === "defective" ? "text-red-700" : "text-amber-700"}`}>
+                        <span className="text-sm">Zustand:</span>
+                        <span className="font-medium text-sm">
+                          {flowCondition === "defective" ? "Defekt" : "Reparaturbedarf"}
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
 
                   <button
@@ -808,6 +1026,17 @@ export default function GoodsReceiptPage() {
                     placeholder="Seriennummern (eine pro Zeile oder komma-separiert)"
                   />
                 ) : null}
+
+                <select
+                  className="input w-full md:col-span-2"
+                  value={manualCondition}
+                  onChange={(event) => setManualCondition(event.target.value as "new" | "defective" | "needs_repair")}
+                  data-testid="goods-receipt-manual-condition-select"
+                >
+                  <option value="new">Neuware</option>
+                  <option value="defective">Defekt</option>
+                  <option value="needs_repair">Reparaturbedarf</option>
+                </select>
               </div>
 
               <button
@@ -820,7 +1049,25 @@ export default function GoodsReceiptPage() {
               </button>
             </form>
 
-            <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-[var(--line)]">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-4 border-t border-[var(--line)]">
+              <button
+                className="btn btn-ghost w-full justify-center text-[var(--destructive)] hover:bg-red-50"
+                type="button"
+                disabled={!selectedReceiptId || selectedReceipt?.status !== "draft" || deleteMutation.isPending}
+                onClick={() => {
+                  if (!selectedReceiptId) {
+                    return;
+                  }
+                  if (!window.confirm("Diesen Draft-Beleg wirklich loeschen?")) {
+                    return;
+                  }
+                  void deleteMutation.mutateAsync(selectedReceiptId);
+                }}
+                data-testid="goods-receipt-delete-btn"
+              >
+                Loeschen
+              </button>
+
               <button
                 className="btn btn-ghost w-full justify-center text-[var(--destructive)] hover:bg-red-50"
                 type="button"
@@ -928,6 +1175,7 @@ export default function GoodsReceiptPage() {
                 value={adHocProductGroupId}
                 onChange={(event) => setAdHocProductGroupId(event.target.value)}
                 data-testid="goods-receipt-adhoc-product-group"
+                disabled={adHocCreateProductGroup}
               >
                 <option value="">Keine Produktgruppe</option>
                 {(productGroupsQuery.data ?? []).map((group) => (
@@ -936,6 +1184,25 @@ export default function GoodsReceiptPage() {
                   </option>
                 ))}
               </select>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={adHocCreateProductGroup}
+                  onChange={(event) => setAdHocCreateProductGroup(event.target.checked)}
+                  data-testid="goods-receipt-adhoc-product-create-group"
+                />
+                Neue Produktgruppe anlegen
+              </label>
+              {adHocCreateProductGroup ? (
+                <input
+                  className="input w-full"
+                  value={adHocProductGroupName}
+                  onChange={(event) => setAdHocProductGroupName(event.target.value)}
+                  placeholder="Name der neuen Produktgruppe"
+                  data-testid="goods-receipt-adhoc-product-group-name"
+                  required
+                />
+              ) : null}
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -949,7 +1216,15 @@ export default function GoodsReceiptPage() {
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() => setShowAdHocModal(false)}
+                  onClick={() => {
+                    setShowAdHocModal(false);
+                    setAdHocProductNumber("");
+                    setAdHocProductName("");
+                    setAdHocProductGroupId("");
+                    setAdHocCreateProductGroup(false);
+                    setAdHocProductGroupName("");
+                    setAdHocRequiresTracking(false);
+                  }}
                   data-testid="goods-receipt-adhoc-cancel-btn"
                 >
                   Abbrechen

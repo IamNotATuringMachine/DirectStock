@@ -2,7 +2,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic_core import PydanticCustomError
 
 
 class IntegrationClientCreate(BaseModel):
@@ -148,15 +149,55 @@ class ExternalCommandGoodsIssueResponse(BaseModel):
     status: str
 
 
+class DhlExpressShipmentCreate(BaseModel):
+    recipient_company_name: str = Field(min_length=1, max_length=255)
+    recipient_contact_name: str = Field(min_length=1, max_length=255)
+    recipient_email: EmailStr | None = None
+    recipient_phone: str = Field(min_length=3, max_length=50)
+    recipient_address_line1: str = Field(min_length=1, max_length=120)
+    recipient_address_line2: str | None = Field(default=None, max_length=120)
+    recipient_postal_code: str = Field(min_length=1, max_length=12)
+    recipient_city: str = Field(min_length=1, max_length=45)
+    recipient_country_code: str = Field(min_length=2, max_length=2)
+    recipient_state_code: str | None = Field(default=None, min_length=2, max_length=35)
+    package_weight_kg: Decimal = Field(default=Decimal("1.0"), gt=Decimal("0"), le=Decimal("70"))
+    package_length_cm: Decimal | None = Field(default=None, gt=Decimal("0"), le=Decimal("9999999"))
+    package_width_cm: Decimal | None = Field(default=None, gt=Decimal("0"), le=Decimal("9999999"))
+    package_height_cm: Decimal | None = Field(default=None, gt=Decimal("0"), le=Decimal("9999999"))
+
+    @model_validator(mode="after")
+    def _validate_dimensions(self) -> "DhlExpressShipmentCreate":
+        dims = [self.package_length_cm, self.package_width_cm, self.package_height_cm]
+        provided = sum(1 for value in dims if value is not None)
+        if provided not in {0, 3}:
+            raise PydanticCustomError(
+                "dhl_express_dimensions_invalid",
+                "DHL Express dimensions require length, width and height together",
+                {},
+            )
+        return self
+
+
 class ShipmentCreate(BaseModel):
     shipment_number: str | None = Field(default=None, max_length=64)
-    carrier: Literal["dhl", "dpd", "ups"]
+    carrier: Literal["dhl", "dpd", "ups", "dhl_express"]
     goods_issue_id: int | None = None
     customer_id: int | None = None
     customer_location_id: int | None = None
     recipient_name: str | None = None
     shipping_address: str | None = None
     notes: str | None = None
+    dhl_express: DhlExpressShipmentCreate | None = None
+
+    @model_validator(mode="after")
+    def _validate_carrier_payload(self) -> "ShipmentCreate":
+        if self.carrier == "dhl_express" and self.dhl_express is None:
+            raise PydanticCustomError(
+                "dhl_express_payload_missing",
+                "dhl_express payload is required when carrier=dhl_express",
+                {},
+            )
+        return self
 
 
 class ShipmentResponse(BaseModel):

@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db_session
-from app.models.auth import Role, User
+from app.models.auth import Role, User, UserPermissionOverride
 from app.models.phase4 import IntegrationClient
+from app.services.auth_service import compute_effective_permissions
 from app.utils.security import TokenError, decode_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -51,6 +52,7 @@ async def get_current_user(
         .where(User.id == user_id)
         .options(
             selectinload(User.roles).selectinload(Role.permissions),
+            selectinload(User.permission_overrides).selectinload(UserPermissionOverride.permission),
         )
     )
     result = await db.execute(stmt)
@@ -64,11 +66,7 @@ async def get_current_user(
     request.state.user_id = user.id
     request.state.role_names = [role.name for role in user.roles]
     request.state.permission_codes = sorted(
-        {
-            permission.code
-            for role in user.roles
-            for permission in getattr(role, "permissions", [])
-        }
+        compute_effective_permissions(user)
     )
     return user
 
@@ -85,11 +83,7 @@ def require_roles(*allowed_roles: str) -> Callable:
 
 def require_permissions(*required_permissions: str) -> Callable:
     async def _require(current_user: User = Depends(get_current_user)) -> User:
-        permission_codes = {
-            permission.code
-            for role in current_user.roles
-            for permission in getattr(role, "permissions", [])
-        }
+        permission_codes = set(compute_effective_permissions(current_user))
         missing = [code for code in required_permissions if code not in permission_codes]
         if missing:
             raise HTTPException(

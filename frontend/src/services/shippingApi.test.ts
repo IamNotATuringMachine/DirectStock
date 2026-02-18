@@ -40,10 +40,20 @@ describe("shippingApi", () => {
 
   it("createShipment forwards customer and location linkage fields", async () => {
     const payload = {
-      carrier: "dhl" as const,
+      carrier: "dhl_express" as const,
       customer_id: 12,
       customer_location_id: 44,
       recipient_name: "Musterkunde",
+      dhl_express: {
+        recipient_company_name: "Muster GmbH",
+        recipient_contact_name: "Musterkunde",
+        recipient_phone: "+4926112345",
+        recipient_address_line1: "Musterstrasse 1",
+        recipient_postal_code: "56068",
+        recipient_city: "Koblenz",
+        recipient_country_code: "DE",
+        package_weight_kg: "1.0",
+      },
     };
     mocks.apiPost.mockResolvedValueOnce({ data: { id: 3 } });
 

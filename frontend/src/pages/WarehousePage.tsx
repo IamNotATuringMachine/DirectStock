@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Map as MapIcon, Plus, Search, Trash2 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Building2, Map as MapIcon, Plus, Trash2 } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
 
 import BinBatchCreateDialog from "../components/warehouse/BinBatchCreateDialog";
 import BinLocationGrid from "../components/warehouse/BinLocationGrid";
@@ -9,6 +9,8 @@ import {
   createBinBatch,
   createWarehouse,
   createZone,
+  deleteBin,
+  deleteZone,
   downloadBinLabelsPdf,
   downloadBinQrCode,
   fetchBins,
@@ -104,6 +106,15 @@ export default function WarehousePage() {
     },
   });
 
+  const deleteZoneMutation = useMutation({
+    mutationFn: deleteZone,
+    onSuccess: async () => {
+      setSelectedZoneId(null);
+      await queryClient.invalidateQueries({ queryKey: ["zones", selectedWarehouseId] });
+      await queryClient.invalidateQueries({ queryKey: ["bins"] });
+    },
+  });
+
   const batchMutation = useMutation({
     mutationFn: ({ zoneId }: { zoneId: number }) =>
       createBinBatch(zoneId, {
@@ -122,6 +133,13 @@ export default function WarehousePage() {
     },
   });
 
+  const deleteBinMutation = useMutation({
+    mutationFn: deleteBin,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["bins", selectedZoneId] });
+    },
+  });
+
   useEffect(() => {
     if (!selectedWarehouseId && warehousesQuery.data && warehousesQuery.data.length > 0) {
       setSelectedWarehouseId(warehousesQuery.data[0].id);
@@ -133,11 +151,6 @@ export default function WarehousePage() {
       setSelectedZoneId(zonesQuery.data[0].id);
     }
   }, [selectedZoneId, zonesQuery.data]);
-
-  const selectedWarehouse = useMemo(
-    () => warehousesQuery.data?.find((item) => item.id === selectedWarehouseId) ?? null,
-    [warehousesQuery.data, selectedWarehouseId]
-  );
 
   const onCreateWarehouse = async (event: FormEvent) => {
     event.preventDefault();
@@ -163,6 +176,22 @@ export default function WarehousePage() {
         is_active: true,
       },
     });
+  };
+
+  const onDeleteZone = async () => {
+    if (!selectedZoneId) {
+      return;
+    }
+    const selectedZone = zonesQuery.data?.find((zone) => zone.id === selectedZoneId);
+    const zoneLabel = selectedZone ? `${selectedZone.code} (${selectedZone.name})` : `#${selectedZoneId}`;
+    if (
+      !window.confirm(
+        `Zone "${zoneLabel}" wirklich löschen? Alle darin enthaltenen Lagerplätze werden ebenfalls entfernt.`
+      )
+    ) {
+      return;
+    }
+    await deleteZoneMutation.mutateAsync(selectedZoneId);
   };
 
   const triggerDownload = (blob: Blob, filename: string) => {
@@ -206,6 +235,14 @@ export default function WarehousePage() {
       return;
     }
     await batchMutation.mutateAsync({ zoneId: selectedZoneId });
+  };
+
+  const onDeleteBin = async (bin: BinLocation) => {
+    const occupancyHint = bin.is_occupied ? " Der Lagerplatz enthält aktuell Bestand." : "";
+    if (!window.confirm(`Lagerplatz "${bin.code}" wirklich löschen?${occupancyHint}`)) {
+      return;
+    }
+    await deleteBinMutation.mutateAsync(bin.id);
   };
 
   return (
@@ -309,13 +346,30 @@ export default function WarehousePage() {
           <div className="p-4 border-b border-[var(--line)] bg-[var(--panel-soft)] flex items-center justify-between sticky top-0 z-10">
             <h3 className="section-title">Zonen</h3>
             {canWrite && selectedWarehouseId && (
-              <button
-                onClick={() => setIsCreatingZone(!isCreatingZone)}
-                className="text-sm p-1.5 text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--panel-strong)] rounded-md transition-colors"
-                title="Neue Zone"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {selectedZoneId && (
+                  <button
+                    onClick={() => void onDeleteZone()}
+                    disabled={deleteZoneMutation.isPending}
+                    className="text-sm p-1.5 text-[var(--muted)] hover:text-rose-600 dark:hover:text-rose-300 hover:bg-[var(--panel-strong)] rounded-md transition-colors disabled:opacity-60"
+                    title="Ausgewählte Zone löschen"
+                    data-testid="warehouse-zone-delete-selected"
+                  >
+                    {deleteZoneMutation.isPending ? (
+                      <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsCreatingZone(!isCreatingZone)}
+                  className="text-sm p-1.5 text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--panel-strong)] rounded-md transition-colors"
+                  title="Neue Zone"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
             )}
           </div>
 
@@ -458,8 +512,11 @@ export default function WarehousePage() {
 
                 <BinLocationGrid
                   bins={binsQuery.data ?? []}
+                  canWrite={canWrite}
                   downloadingBinId={downloadingBinId}
+                  deletingBinId={deleteBinMutation.isPending ? deleteBinMutation.variables ?? null : null}
                   onDownloadQr={onDownloadBinQr}
+                  onDeleteBin={onDeleteBin}
                 />
               </>
             )}

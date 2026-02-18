@@ -18,6 +18,7 @@ import {
   createProductBasePrice,
   fetchCustomerProductPrices,
   fetchProductBasePrices,
+  resolveProductPrice,
   upsertCustomerProductPrice,
 } from "./pricingApi";
 
@@ -56,5 +57,13 @@ describe("pricingApi", () => {
     expect(mocks.apiPut).toHaveBeenCalledWith("/pricing/customers/3/product-prices/2", payload);
     expect(upserted).toEqual({ id: 8 });
   });
-});
 
+  it("resolves product price through expected endpoint", async () => {
+    mocks.apiGet.mockResolvedValueOnce({ data: { source: "base", net_price: "12.00" } });
+    const result = await resolveProductPrice(99);
+    expect(mocks.apiGet).toHaveBeenCalledWith("/pricing/resolve", {
+      params: { product_id: 99 },
+    });
+    expect(result).toEqual({ source: "base", net_price: "12.00" });
+  });
+});

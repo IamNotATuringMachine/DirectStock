@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { AxiosError } from "axios";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Package,
@@ -24,6 +25,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import { createProductBasePrice, fetchProductBasePrices, resolveProductPrice } from "../services/pricingApi";
 
 import {
   deleteProductWarehouseSetting,
@@ -44,9 +46,9 @@ import {
   fetchSuppliers,
   updateProductSupplier,
 } from "../services/suppliersApi";
-import { fetchWarehouses } from "../services/warehousesApi";
+import { fetchBins, fetchWarehouses, fetchZones } from "../services/warehousesApi";
 import { useAuthStore } from "../stores/authStore";
-import type { ProductStatus, ProductSupplierRelation } from "../types";
+import type { ProductPrice, ProductStatus, ProductSupplierRelation } from "../types";
 
 type ProductFormState = {
   productNumber: string;
@@ -58,7 +60,7 @@ type ProductFormState = {
   requiresItemTracking: boolean;
 };
 
-type ProductTab = "master" | "warehouse" | "suppliers";
+type ProductTab = "master" | "warehouse" | "suppliers" | "pricing";
 
 type WarehouseSettingFormState = {
   ean: string;
@@ -132,6 +134,46 @@ function toApiUnit(unit: string): string {
     return "piece";
   }
   return unit.trim();
+}
+
+function toMutationErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof AxiosError) {
+    const detail = error.response?.data?.detail;
+    if (typeof detail === "string" && detail.trim().length > 0) {
+      return detail;
+    }
+  }
+  return fallback;
+}
+
+function formatPriceAmount(value: string | null): string {
+  if (!value) {
+    return "-";
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return value;
+  }
+  return parsed.toFixed(2);
+}
+
+function deriveActiveBasePriceId(basePrices: ProductPrice[] | undefined, resolvedPrice: {
+  source: "customer" | "base" | "none";
+  net_price: string | null;
+  vat_rate: string | null;
+  currency: string | null;
+} | undefined): number | null {
+  if (!basePrices || !resolvedPrice || resolvedPrice.source !== "base") {
+    return null;
+  }
+  const match = basePrices.find(
+    (item) =>
+      item.is_active &&
+      item.net_price === resolvedPrice.net_price &&
+      item.vat_rate === resolvedPrice.vat_rate &&
+      item.currency === resolvedPrice.currency
+  );
+  return match?.id ?? null;
 }
 
 function ProductGroupSelect({
@@ -296,13 +338,18 @@ function ProductGroupSelect({
 
 export default function ProductFormPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.roles.includes("admin") ?? false;
+  const permissions = useMemo(() => new Set(user?.permissions ?? []), [user?.permissions]);
+  const canReadPricing = permissions.has("module.pricing.read");
+  const canWritePricing = permissions.has("module.pricing.write");
 
   const productId = id ? Number(id) : null;
   const isEditMode = productId !== null;
+  const requestedTab = searchParams.get("tab");
 
   const [activeTab, setActiveTab] = useState<ProductTab>("master");
   const [productForm, setProductForm] = useState<ProductFormState>(
@@ -318,7 +365,12 @@ export default function ProductFormPage() {
   const [supplierLeadTimeDays, setSupplierLeadTimeDays] = useState("");
   const [supplierMinOrderQuantity, setSupplierMinOrderQuantity] = useState("");
   const [supplierPreferred, setSupplierPreferred] = useState(false);
-  const [showCreateSuccessDialog, setShowCreateSuccessDialog] = useState(false);
+  const [basePriceNet, setBasePriceNet] = useState("");
+  const [basePriceVatRate, setBasePriceVatRate] = useState("19");
+  const [basePriceError, setBasePriceError] = useState<string | null>(null);
+  const [defaultBinId, setDefaultBinId] = useState<number | null>(null);
+  const [defaultBinWarehouseId, setDefaultBinWarehouseId] = useState<number | null>(null);
+  const [defaultBinZoneId, setDefaultBinZoneId] = useState<number | null>(null);
 
   const productQuery = useQuery({
     queryKey: ["product", productId],
@@ -329,6 +381,18 @@ export default function ProductFormPage() {
   const warehousesQuery = useQuery({
     queryKey: ["warehouses", "product-form"],
     queryFn: fetchWarehouses,
+  });
+
+  const defaultBinZonesQuery = useQuery({
+    queryKey: ["zones", defaultBinWarehouseId, "product-form"],
+    queryFn: () => fetchZones(defaultBinWarehouseId!),
+    enabled: defaultBinWarehouseId !== null,
+  });
+
+  const defaultBinBinsQuery = useQuery({
+    queryKey: ["bins", defaultBinZoneId, "product-form"],
+    queryFn: () => fetchBins(defaultBinZoneId!),
+    enabled: defaultBinZoneId !== null,
   });
 
   const settingsQuery = useQuery({
@@ -348,6 +412,18 @@ export default function ProductFormPage() {
     enabled: isEditMode,
   });
 
+  const productBasePricesQuery = useQuery({
+    queryKey: ["product-base-prices", productId],
+    queryFn: () => fetchProductBasePrices(productId as number),
+    enabled: isEditMode && canReadPricing,
+  });
+
+  const resolvedProductPriceQuery = useQuery({
+    queryKey: ["resolved-product-price", productId],
+    queryFn: () => resolveProductPrice(productId as number),
+    enabled: isEditMode && canReadPricing,
+  });
+
   useEffect(() => {
     if (!productQuery.data) {
       return;
@@ -364,7 +440,21 @@ export default function ProductFormPage() {
       status: product.status,
       requiresItemTracking: product.requires_item_tracking,
     });
+    setDefaultBinId(product.default_bin_id ?? null);
   }, [productQuery.data]);
+
+  useEffect(() => {
+    if (!isEditMode || !requestedTab) {
+      return;
+    }
+    if (requestedTab === "pricing") {
+      setActiveTab(canReadPricing ? "pricing" : "master");
+      return;
+    }
+    if (requestedTab === "warehouse" || requestedTab === "suppliers" || requestedTab === "master") {
+      setActiveTab(requestedTab);
+    }
+  }, [canReadPricing, isEditMode, requestedTab]);
 
   useEffect(() => {
     if (!warehousesQuery.data) {
@@ -398,9 +488,9 @@ export default function ProductFormPage() {
 
   const createProductMutation = useMutation({
     mutationFn: createProduct,
-    onSuccess: async () => {
+    onSuccess: async (createdProduct) => {
       await queryClient.invalidateQueries({ queryKey: ["products"] });
-      setShowCreateSuccessDialog(true);
+      navigate(`/products/${createdProduct.id}/edit?tab=pricing`);
     },
   });
 
@@ -497,6 +587,23 @@ export default function ProductFormPage() {
     },
   });
 
+  const createProductBasePriceMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof createProductBasePrice>[1]) =>
+      createProductBasePrice(productId as number, payload),
+    onMutate: () => setBasePriceError(null),
+    onSuccess: async () => {
+      setBasePriceNet("");
+      setBasePriceVatRate("19");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["product-base-prices", productId] }),
+        queryClient.invalidateQueries({ queryKey: ["resolved-product-price", productId] }),
+      ]);
+    },
+    onError: (error) => {
+      setBasePriceError(toMutationErrorMessage(error, "Preis konnte nicht gespeichert werden."));
+    },
+  });
+
   const pending =
     createProductMutation.isPending ||
     updateProductMutation.isPending ||
@@ -504,7 +611,8 @@ export default function ProductFormPage() {
     deleteWarehouseSettingMutation.isPending ||
     createProductSupplierMutation.isPending ||
     updateProductSupplierMutation.isPending ||
-    deleteProductSupplierMutation.isPending;
+    deleteProductSupplierMutation.isPending ||
+    createProductBasePriceMutation.isPending;
 
   const title = useMemo(
     () => (isEditMode ? `Artikel bearbeiten` : "Neuer Artikel"),
@@ -520,6 +628,20 @@ export default function ProductFormPage() {
         ])
       ),
     [suppliersQuery.data]
+  );
+
+  const basePriceGrossPreview = useMemo(() => {
+    const net = Number(basePriceNet);
+    const vatRate = Number(basePriceVatRate);
+    if (!Number.isFinite(net) || net <= 0 || !Number.isFinite(vatRate)) {
+      return null;
+    }
+    return (net * (1 + vatRate / 100)).toFixed(2);
+  }, [basePriceNet, basePriceVatRate]);
+
+  const activeBasePriceId = useMemo(
+    () => deriveActiveBasePriceId(productBasePricesQuery.data, resolvedProductPriceQuery.data),
+    [productBasePricesQuery.data, resolvedProductPriceQuery.data]
   );
 
   const handleSubmit = async (event: FormEvent) => {
@@ -541,6 +663,7 @@ export default function ProductFormPage() {
           unit: toApiUnit(productForm.unit),
           status: productForm.status,
           requires_item_tracking: productForm.requiresItemTracking,
+          default_bin_id: defaultBinId,
         },
       });
       return;
@@ -594,23 +717,22 @@ export default function ProductFormPage() {
     });
   };
 
-  const onCreateAnotherArticle = () => {
-    setShowCreateSuccessDialog(false);
-    setProductForm(emptyProductForm());
-    setWarehouseFormById({});
-    setActiveTab("master");
-    setSelectedSupplierId("");
-    setSupplierProductNumber("");
-    setSupplierPrice("");
-    setSupplierLeadTimeDays("");
-    setSupplierMinOrderQuantity("");
-    setSupplierPreferred(false);
-    navigate("/products/new", { replace: true });
-  };
-
-  const onCreateDoneGoToList = () => {
-    setShowCreateSuccessDialog(false);
-    navigate("/products");
+  const onCreateBasePrice = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!isEditMode || !canWritePricing) {
+      return;
+    }
+    const normalizedNet = basePriceNet.trim();
+    if (!normalizedNet) {
+      setBasePriceError("Nettopreis ist erforderlich.");
+      return;
+    }
+    await createProductBasePriceMutation.mutateAsync({
+      net_price: normalizedNet,
+      vat_rate: basePriceVatRate,
+      currency: "EUR",
+      is_active: true,
+    });
   };
 
   if (isEditMode && productQuery.isLoading) {
@@ -684,14 +806,16 @@ export default function ProductFormPage() {
       <div className="border-b border-[var(--line)]">
         <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
           {[
-            { id: "master", label: "Stammdaten", icon: Package },
-            { id: "warehouse", label: "Lagerdaten", icon: Warehouse },
-            { id: "suppliers", label: "Lieferanten", icon: Truck },
+            { id: "master", label: "Stammdaten", icon: Package, testId: "product-form-master-tab" },
+            { id: "warehouse", label: "Lagerdaten", icon: Warehouse, testId: "product-form-warehouse-tab-button" },
+            { id: "suppliers", label: "Lieferanten", icon: Truck, testId: "product-form-suppliers-tab-button" },
+            ...(canReadPricing ? [{ id: "pricing", label: "Preise", icon: DollarSign, testId: "product-form-pricing-tab" }] : []),
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as ProductTab)}
               type="button"
+              data-testid={tab.testId}
               className={`group pb-4 px-1 text-sm font-semibold flex items-center gap-2.5 transition-all relative whitespace-nowrap ${activeTab === tab.id
                 ? "text-[var(--accent)]"
                 : "text-[var(--muted)] hover:text-[var(--ink)]"
@@ -883,6 +1007,70 @@ export default function ProductFormPage() {
                       >
                         Einzelteilverfolgung (Seriennummernpflicht)
                       </label>
+                    </div>
+
+                    <div className="space-y-2 rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--panel-soft)] p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-[var(--ink)]">Standard-Lagerplatz</span>
+                        {defaultBinId ? (
+                          <button
+                            type="button"
+                            className="text-xs text-[var(--destructive)] hover:underline"
+                            onClick={() => {
+                              setDefaultBinId(null);
+                              setDefaultBinWarehouseId(null);
+                              setDefaultBinZoneId(null);
+                            }}
+                            data-testid="product-form-remove-default-bin"
+                          >
+                            Entfernen
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <select
+                          className="input w-full text-xs"
+                          value={defaultBinWarehouseId ?? ""}
+                          onChange={(event) => {
+                            setDefaultBinWarehouseId(event.target.value ? Number(event.target.value) : null);
+                            setDefaultBinZoneId(null);
+                            setDefaultBinId(null);
+                          }}
+                          data-testid="product-form-default-bin-warehouse"
+                        >
+                          <option value="">Lager...</option>
+                          {(warehousesQuery.data ?? []).map((w) => (
+                            <option key={w.id} value={w.id}>{w.code}</option>
+                          ))}
+                        </select>
+                        <select
+                          className="input w-full text-xs"
+                          value={defaultBinZoneId ?? ""}
+                          onChange={(event) => {
+                            setDefaultBinZoneId(event.target.value ? Number(event.target.value) : null);
+                            setDefaultBinId(null);
+                          }}
+                          disabled={!defaultBinWarehouseId}
+                          data-testid="product-form-default-bin-zone"
+                        >
+                          <option value="">Zone...</option>
+                          {(defaultBinZonesQuery.data ?? []).map((z) => (
+                            <option key={z.id} value={z.id}>{z.code}</option>
+                          ))}
+                        </select>
+                        <select
+                          className="input w-full text-xs"
+                          value={defaultBinId ?? ""}
+                          onChange={(event) => setDefaultBinId(event.target.value ? Number(event.target.value) : null)}
+                          disabled={!defaultBinZoneId}
+                          data-testid="product-form-default-bin-select"
+                        >
+                          <option value="">Platz...</option>
+                          {(defaultBinBinsQuery.data ?? []).map((b) => (
+                            <option key={b.id} value={b.id}>{b.code}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1146,6 +1334,152 @@ export default function ProductFormPage() {
           </div>
         )}
 
+        {activeTab === "pricing" && canReadPricing && (
+          <div className="space-y-6" data-testid="product-form-pricing-panel">
+            {!isEditMode && (
+              <div className="flex items-center gap-4 p-5 rounded-xl bg-amber-50 text-black border border-amber-200 shadow-sm">
+                <Info size={24} className="shrink-0 text-amber-600" />
+                <div>
+                  <h4 className="font-semibold">Artikel noch nicht erstellt</h4>
+                  <p className="text-sm text-black mt-1">
+                    Bitte speichern Sie den Artikel zuerst, um Basispreise zu hinterlegen.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isEditMode && (
+              <>
+                <section className="card p-6 border border-[var(--line)] bg-[var(--panel)] shadow-sm rounded-xl">
+                  <h3 className="text-lg font-semibold text-[var(--ink)] mb-5">
+                    Basispreis (für alle Kunden)
+                  </h3>
+                  <form className="space-y-4" onSubmit={(event) => void onCreateBasePrice(event)}>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                          Nettopreis
+                        </span>
+                        <input
+                          className="input w-full"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={basePriceNet}
+                          onChange={(event) => setBasePriceNet(event.target.value)}
+                          data-testid="product-pricing-net-input"
+                          placeholder="0.00"
+                          disabled={!canWritePricing}
+                          required
+                        />
+                      </label>
+
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                          USt
+                        </span>
+                        <select
+                          className="input w-full"
+                          value={basePriceVatRate}
+                          onChange={(event) => setBasePriceVatRate(event.target.value)}
+                          data-testid="product-pricing-vat-select"
+                          disabled={!canWritePricing}
+                        >
+                          <option value="0">0%</option>
+                          <option value="7">7%</option>
+                          <option value="19">19%</option>
+                        </select>
+                      </label>
+
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wide">
+                          Brutto (Vorschau)
+                        </span>
+                        <div
+                          className="input w-full bg-[var(--panel-soft)] flex items-center"
+                          data-testid="product-pricing-gross-preview"
+                        >
+                          {basePriceGrossPreview ? `${basePriceGrossPreview} EUR` : "-"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {basePriceError ? (
+                      <p className="text-sm text-red-600">{basePriceError}</p>
+                    ) : null}
+
+                    {!canWritePricing ? (
+                      <p className="text-sm text-[var(--muted)]">Keine Berechtigung zum Schreiben von Preisen.</p>
+                    ) : null}
+
+                    <div className="flex justify-end">
+                      <button
+                        className="btn btn-primary min-w-[180px]"
+                        type="submit"
+                        disabled={createProductBasePriceMutation.isPending || !canWritePricing}
+                        data-testid="product-pricing-save-btn"
+                      >
+                        {createProductBasePriceMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        Preis speichern
+                      </button>
+                    </div>
+                  </form>
+                </section>
+
+                <section
+                  className="card p-6 border border-[var(--line)] bg-[var(--panel)] shadow-sm rounded-xl"
+                  data-testid="product-pricing-history"
+                >
+                  <h3 className="text-lg font-semibold text-[var(--ink)] mb-4">
+                    Preis-Historie
+                  </h3>
+
+                  {productBasePricesQuery.isLoading ? (
+                    <p className="text-sm text-[var(--muted)]">Preise werden geladen...</p>
+                  ) : (productBasePricesQuery.data?.length ?? 0) === 0 ? (
+                    <p className="text-sm text-[var(--muted)]">Noch kein Basispreis vorhanden.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-[var(--muted)] border-b border-[var(--line)]">
+                            <th className="py-2 pr-4">Status</th>
+                            <th className="py-2 pr-4">Netto</th>
+                            <th className="py-2 pr-4">USt</th>
+                            <th className="py-2 pr-4">Brutto</th>
+                            <th className="py-2 pr-4">Gültig ab</th>
+                            <th className="py-2 pr-4">Gültig bis</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(productBasePricesQuery.data ?? []).map((price) => (
+                            <tr key={price.id} className="border-b border-[var(--line)]/50">
+                              <td className="py-2 pr-4">
+                                {activeBasePriceId === price.id ? (
+                                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-green-100 text-green-800 border border-green-200">
+                                    Aktuell
+                                  </span>
+                                ) : (
+                                  <span className="text-[var(--muted)] text-xs">Historisch</span>
+                                )}
+                              </td>
+                              <td className="py-2 pr-4">{formatPriceAmount(price.net_price)} {price.currency}</td>
+                              <td className="py-2 pr-4">{price.vat_rate}%</td>
+                              <td className="py-2 pr-4">{formatPriceAmount(price.gross_price)} {price.currency}</td>
+                              <td className="py-2 pr-4">{price.valid_from ? new Date(price.valid_from).toLocaleString() : "-"}</td>
+                              <td className="py-2 pr-4">{price.valid_to ? new Date(price.valid_to).toLocaleString() : "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
+          </div>
+        )}
+
         {activeTab === "suppliers" && (
           <div className="space-y-8" data-testid="product-form-suppliers-tab">
             {!isEditMode && (
@@ -1397,44 +1731,6 @@ export default function ProductFormPage() {
         )}
       </div>
 
-      {showCreateSuccessDialog && !isEditMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div
-            className="w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--panel)] shadow-2xl"
-            data-testid="product-create-success-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="product-create-success-title"
-          >
-            <div className="p-6 space-y-3">
-              <h3 id="product-create-success-title" className="text-lg font-semibold text-[var(--ink)]">
-                Artikel erfolgreich angelegt
-              </h3>
-              <p className="text-sm text-[var(--muted)]">
-                Möchten Sie einen weiteren Artikel hinzufügen?
-              </p>
-            </div>
-            <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
-              <button
-                type="button"
-                className="btn"
-                onClick={onCreateDoneGoToList}
-                data-testid="product-create-success-no-btn"
-              >
-                Nein, zum Artikelstamm
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={onCreateAnotherArticle}
-                data-testid="product-create-success-yes-btn"
-              >
-                Ja, weiteren Artikel anlegen
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

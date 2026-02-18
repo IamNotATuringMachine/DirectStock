@@ -12,10 +12,29 @@ import {
 } from "./offlineQueue";
 import type { Shipment, ShipmentEvent, ShipmentTracking } from "../types";
 
+export type ShipmentCarrier = "dhl" | "dhl_express" | "dpd" | "ups";
+
+export type DhlExpressShipmentCreatePayload = {
+  recipient_company_name: string;
+  recipient_contact_name: string;
+  recipient_email?: string;
+  recipient_phone: string;
+  recipient_address_line1: string;
+  recipient_address_line2?: string;
+  recipient_postal_code: string;
+  recipient_city: string;
+  recipient_country_code: string;
+  recipient_state_code?: string;
+  package_weight_kg: string;
+  package_length_cm?: string;
+  package_width_cm?: string;
+  package_height_cm?: string;
+};
+
 function toShipmentFromQueue(item: OfflineQueueItem): Shipment {
   const payload = (item.payload ?? {}) as {
     shipment_number?: string;
-    carrier?: "dhl" | "dpd" | "ups";
+    carrier?: ShipmentCarrier;
     goods_issue_id?: number | null;
     customer_id?: number | null;
     customer_location_id?: number | null;
@@ -103,7 +122,7 @@ async function applyQueuedShipmentActions(shipment: Shipment): Promise<Shipment>
 
 export async function fetchShipments(params?: {
   status?: string;
-  carrier?: "dhl" | "dpd" | "ups";
+  carrier?: ShipmentCarrier;
 }): Promise<Shipment[]> {
   let serverItems: Shipment[] = [];
   if (!isOfflineNow()) {
@@ -144,13 +163,14 @@ export async function fetchShipments(params?: {
 
 export async function createShipment(payload: {
   shipment_number?: string;
-  carrier: "dhl" | "dpd" | "ups";
+  carrier: ShipmentCarrier;
   goods_issue_id?: number | null;
   customer_id?: number | null;
   customer_location_id?: number | null;
   recipient_name?: string;
   shipping_address?: string;
   notes?: string;
+  dhl_express?: DhlExpressShipmentCreatePayload;
 }): Promise<Shipment> {
   const url = "/shipments";
   if (shouldQueueOfflineMutation("POST", url)) {

@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
+import { resolveFirstAccessiblePath } from "../routing/accessRouting";
 import { useAuthStore } from "../stores/authStore";
 
 export function hasAnyPermission(userPermissions: string[] | undefined, requiredPermissions: string[]): boolean {
@@ -42,7 +43,11 @@ export function RequireRole({
 
   const hasRole = user.roles.some((role) => roles.includes(role));
   if (!hasRole) {
-    return <Navigate to="/dashboard" replace />;
+    const fallbackPath = resolveFirstAccessiblePath(user.permissions);
+    if (!fallbackPath) {
+      return <Navigate to="/login" replace />;
+    }
+    return <Navigate to={fallbackPath} replace />;
   }
 
   return children;
@@ -68,7 +73,11 @@ export function RequirePermission({
 
   const hasPermission = hasAnyPermission(user.permissions, permissions);
   if (!hasPermission) {
-    return <Navigate to="/dashboard" replace />;
+    const fallbackPath = resolveFirstAccessiblePath(user.permissions);
+    if (!fallbackPath) {
+      return <Navigate to="/login" replace />;
+    }
+    return <Navigate to={fallbackPath} replace />;
   }
 
   return children;

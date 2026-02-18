@@ -25,7 +25,6 @@ const ROUTES: RouteConfig[] = [
   { path: "/inter-warehouse-transfer", testId: "inter-warehouse-transfer-page" },
   { path: "/shipping", testId: "shipping-page" },
   { path: "/scanner", testId: "scanner-page" },
-  { path: "/services", testId: "services-page" },
   { path: "/sales-orders", testId: "sales-orders-page" },
   { path: "/invoices", testId: "invoices-page" },
   { path: "/users", testId: "users-page" },

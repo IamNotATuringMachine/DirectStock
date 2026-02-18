@@ -345,6 +345,37 @@ test.describe("/warehouse page ui and functional regression", () => {
     await page.getByTestId("warehouse-zone-qr-pdf").click();
     await pdfResponsePromise;
 
+    const binDeleteButtons = page.locator('[data-testid^="warehouse-bin-delete-"]');
+    await expect(binDeleteButtons).toHaveCount(2);
+    page.once("dialog", (dialog) => {
+      void dialog.accept();
+    });
+    const deleteBinResponsePromise = page.waitForResponse((response) => {
+      return (
+        response.request().method() === "DELETE" &&
+        /\/api\/bins\/\d+$/.test(response.url()) &&
+        response.status() === 204
+      );
+    });
+    await binDeleteButtons.first().click();
+    await deleteBinResponsePromise;
+    await expect(binDeleteButtons).toHaveCount(1);
+
+    await expect(page.getByTestId("warehouse-zone-delete-selected")).toBeVisible();
+    page.once("dialog", (dialog) => {
+      void dialog.accept();
+    });
+    const deleteZoneResponsePromise = page.waitForResponse((response) => {
+      return (
+        response.request().method() === "DELETE" &&
+        /\/api\/zones\/\d+$/.test(response.url()) &&
+        response.status() === 204
+      );
+    });
+    await page.getByTestId("warehouse-zone-delete-selected").click();
+    await deleteZoneResponsePromise;
+    await expect(page.getByText("Keine Zonen vorhanden")).toBeVisible();
+
     await assertNoClientErrors(errors);
   });
 

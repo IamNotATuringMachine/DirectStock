@@ -6,6 +6,8 @@ import {
   cancelShipment,
   createShipment,
   createShipmentLabel,
+  type DhlExpressShipmentCreatePayload,
+  type ShipmentCarrier,
   downloadDocument,
   fetchShipmentTracking,
   fetchShipments,
@@ -22,18 +24,60 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function carrierLabel(carrier: ShipmentCarrier): string {
+  if (carrier === "dhl_express") {
+    return "DHL Express";
+  }
+  return carrier.toUpperCase();
+}
+
+type DhlExpressFormState = {
+  recipient_company_name: string;
+  recipient_contact_name: string;
+  recipient_email: string;
+  recipient_phone: string;
+  recipient_address_line1: string;
+  recipient_address_line2: string;
+  recipient_postal_code: string;
+  recipient_city: string;
+  recipient_country_code: string;
+  recipient_state_code: string;
+  package_weight_kg: string;
+  package_length_cm: string;
+  package_width_cm: string;
+  package_height_cm: string;
+};
+
+const DHL_EXPRESS_DEFAULTS: DhlExpressFormState = {
+  recipient_company_name: "",
+  recipient_contact_name: "",
+  recipient_email: "",
+  recipient_phone: "",
+  recipient_address_line1: "",
+  recipient_address_line2: "",
+  recipient_postal_code: "",
+  recipient_city: "",
+  recipient_country_code: "DE",
+  recipient_state_code: "",
+  package_weight_kg: "1.0",
+  package_length_cm: "",
+  package_width_cm: "",
+  package_height_cm: "",
+};
+
 export default function ShippingPage() {
   const queryClient = useQueryClient();
   const [selectedShipmentId, setSelectedShipmentId] = useState<number | null>(null);
-  const [carrier, setCarrier] = useState<"dhl" | "dpd" | "ups">("dhl");
+  const [carrier, setCarrier] = useState<ShipmentCarrier>("dhl");
   const [customerId, setCustomerId] = useState("");
   const [customerLocationId, setCustomerLocationId] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
+  const [dhlExpress, setDhlExpress] = useState<DhlExpressFormState>(DHL_EXPRESS_DEFAULTS);
   const [notes, setNotes] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("");
-  const [carrierFilter, setCarrierFilter] = useState<"" | "dhl" | "dpd" | "ups">("");
+  const [carrierFilter, setCarrierFilter] = useState<"" | ShipmentCarrier>("");
   const [trackingRefreshCounter, setTrackingRefreshCounter] = useState(0);
 
   const shipmentsQuery = useQuery({
@@ -70,6 +114,7 @@ export default function ShippingPage() {
       setCustomerLocationId("");
       setRecipientName("");
       setShippingAddress("");
+      setDhlExpress(DHL_EXPRESS_DEFAULTS);
     },
   });
 
@@ -100,14 +145,53 @@ export default function ShippingPage() {
 
   const onCreateShipment = async (event: FormEvent) => {
     event.preventDefault();
-    await createMutation.mutateAsync({
+    const payload: Parameters<typeof createShipment>[0] = {
       carrier,
       customer_id: customerId ? Number(customerId) : undefined,
       customer_location_id: customerLocationId ? Number(customerLocationId) : undefined,
-      recipient_name: recipientName.trim() || undefined,
-      shipping_address: shippingAddress.trim() || undefined,
       notes: notes.trim() || undefined,
-    });
+    };
+
+    if (carrier === "dhl_express") {
+      const hasAllDimensions =
+        dhlExpress.package_length_cm.trim() &&
+        dhlExpress.package_width_cm.trim() &&
+        dhlExpress.package_height_cm.trim();
+      const dhlPayload: DhlExpressShipmentCreatePayload = {
+        recipient_company_name: dhlExpress.recipient_company_name.trim(),
+        recipient_contact_name: dhlExpress.recipient_contact_name.trim(),
+        recipient_email: dhlExpress.recipient_email.trim() || undefined,
+        recipient_phone: dhlExpress.recipient_phone.trim(),
+        recipient_address_line1: dhlExpress.recipient_address_line1.trim(),
+        recipient_address_line2: dhlExpress.recipient_address_line2.trim() || undefined,
+        recipient_postal_code: dhlExpress.recipient_postal_code.trim(),
+        recipient_city: dhlExpress.recipient_city.trim(),
+        recipient_country_code: dhlExpress.recipient_country_code.trim().toUpperCase(),
+        recipient_state_code: dhlExpress.recipient_state_code.trim() || undefined,
+        package_weight_kg: dhlExpress.package_weight_kg.trim(),
+        package_length_cm: hasAllDimensions ? dhlExpress.package_length_cm.trim() : undefined,
+        package_width_cm: hasAllDimensions ? dhlExpress.package_width_cm.trim() : undefined,
+        package_height_cm: hasAllDimensions ? dhlExpress.package_height_cm.trim() : undefined,
+      };
+
+      payload.dhl_express = dhlPayload;
+      payload.recipient_name = recipientName.trim() || dhlPayload.recipient_contact_name;
+      payload.shipping_address =
+        shippingAddress.trim() ||
+        [
+          dhlPayload.recipient_address_line1,
+          dhlPayload.recipient_address_line2 ?? "",
+          `${dhlPayload.recipient_postal_code} ${dhlPayload.recipient_city}`,
+          dhlPayload.recipient_country_code,
+        ]
+          .filter((part) => part.trim().length > 0)
+          .join(", ");
+    } else {
+      payload.recipient_name = recipientName.trim() || undefined;
+      payload.shipping_address = shippingAddress.trim() || undefined;
+    }
+
+    await createMutation.mutateAsync(payload);
   };
 
   const onDownloadLabel = async () => {
@@ -155,11 +239,12 @@ export default function ShippingPage() {
           <select
             className="input w-full"
             value={carrierFilter}
-            onChange={(event) => setCarrierFilter(event.target.value as "" | "dhl" | "dpd" | "ups")}
+            onChange={(event) => setCarrierFilter(event.target.value as "" | ShipmentCarrier)}
             data-testid="shipping-carrier-filter"
           >
             <option value="">Alle Carrier</option>
             <option value="dhl">DHL</option>
+            <option value="dhl_express">DHL Express</option>
             <option value="dpd">DPD</option>
             <option value="ups">UPS</option>
           </select>
@@ -182,10 +267,11 @@ export default function ShippingPage() {
               <select
                 className="input w-full"
                 value={carrier}
-                onChange={(event) => setCarrier(event.target.value as "dhl" | "dpd" | "ups")}
+                onChange={(event) => setCarrier(event.target.value as ShipmentCarrier)}
                 data-testid="shipping-carrier-select"
               >
                 <option value="dhl">DHL</option>
+                <option value="dhl_express">DHL Express</option>
                 <option value="dpd">DPD</option>
                 <option value="ups">UPS</option>
               </select>
@@ -228,31 +314,183 @@ export default function ShippingPage() {
               </div>
             ) : null}
 
-            <div className="space-y-2">
-              <label className="form-label-standard">
-                Empfänger
-              </label>
-              <input
-                className="input w-full"
-                value={recipientName}
-                onChange={(event) => setRecipientName(event.target.value)}
-                placeholder="Max Mustermann"
-                data-testid="shipping-recipient-input"
-              />
-            </div>
+            {carrier !== "dhl_express" ? (
+              <>
+                <div className="space-y-2">
+                  <label className="form-label-standard">
+                    Empfänger
+                  </label>
+                  <input
+                    className="input w-full"
+                    value={recipientName}
+                    onChange={(event) => setRecipientName(event.target.value)}
+                    placeholder="Max Mustermann"
+                    data-testid="shipping-recipient-input"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <label className="form-label-standard">
-                Lieferadresse
-              </label>
-              <textarea
-                className="input w-full min-h-[80px] py-2 resize-y"
-                value={shippingAddress}
-                onChange={(event) => setShippingAddress(event.target.value)}
-                placeholder="Musterstraße 1, 12345 Musterstadt"
-                data-testid="shipping-address-input"
-              />
-            </div>
+                <div className="space-y-2">
+                  <label className="form-label-standard">
+                    Lieferadresse
+                  </label>
+                  <textarea
+                    className="input w-full min-h-[80px] py-2 resize-y"
+                    value={shippingAddress}
+                    onChange={(event) => setShippingAddress(event.target.value)}
+                    placeholder="Musterstraße 1, 12345 Musterstadt"
+                    data-testid="shipping-address-input"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3 rounded-[var(--radius-sm)] border border-[var(--line)] p-3">
+                <p className="text-xs uppercase tracking-wide text-[var(--muted)]">DHL Express Daten</p>
+                <div className="space-y-2">
+                  <label className="form-label-standard">Firma</label>
+                  <input
+                    className="input w-full"
+                    value={dhlExpress.recipient_company_name}
+                    onChange={(event) =>
+                      setDhlExpress((prev) => ({ ...prev, recipient_company_name: event.target.value }))
+                    }
+                    placeholder="Muster GmbH"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Kontaktname</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.recipient_contact_name}
+                      onChange={(event) =>
+                        setDhlExpress((prev) => ({ ...prev, recipient_contact_name: event.target.value }))
+                      }
+                      placeholder="Max Mustermann"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Telefon</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.recipient_phone}
+                      onChange={(event) => setDhlExpress((prev) => ({ ...prev, recipient_phone: event.target.value }))}
+                      placeholder="+49..."
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="form-label-standard">E-Mail (optional)</label>
+                  <input
+                    className="input w-full"
+                    value={dhlExpress.recipient_email}
+                    onChange={(event) => setDhlExpress((prev) => ({ ...prev, recipient_email: event.target.value }))}
+                    placeholder="logistik@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="form-label-standard">Adresszeile 1</label>
+                  <input
+                    className="input w-full"
+                    value={dhlExpress.recipient_address_line1}
+                    onChange={(event) =>
+                      setDhlExpress((prev) => ({ ...prev, recipient_address_line1: event.target.value }))
+                    }
+                    placeholder="Musterstrasse 1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="form-label-standard">Adresszeile 2 (optional)</label>
+                  <input
+                    className="input w-full"
+                    value={dhlExpress.recipient_address_line2}
+                    onChange={(event) =>
+                      setDhlExpress((prev) => ({ ...prev, recipient_address_line2: event.target.value }))
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="space-y-2">
+                    <label className="form-label-standard">PLZ</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.recipient_postal_code}
+                      onChange={(event) =>
+                        setDhlExpress((prev) => ({ ...prev, recipient_postal_code: event.target.value }))
+                      }
+                      placeholder="56068"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Stadt</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.recipient_city}
+                      onChange={(event) => setDhlExpress((prev) => ({ ...prev, recipient_city: event.target.value }))}
+                      placeholder="Koblenz"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Land (ISO2)</label>
+                    <input
+                      className="input w-full uppercase"
+                      value={dhlExpress.recipient_country_code}
+                      onChange={(event) =>
+                        setDhlExpress((prev) => ({ ...prev, recipient_country_code: event.target.value }))
+                      }
+                      placeholder="DE"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Bundesland/State (optional)</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.recipient_state_code}
+                      onChange={(event) =>
+                        setDhlExpress((prev) => ({ ...prev, recipient_state_code: event.target.value }))
+                      }
+                      placeholder="RP"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Gewicht (kg)</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.package_weight_kg}
+                      onChange={(event) => setDhlExpress((prev) => ({ ...prev, package_weight_kg: event.target.value }))}
+                      placeholder="1.0"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Laenge (cm, optional)</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.package_length_cm}
+                      onChange={(event) => setDhlExpress((prev) => ({ ...prev, package_length_cm: event.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Breite (cm, optional)</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.package_width_cm}
+                      onChange={(event) => setDhlExpress((prev) => ({ ...prev, package_width_cm: event.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="form-label-standard">Hoehe (cm, optional)</label>
+                    <input
+                      className="input w-full"
+                      value={dhlExpress.package_height_cm}
+                      onChange={(event) => setDhlExpress((prev) => ({ ...prev, package_height_cm: event.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="form-label-standard">
@@ -309,7 +547,7 @@ export default function ShippingPage() {
                           {shipment.shipment_number}
                         </p>
                         <p className="text-xs text-[var(--muted)] mt-0.5 uppercase tracking-wide">
-                          {shipment.carrier}
+                          {carrierLabel(shipment.carrier)}
                         </p>
                       </div>
                       <div className="shrink-0">

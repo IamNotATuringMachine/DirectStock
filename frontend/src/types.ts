@@ -24,6 +24,23 @@ export type UserListResponse = {
   items: User[];
 };
 
+export type PermissionOverrideEffect = "allow" | "deny";
+
+export type UserAccessProfile = {
+  user_id: number;
+  username: string;
+  roles: RoleName[];
+  allow_permissions: string[];
+  deny_permissions: string[];
+  effective_permissions: string[];
+};
+
+export type UserAccessProfileUpdatePayload = {
+  roles: RoleName[];
+  allow_permissions: string[];
+  deny_permissions: string[];
+};
+
 export type UserCreatePayload = {
   username: string;
   email?: string | null;
@@ -66,6 +83,7 @@ export type Product = {
   unit: string;
   status: ProductStatus;
   requires_item_tracking: boolean;
+  default_bin_id: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -92,6 +110,7 @@ export type ProductCreatePayload = {
   name: string;
   description?: string | null;
   product_group_id?: number | null;
+  product_group_name?: string;
   unit: string;
   status: ProductStatus;
   requires_item_tracking?: boolean;
@@ -391,8 +410,20 @@ export type GoodsReceiptItem = {
   manufactured_at: string | null;
   serial_numbers: string[] | null;
   purchase_order_item_id: number | null;
+  condition: string;
   created_at: string;
   updated_at: string;
+};
+
+export type BinSuggestion = {
+  bin_id: number;
+  bin_code: string;
+  zone_id: number;
+  zone_code: string;
+  warehouse_id: number;
+  warehouse_code: string;
+  priority: "default" | "existing";
+  current_quantity: string;
 };
 
 export type GoodsIssue = {
@@ -454,7 +485,7 @@ export type StockTransferItem = {
 export type Shipment = {
   id: number;
   shipment_number: string;
-  carrier: "dhl" | "dpd" | "ups";
+  carrier: "dhl" | "dhl_express" | "dpd" | "ups";
   status: string;
   goods_issue_id: number | null;
   customer_id: number | null;
@@ -1150,27 +1181,20 @@ export type CustomerProductPrice = {
   updated_at: string;
 };
 
-export type ServiceItem = {
-  id: number;
-  service_number: string;
-  name: string;
-  description: string | null;
-  net_price: string;
-  vat_rate: string;
-  gross_price: string;
-  currency: string;
-  status: "active" | "blocked" | "archived";
-  created_at: string;
-  updated_at: string;
+export type ResolvedPrice = {
+  source: "customer" | "base" | "none";
+  net_price: string | null;
+  vat_rate: string | null;
+  gross_price: string | null;
+  currency: string | null;
 };
 
 export type SalesOrderItem = {
   id: number;
   sales_order_id: number;
   line_no: number;
-  item_type: "product" | "service";
+  item_type: "product";
   product_id: number | null;
-  service_id: number | null;
   description: string | null;
   quantity: string;
   delivered_quantity: string;

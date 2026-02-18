@@ -42,6 +42,7 @@ class GoodsReceiptItemCreate(BaseModel):
     manufactured_at: date | None = None
     serial_numbers: list[str] | None = None
     purchase_order_item_id: int | None = None
+    condition: str = Field(default="new", pattern="^(new|defective|needs_repair)$")
 
 
 class GoodsReceiptItemUpdate(BaseModel):
@@ -54,6 +55,7 @@ class GoodsReceiptItemUpdate(BaseModel):
     manufactured_at: date | None = None
     serial_numbers: list[str] | None = None
     purchase_order_item_id: int | None = None
+    condition: str | None = Field(default=None, pattern="^(new|defective|needs_repair)$")
 
 
 class GoodsReceiptItemResponse(BaseModel):
@@ -69,6 +71,7 @@ class GoodsReceiptItemResponse(BaseModel):
     manufactured_at: date | None
     serial_numbers: list[str] | None
     purchase_order_item_id: int | None
+    condition: str
     created_at: datetime
     updated_at: datetime
 
@@ -191,3 +194,14 @@ class StockTransferItemResponse(BaseModel):
     serial_numbers: list[str] | None
     created_at: datetime
     updated_at: datetime
+
+
+class BinSuggestion(BaseModel):
+    bin_id: int
+    bin_code: str
+    zone_id: int
+    zone_code: str
+    warehouse_id: int
+    warehouse_code: str
+    priority: str  # "default" | "existing"
+    current_quantity: Decimal

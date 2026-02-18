@@ -14,11 +14,15 @@ import {
 import { Link, useParams } from "react-router-dom";
 
 import { fetchInventoryByProduct, fetchMovements } from "../services/inventoryApi";
+import { resolveProductPrice } from "../services/pricingApi";
 import { fetchProductById } from "../services/productsApi";
+import { useAuthStore } from "../stores/authStore";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const productId = Number(id);
+  const user = useAuthStore((state) => state.user);
+  const canReadPricing = Boolean(user?.permissions?.includes("module.pricing.read"));
 
   const productQuery = useQuery({
     queryKey: ["product", productId],
@@ -36,6 +40,12 @@ export default function ProductDetailPage() {
     queryKey: ["inventory-movements", "product", productId],
     queryFn: () => fetchMovements({ limit: 10, productId }),
     enabled: Number.isFinite(productId),
+  });
+
+  const resolvedPriceQuery = useQuery({
+    queryKey: ["pricing-resolve", productId],
+    queryFn: () => resolveProductPrice(productId),
+    enabled: Number.isFinite(productId) && canReadPricing,
   });
 
   if (!Number.isFinite(productId)) {
@@ -158,6 +168,29 @@ export default function ProductDetailPage() {
                       {productQuery.data.requires_item_tracking ? "Seriennummernpflicht" : "Nicht erforderlich"}
                     </span>
                   </div>
+
+                  {canReadPricing && (
+                    <div data-testid="product-detail-price-summary">
+                      <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1">Preis (aktuell)</span>
+                      {resolvedPriceQuery.isLoading ? (
+                        <p className="text-sm text-[var(--muted)]">Preis wird geladen...</p>
+                      ) : resolvedPriceQuery.data?.source === "none" || !resolvedPriceQuery.data ? (
+                        <p className="text-sm text-[var(--muted)] italic">Kein Preis hinterlegt</p>
+                      ) : (
+                        <div className="text-sm space-y-1">
+                          <p>
+                            Netto: <span className="font-semibold">{resolvedPriceQuery.data.net_price ?? "-"}</span> {resolvedPriceQuery.data.currency ?? ""}
+                          </p>
+                          <p>
+                            USt: <span className="font-semibold">{resolvedPriceQuery.data.vat_rate ?? "-"}%</span>
+                          </p>
+                          <p>
+                            Brutto: <span className="font-semibold">{resolvedPriceQuery.data.gross_price ?? "-"}</span> {resolvedPriceQuery.data.currency ?? ""}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="pt-4 mt-4 border-t border-[var(--line)] flex items-center gap-4 text-xs text-[var(--muted)]">
                     <div className="flex items-center gap-1">

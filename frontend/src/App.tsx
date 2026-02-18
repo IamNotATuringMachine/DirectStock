@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import AppLayout from "./components/AppLayout";
 import { ProtectedRoute, RequirePermission } from "./components/ProtectedRoute";
@@ -27,12 +27,48 @@ import {
   SalesOrdersPage,
   ShippingPage,
   StockTransferPage,
-  ServicesPage,
   InvoicesPage,
   UsersPage,
   WarehousePage,
 } from "./pages";
+import { resolveFirstAccessiblePath } from "./routing/accessRouting";
 import { useAuthStore } from "./stores/authStore";
+
+function AccessAwareDefaultRedirect() {
+  const user = useAuthStore((state) => state.user);
+
+  if (!user) {
+    return <p>Lade Berechtigungen...</p>;
+  }
+
+  const targetPath = resolveFirstAccessiblePath(user.permissions);
+  if (!targetPath) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Navigate to={targetPath} replace />;
+}
+
+function AccessAwareFallbackRedirect() {
+  const token = useAuthStore((state) => state.accessToken);
+  const user = useAuthStore((state) => state.user);
+  const location = useLocation();
+
+  if (!token) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (!user) {
+    return <p>Lade Berechtigungen...</p>;
+  }
+
+  const targetPath = resolveFirstAccessiblePath(user.permissions);
+  if (!targetPath) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Navigate to={targetPath} replace />;
+}
 
 export default function App() {
   const token = useAuthStore((state) => state.accessToken);
@@ -56,7 +92,7 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<AccessAwareDefaultRedirect />} />
         <Route path="dashboard" element={<RequirePermission permissions={["page.dashboard.view"]}><DashboardPage /></RequirePermission>} />
         <Route path="products" element={<RequirePermission permissions={["page.products.view"]}><ProductsPage /></RequirePermission>} />
         <Route path="products/new" element={<RequirePermission permissions={["page.products.view"]}><ProductFormPage /></RequirePermission>} />
@@ -201,14 +237,6 @@ export default function App() {
           }
         />
         <Route
-          path="services"
-          element={
-            <RequirePermission permissions={["page.services.view"]}>
-              <ServicesPage />
-            </RequirePermission>
-          }
-        />
-        <Route
           path="sales-orders"
           element={
             <RequirePermission permissions={["page.sales-orders.view"]}>
@@ -225,7 +253,7 @@ export default function App() {
           }
         />
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<AccessAwareFallbackRedirect />} />
     </Routes>
   );
 }

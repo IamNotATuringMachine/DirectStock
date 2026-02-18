@@ -10,6 +10,7 @@ import {
   type OfflineQueueItem,
 } from "./offlineQueue";
 import type {
+  BinSuggestion,
   GoodsIssue,
   GoodsIssueItem,
   GoodsReceipt,
@@ -99,6 +100,7 @@ function toGoodsReceiptItemFromQueue(item: OfflineQueueItem): GoodsReceiptItem {
     manufactured_at?: string;
     serial_numbers?: string[];
     purchase_order_item_id?: number;
+    condition?: string;
   };
 
   const localId = item.entity_id ?? -1;
@@ -115,6 +117,7 @@ function toGoodsReceiptItemFromQueue(item: OfflineQueueItem): GoodsReceiptItem {
     manufactured_at: payload.manufactured_at ?? null,
     serial_numbers: payload.serial_numbers ?? null,
     purchase_order_item_id: payload.purchase_order_item_id ?? null,
+    condition: payload.condition ?? "new",
     created_at: item.created_at,
     updated_at: item.updated_at,
   };
@@ -258,15 +261,17 @@ export async function createGoodsReceiptItem(
     manufactured_at?: string;
     serial_numbers?: string[];
     purchase_order_item_id?: number;
+    condition?: string;
   }
 ): Promise<GoodsReceiptItem> {
   const url = `/goods-receipts/${receiptId}/items`;
+  const body = { ...payload, condition: payload.condition ?? "new" };
   if (shouldQueueOfflineMutation("POST", url)) {
     const localId = await allocateLocalEntityId();
     const queued = await enqueueOfflineMutation({
       method: "POST",
       url,
-      payload,
+      payload: body,
       entityType: "goods_receipt_item",
       entityId: localId,
       parentEntityId: receiptId,
@@ -274,7 +279,17 @@ export async function createGoodsReceiptItem(
     return toGoodsReceiptItemFromQueue(queued);
   }
 
-  const response = await api.post<GoodsReceiptItem>(url, payload);
+  const response = await api.post<GoodsReceiptItem>(url, body);
+  return response.data;
+}
+
+export async function fetchBinSuggestions(productId: number): Promise<BinSuggestion[]> {
+  const response = await api.get<BinSuggestion[]>(`/products/${productId}/bin-suggestions`);
+  return response.data;
+}
+
+export async function createGoodsReceiptFromPo(poId: number): Promise<GoodsReceipt> {
+  const response = await api.post<GoodsReceipt>(`/goods-receipts/from-po/${poId}`);
   return response.data;
 }
 
@@ -309,6 +324,23 @@ export async function cancelGoodsReceipt(receiptId: number): Promise<{ message: 
   }
 
   const response = await api.post<{ message: string }>(url);
+  return response.data;
+}
+
+export async function deleteGoodsReceipt(receiptId: number): Promise<{ message: string }> {
+  const url = `/goods-receipts/${receiptId}`;
+  if (shouldQueueOfflineMutation("DELETE", url)) {
+    await enqueueOfflineMutation({
+      method: "DELETE",
+      url,
+      payload: {},
+      entityType: "goods_receipt_delete",
+      parentEntityId: receiptId,
+    });
+    return buildQueuedMessage("Wareneingang-Loeschung");
+  }
+
+  const response = await api.delete<{ message: string }>(url);
   return response.data;
 }
 

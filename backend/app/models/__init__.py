@@ -1,6 +1,6 @@
 from app.models.alerts import AlertEvent, AlertRule
 from app.models.audit import AuditLog
-from app.models.auth import Permission, Role, User, role_permissions, user_roles
+from app.models.auth import Permission, Role, User, UserPermissionOverride, role_permissions, user_roles
 from app.models.base import Base
 from app.models.catalog import (
     Customer,
@@ -67,7 +67,6 @@ from app.models.phase5 import (
     SalesOrder,
     SalesOrderGoodsIssueLink,
     SalesOrderItem,
-    Service,
     UserDashboardConfig,
     UserUiPreference,
 )
@@ -109,7 +108,6 @@ __all__ = [
     "UserDashboardConfig",
     "ProductBasePrice",
     "CustomerProductPrice",
-    "Service",
     "SalesOrder",
     "SalesOrderItem",
     "SalesOrderGoodsIssueLink",
@@ -145,6 +143,7 @@ __all__ = [
     "Shipment",
     "ShipmentEvent",
     "User",
+    "UserPermissionOverride",
     "Warehouse",
     "WarehouseZone",
     "role_permissions",

@@ -22,7 +22,6 @@ from app.models.phase5 import (
     SalesOrder,
     SalesOrderGoodsIssueLink,
     SalesOrderItem,
-    Service,
 )
 from app.schemas.phase5 import (
     SalesOrderCreate,
@@ -94,7 +93,6 @@ def _to_item_response(item: SalesOrderItem) -> SalesOrderItemResponse:
         line_no=item.line_no,
         item_type=item.item_type,
         product_id=item.product_id,
-        service_id=item.service_id,
         description=item.description,
         quantity=Decimal(item.quantity),
         delivered_quantity=Decimal(item.delivered_quantity),
@@ -184,18 +182,9 @@ async def _resolve_product_price(
 
 
 async def _validate_item_reference(db: AsyncSession, payload: SalesOrderItemCreate) -> None:
-    if payload.item_type == "product":
-        if payload.product_id is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="product_id is required for product item")
-        exists = (await db.execute(select(Product.id).where(Product.id == payload.product_id))).scalar_one_or_none()
-        if exists is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    elif payload.item_type == "service":
-        if payload.service_id is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="service_id is required for service item")
-        exists = (await db.execute(select(Service.id).where(Service.id == payload.service_id))).scalar_one_or_none()
-        if exists is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+    exists = (await db.execute(select(Product.id).where(Product.id == payload.product_id))).scalar_one_or_none()
+    if exists is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
 
 async def _create_order_item(db: AsyncSession, order: SalesOrder, payload: SalesOrderItemCreate) -> SalesOrderItem:
@@ -204,14 +193,10 @@ async def _create_order_item(db: AsyncSession, order: SalesOrder, payload: Sales
     if payload.net_unit_price is not None and payload.vat_rate is not None:
         net_price = payload.net_unit_price
         vat_rate = _normalize_vat_rate(payload.vat_rate)
-    elif payload.item_type == "service":
-        service = (await db.execute(select(Service).where(Service.id == payload.service_id))).scalar_one()
-        net_price = Decimal(service.net_price)
-        vat_rate = Decimal(service.vat_rate)
     else:
         net_price, vat_rate = await _resolve_product_price(
             db,
-            product_id=payload.product_id or 0,
+            product_id=payload.product_id,
             customer_id=order.customer_id,
         )
 
@@ -228,7 +213,6 @@ async def _create_order_item(db: AsyncSession, order: SalesOrder, payload: Sales
         line_no=next_line_no,
         item_type=payload.item_type,
         product_id=payload.product_id,
-        service_id=payload.service_id,
         description=payload.description,
         quantity=payload.quantity,
         delivered_quantity=Decimal("0"),
@@ -261,7 +245,7 @@ async def _build_delivery_note_pdf(order: SalesOrder, goods_issue: GoodsIssue, i
     y -= 18
 
     for item in items:
-        ref = f"PRD:{item.product_id}" if item.item_type == "product" else f"SRV:{item.service_id}"
+        ref = f"PRD:{item.product_id}"
         pdf.drawString(40, y, str(item.line_no))
         pdf.drawString(70, y, item.item_type)
         pdf.drawString(130, y, ref)

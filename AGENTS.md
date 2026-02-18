@@ -60,7 +60,12 @@ Ziel jedes Agentenbeitrags: **korrekte, sichere, testbare, reproduzierbare Aende
 - `npm install`
 - `npm run test`
 - `npm run build`
-- `npm run test:e2e` (gegen laufenden Stack auf `http://localhost:8080`)
+- `npm run test:e2e` (isolierter Lauf mit eigenem Compose-Project und automatischem Cleanup)
+- `npm run test:e2e:raw` (gegen bereits laufenden Stack, z. B. `http://localhost:8080`)
+
+### Testdaten-Cleanup (one-time)
+- `python3 scripts/cleanup_test_data.py --mode dry-run`
+- `python3 scripts/cleanup_test_data.py --mode apply`
 
 ### Production-Verifikation
 - `docker compose -f docker-compose.prod.yml up -d --build`

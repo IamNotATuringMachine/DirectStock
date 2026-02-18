@@ -1,15 +1,15 @@
-# Guide: Services
+# Guide: Dienstleistungen im Artikelstamm
 
 ## Ziel
-Dienstleistungen werden als eigener Katalog verwaltet und koennen in Sales/Invoice verwendet werden.
+Dienstleistungen werden nicht mehr als eigener Katalog verwaltet.
+Sie werden organisatorisch im Artikelstamm ueber Produktgruppen gepflegt.
 
-## Endpunkte
-1. `GET /api/services`
-2. `POST /api/services`
-3. `PUT /api/services/{service_id}`
-4. `DELETE /api/services/{service_id}`
+## Vorgehen
+1. Artikelstamm unter `/products` oeffnen.
+2. Produktgruppe `Dienstleistungen` bei Bedarf manuell anlegen.
+3. Leistungspositionen als normale Produkte in dieser Gruppe pflegen.
 
 ## Regeln
-1. Nettofuehrung, Bruttoberechnung im Backend.
-2. USt nur `0`, `7`, `19`.
-3. Servicepositionen erzeugen keine Lagerbewegung.
+1. Es gibt keine eigene API `/api/services` mehr.
+2. Verkaufsauftraege verwenden ausschliesslich Produktpositionen.
+3. Preis-/USt-Logik bleibt ueber die bestehende Pricing-Domaene (`/api/pricing/*`) erhalten.

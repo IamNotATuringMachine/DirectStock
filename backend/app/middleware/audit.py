@@ -25,7 +25,7 @@ from app.models.phase3 import (
     ReturnOrder,
 )
 from app.models.phase4 import IntegrationClient, InterWarehouseTransfer, Shipment
-from app.models.phase5 import AppPage, Invoice, SalesOrder, Service, UserUiPreference
+from app.models.phase5 import AppPage, Invoice, SalesOrder, UserUiPreference
 from app.models.purchasing import PurchaseOrder
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -61,7 +61,6 @@ _ENTITY_MODEL_MAP: dict[str, type[Any]] = {
     "roles": Role,
     "pages": AppPage,
     "ui-preferences": UserUiPreference,
-    "services": Service,
     "sales-orders": SalesOrder,
     "invoices": Invoice,
 }

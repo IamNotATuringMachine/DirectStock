@@ -36,6 +36,29 @@ Gesamtstatus: **IMPLEMENTED (validated)**
    - `ExternalCommandGoodsIssue`
 4. Konfliktregel aktiv: Standort/Kunde-Mismatch liefert `409`.
 
+## Erweiterung 2026-02-17: WE Ad-hoc Artikelanlage
+1. Additive Erweiterung fuer `POST /api/goods-receipts/{receipt_id}/ad-hoc-product`.
+2. Neuer optionaler Request-Parameter `product_group_name` fuer direkte Produktgruppenanlage im Wareneingang.
+3. Validierungsregel: Entweder `product_group_id` oder `product_group_name`; beides gleichzeitig liefert `422`.
+4. Frontend-Dialog "Ad-hoc Artikelanlage" kann nun bestehende Gruppe waehlen oder neue Gruppe inline anlegen.
+
+## Erweiterung 2026-02-17: Benutzerzentrierte Rechteverwaltung
+1. Rollenkonfiguration in der Benutzerverwaltung auf benutzerzentrierte Konfiguration umgestellt.
+2. Neue Endpunkte:
+   - `GET /api/users?managed_only=true`
+   - `GET /api/users/{user_id}/access-profile`
+   - `PUT /api/users/{user_id}/access-profile`
+3. Additives Datenmodell `user_permission_overrides` (`allow`/`deny`) eingefuehrt.
+4. Effektive Permissions pro Benutzer werden jetzt berechnet als:
+   - `(role_permissions - deny_permissions) U allow_permissions`
+5. In der Konfigurationsliste werden Systembenutzer (`admin`, `lagerleiter`, `lagermitarbeiter`) ausgeblendet.
+
+## Breaking-Update 2026-02-17: Service-Katalog entfernt
+1. Die Services-Domaene wurde bewusst als Breaking Change entfernt (`/api/services`, `/services`, `module.services.*`, `page.services.view`).
+2. Sales-Orders unterstuetzen nur noch Produktpositionen (`item_type='product'`, kein `service_id`).
+3. Dienstleistungen werden organisatorisch ueber Produktgruppen im Artikelstamm abgebildet.
+4. Datenstrategie in Migration `0026_remove_services_domain`: vorhandene Service-Daten und Service-Order-Positionen werden automatisch bereinigt.
+
 ## Festgelegte Leitentscheidungen
 1. RBAC wird permission-basiert umgesetzt (`page.<slug>.view`, `module.<slug>.<action>`), nicht mehr mit statischen Frontend-Rollenlisten.
 2. Preislogik ist netto-fuehrend; brutto wird aus USt-Satz berechnet.
@@ -89,7 +112,7 @@ Umsetzung in 8 releasefaehigen Batches mit Alembic-only Schema-Aenderungen, addi
 | 5.1.1 Alembic `0018` RBAC Permissions | DONE | Permission-Katalog + Role-Permission-Seeding fuer bestehende Rollen |
 | 5.1.2 Alembic `0019` UI Preferences + Dashboard Policies | DONE | Tabellen fuer Theme, Rollen-Policies und User-Dashboard-Konfiguration |
 | 5.1.3 Alembic `0020` Product Pricing Domain | DONE | Tabellen fuer Produktbasispreise (netto, USt, Gueltigkeit) |
-| 5.1.4 Alembic `0021` Services Catalog Domain | DONE | Tabelle `services` mit Preis-/USt-/Statusfeldern |
+| 5.1.4 Alembic `0021` Services Catalog Domain | DONE (historisch) | Tabelle `services` mit Preis-/USt-/Statusfeldern, entfernt durch `0026` |
 | 5.1.5 Alembic `0022` Sales + Invoice Core | DONE | Tabellen fuer Sales Orders, Items, Invoices, Invoice Items, Billing Settings |
 | 5.1.6 Alembic `0023` Invoice Export Tracking | DONE | Export-Metadaten fuer XRechnung/ZUGFeRD inkl. Dokumentreferenzen |
 | 5.2.1 RBAC Router + Permission APIs | DONE | `/api/roles`, `/api/permissions`, `/api/pages`, Role-Permission-Update |
@@ -104,9 +127,9 @@ Umsetzung in 8 releasefaehigen Batches mit Alembic-only Schema-Aenderungen, addi
 | 5.4.1 Produktbasispreise API | DONE | CRUD + Preisauflosung netto/brutto inkl. USt-Validierung |
 | 5.4.2 Kundenpreise API | DONE | Zeitraumbasierte Preise ohne Ueberlappungen je Kunde/Produkt |
 | 5.4.3 Pricing Frontend | DONE | Preis-Tab im Produktformular + Kundenpreis-Verwaltung |
-| 5.5.1 Service-Katalog Backend/API | DONE | CRUD fuer Dienstleistungen mit RBAC-Schutz |
-| 5.5.2 Service-Katalog Frontend | DONE | UI fuer Serviceanlage und Pflege |
-| 5.6.1 Sales Order Backend | DONE | Auftragserstellung mit Produkt-/Servicepositionen |
+| 5.5.1 Service-Katalog Backend/API | REMOVED 2026-02-17 | Services-API als Breaking Change entfernt |
+| 5.5.2 Service-Katalog Frontend | REMOVED 2026-02-17 | Services-Seite `/services` entfernt |
+| 5.6.1 Sales Order Backend | DONE (updated) | Auftragserstellung nur mit Produktpositionen |
 | 5.6.2 Invoice Backend inkl. Teilrechnung | DONE | Positionsbasiertes Invoicing mit `invoiced_quantity`-Schutz |
 | 5.6.3 Lieferschein ueber GoodsIssue | DONE | Delivery Note als Dokumenttyp `delivery_note` |
 | 5.6.4 Sales/Invoice Frontend | DONE | Neue Seiten fuer Auftrag, Rechnung, Teilrechnung |
@@ -115,7 +138,7 @@ Umsetzung in 8 releasefaehigen Batches mit Alembic-only Schema-Aenderungen, addi
 | 5.8.1 Idempotency Prefix-Erweiterung | DONE | Neue Prefixe fuer `/api/sales-orders` und `/api/invoices` |
 | 5.8.2 Audit-Entity-Mapping Erweiterung | DONE | Lueckenlose Auditierung fuer neue Domaenen |
 | 5.9.1 Guides Doku + In-App Hilfe | DONE | `docs/guides/*` + kontextsensitive Hilfe pro Seite |
-| 5.10.1 Backend-Testabdeckung Phase 5 | DONE | Tests fuer RBAC, Pricing, Services, Sales/Invoice, E-Invoice inkl. strict Success/Failure |
+| 5.10.1 Backend-Testabdeckung Phase 5 | DONE | Tests fuer RBAC, Pricing, Sales/Invoice, E-Invoice inkl. strict Success/Failure |
 | 5.10.2 Frontend Unit/E2E Phase 5 | DONE | Tests fuer Darkmode, Dashboard, Rollen, Pricing, Teilrechnung |
 | 5.10.3 Doku-Updates Phase 5 | DONE | Update von `README.md`, `directstock.md`, `docs/validation/*` |
 | 5.11.1 Gesamtverifikation + Abnahmebericht | DONE | Nachweis in `docs/validation/phase5-acceptance.md` |
@@ -153,20 +176,16 @@ Status: **ADDRESSED IN PLAN** durch XRechnung-/ZUGFeRD-Export, Pflichtfeldpruefu
 16. `POST /api/pricing/products/{product_id}/base-prices`
 17. `GET /api/pricing/customers/{customer_id}/product-prices`
 18. `PUT /api/pricing/customers/{customer_id}/product-prices/{product_id}`
-19. `GET /api/services`
-20. `POST /api/services`
-21. `PUT /api/services/{service_id}`
-22. `DELETE /api/services/{service_id}`
-23. `GET /api/sales-orders`
-24. `POST /api/sales-orders`
-25. `GET /api/sales-orders/{order_id}`
-26. `POST /api/sales-orders/{order_id}/items`
-27. `POST /api/sales-orders/{order_id}/delivery-note`
-28. `GET /api/invoices`
-29. `POST /api/invoices`
-30. `POST /api/invoices/{invoice_id}/partial`
-31. `POST /api/invoices/{invoice_id}/exports/xrechnung`
-32. `POST /api/invoices/{invoice_id}/exports/zugferd`
+19. `GET /api/sales-orders`
+20. `POST /api/sales-orders`
+21. `GET /api/sales-orders/{order_id}`
+22. `POST /api/sales-orders/{order_id}/items`
+23. `POST /api/sales-orders/{order_id}/delivery-note`
+24. `GET /api/invoices`
+25. `POST /api/invoices`
+26. `POST /api/invoices/{invoice_id}/partial`
+27. `POST /api/invoices/{invoice_id}/exports/xrechnung`
+28. `POST /api/invoices/{invoice_id}/exports/zugferd`
 
 ### Header- und Idempotency-Vertraege
 1. Neue mutierende Endpunkte in Sales/Invoice unterstuetzen `X-Client-Operation-Id`.
@@ -175,8 +194,8 @@ Status: **ADDRESSED IN PLAN** durch XRechnung-/ZUGFeRD-Export, Pflichtfeldpruefu
 
 ### Frontend-Typen und Routen
 1. `RoleName` wird zu `string` generalisiert; dynamische Rollen sind damit ohne Frontend-Deploy nutzbar.
-2. Neue Typen: `Permission`, `Role`, `ThemePreference`, `DashboardConfig`, `ProductPrice`, `CustomerProductPrice`, `ServiceItem`, `SalesOrder`, `Invoice`.
-3. Neue Seiten: `SalesOrdersPage`, `InvoicesPage`, `ServicesPage`, optional `CustomerPricingPage`.
+2. Neue Typen: `Permission`, `Role`, `ThemePreference`, `DashboardConfig`, `ProductPrice`, `CustomerProductPrice`, `SalesOrder`, `Invoice`.
+3. Neue Seiten: `SalesOrdersPage`, `InvoicesPage`, optional `CustomerPricingPage`.
 
 ## Implementierungsdetails pro Workstream
 
@@ -195,13 +214,13 @@ Status: **ADDRESSED IN PLAN** durch XRechnung-/ZUGFeRD-Export, Pflichtfeldpruefu
 2. Kundenpreis: priorisiert vor Basispreis, mit Non-Overlap-Regeln.
 3. Preisauflosung liefert konsistente netto/brutto Werte fuer UI und Rechnung.
 
-### D) Services Catalog
-1. Dienstleistungen als eigene Positionstypen mit Preis/USt.
-2. Keine Lagerbewegung fuer Servicepositionen.
+### D) Dienstleistungen im Artikelstamm
+1. Dienstleistungen werden ueber Produktgruppen im Artikelstamm organisiert.
+2. Es gibt keine eigene Services-Domaene mehr.
 3. Einheitlicher CRUD-Fluss mit RBAC und Audit.
 
 ### E) Sales + Invoice Workflow
-1. Sales Order mischt Produkt- und Servicepositionen.
+1. Sales Order verwendet nur Produktpositionen.
 2. Teilrechnung positionsbasiert; Ueberfakturierung technisch blockiert.
 3. Lieferschein entsteht ueber bestehende GoodsIssue-Domaene und wird als Dokument gespeichert.
 
@@ -226,8 +245,8 @@ Status: **ADDRESSED IN PLAN** durch XRechnung-/ZUGFeRD-Export, Pflichtfeldpruefu
 1. `test_rbac_permissions_phase5.py`: Rollen-/Permission-CRUD, Guard-Enforcement, dynamische Rollen.
 2. `test_ui_preferences_phase5.py`: Theme/Dashboard-Persistenz, Rollenpolicy-Enforcement.
 3. `test_pricing_phase5.py`: netto/brutto-Konsistenz, DE-USt-Validierung, Gueltigkeitskonflikte.
-4. `test_services_catalog_phase5.py`: Service-CRUD, RBAC, Audit.
-5. `test_sales_orders_phase5.py`: Produkt+Servicepositionen, Statuswechsel, Delivery-Note-Flow.
+4. `test_sales_orders_phase5.py`: Produktpositionen, Statuswechsel, Delivery-Note-Flow.
+5. Negativfall: Service-Item-Type wird mit `422` abgelehnt.
 6. `test_invoices_phase5.py`: Teilrechnung, Mengenbegrenzung, Export-Gueltigkeit.
 7. `test_offline_idempotency_phase5.py`: Replay/Konflikt fuer Sales/Invoice Mutationen.
 
@@ -267,7 +286,7 @@ Status: **ADDRESSED IN PLAN** durch XRechnung-/ZUGFeRD-Export, Pflichtfeldpruefu
 ## Definition of Done (DoD)
 1. Alle Tasks 5.0.1-5.11.1 umgesetzt und dokumentiert.
 2. Relevante Backend-/Frontend-/E2E-Tests gruen.
-3. Keine Breaking Changes an bestehenden API-Vertraegen.
+3. Breaking Changes nur bei expliziter Freigabe; Services-Removal 2026-02-17 ist freigegeben und dokumentiert.
 4. Doku aktualisiert:
    `README.md`  
    `directstock.md`  

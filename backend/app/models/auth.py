@@ -43,6 +43,9 @@ class Permission(TimestampMixin, Base):
     roles: Mapped[list[Role]] = relationship(
         "Role", secondary=role_permissions, back_populates="permissions", lazy="selectin"
     )
+    user_permission_overrides: Mapped[list["UserPermissionOverride"]] = relationship(
+        "UserPermissionOverride", back_populates="permission", lazy="selectin"
+    )
 
 
 class User(TimestampMixin, Base):
@@ -59,3 +62,20 @@ class User(TimestampMixin, Base):
     roles: Mapped[list[Role]] = relationship(
         "Role", secondary=user_roles, back_populates="users", lazy="selectin"
     )
+    permission_overrides: Mapped[list["UserPermissionOverride"]] = relationship(
+        "UserPermissionOverride",
+        back_populates="user",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+
+
+class UserPermissionOverride(Base):
+    __tablename__ = "user_permission_overrides"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    permission_id: Mapped[int] = mapped_column(ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True)
+    effect: Mapped[str] = mapped_column(String(10))
+
+    user: Mapped[User] = relationship("User", back_populates="permission_overrides")
+    permission: Mapped[Permission] = relationship("Permission", back_populates="user_permission_overrides")

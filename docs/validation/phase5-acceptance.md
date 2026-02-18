@@ -6,7 +6,7 @@ Status: ACCEPTED
 ## Scope
 1. Permission-basiertes RBAC
 2. UI Preferences + Dashboard Konfiguration
-3. Pricing + Services
+3. Pricing
 4. Sales Orders + Invoices + Delivery Note
 5. E-Invoice Exportpfade (XRechnung/ZUGFeRD)
 6. Hardening (Idempotency, Audit, Migrationen)
@@ -57,11 +57,10 @@ Backend neu hinzugefuegt:
 1. `backend/tests/test_rbac_permissions_phase5.py`
 2. `backend/tests/test_ui_preferences_phase5.py`
 3. `backend/tests/test_pricing_phase5.py`
-4. `backend/tests/test_services_catalog_phase5.py`
-5. `backend/tests/test_sales_orders_phase5.py`
-6. `backend/tests/test_invoices_phase5.py`
-7. `backend/tests/test_offline_idempotency_phase5.py`
-8. E-Invoice-Schaerfungen in `backend/tests/test_invoices_phase5.py`:
+4. `backend/tests/test_sales_orders_phase5.py`
+5. `backend/tests/test_invoices_phase5.py`
+6. `backend/tests/test_offline_idempotency_phase5.py`
+7. E-Invoice-Schaerfungen in `backend/tests/test_invoices_phase5.py`:
    - strict KoSIT Success-Pfad (`generated`)
    - strict KoSIT Non-Zero-Exit (`validation_error`)
    - ZUGFeRD PDF/A-3 mit eingebettetem XML verifiziert
@@ -98,3 +97,23 @@ Frontend E2E aktualisiert:
 5. Hinweis zu Alembic-SQLite-Einzellauf:
    - Befehl: `cd backend && DATABASE_URL=sqlite:////tmp/directstock_dbg.sqlite .venv/bin/alembic upgrade head`
    - Ergebnis: in dieser Umgebung haengend ohne Abschluss (separat zu untersuchen).
+
+## Erweiterung 2026-02-17 (Services-Removal Breaking Change)
+1. Service-Katalog entfernt:
+   - `GET/POST/PUT/DELETE /api/services` entfaellt.
+   - Frontend-Route `/services` entfaellt.
+2. Sales-Order-Kontrakt reduziert auf Produktpositionen:
+   - `service_id` entfaellt.
+   - `item_type='service'` wird mit `422` abgelehnt.
+3. Migration `0026_remove_services_domain` bereinigt vorhandene Service-Daten und entfernt die Services-Domaene strukturell.
+
+## Erweiterung 2026-02-17 (Favicon + PWA/Homescreen-Branding)
+1. Frontend-Branding vereinheitlicht:
+   - Browser-Tab-Icons (`favicon-16.png`, `favicon-32.png`) und `apple-touch-icon.png` nutzen dasselbe Login-Logo wie `frontend/src/assets/logo.png`.
+   - PWA-Manifest-Icons unter `frontend/public/icons/icon-192.png`, `icon-512.png`, `icon-512-maskable.png` wurden aus derselben Quelle neu erzeugt.
+2. `frontend/index.html` ergaenzt um:
+   - `<link rel="icon" ... /icons/favicon-32.png>`
+   - `<link rel="icon" ... /icons/favicon-16.png>`
+   - `<link rel="apple-touch-icon" ... /icons/apple-touch-icon.png>`
+3. Austauschpfad fuer spaeteres High-Res-Logo:
+   - Sobald ein hochaufgeloestes Brand-Asset vorliegt, werden exakt dieselben Ziel-Dateien in `frontend/public/icons/` erneut gerendert/ersetzt, ohne API- oder Typkontrakte zu aendern.

@@ -6,7 +6,7 @@
 
 ## Umsetzungsstand Phase 5 (2026-02-14)
 
-1. Phase-5-Module (RBAC Permissions, UI Preferences, Dashboard Config, Pricing, Services, Sales Orders, Invoices, E-Invoice Export) sind additiv umgesetzt.
+1. Phase-5-Module (RBAC Permissions, UI Preferences, Dashboard Config, Pricing, Sales Orders, Invoices, E-Invoice Export) sind additiv umgesetzt.
 2. API-Verträge wurden additiv erweitert, inklusive `permissions` in `GET /api/auth/me` und Idempotency für `/api/sales-orders` sowie `/api/invoices`.
 3. Vollvalidierung wurde durchgeführt:
    Backend `95 passed`, Frontend Unit `30 passed`, Frontend E2E `74 passed` (`4 skipped`), Lighthouse PWA `1.00`, Prod-Smoke auf `/health`, `/api/health`, `/api/docs` und Login erfolgreich.

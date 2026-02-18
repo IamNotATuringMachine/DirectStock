@@ -84,7 +84,7 @@ Neu ergänzt (additiv, umgesetzt):
 - Shipping v1:
   - APIs: `/api/shipments`, `/api/shipments/{id}/create-label`, `/tracking`, `/cancel`
   - Carrier-Webhooks: `/api/carriers/{carrier}/webhook`
-  - Adapterstruktur für DHL/DPD/UPS
+  - Adapterstruktur für DHL/DHL Express (MyDHL API `3.2.0`)/DPD/UPS
 - Inter-Warehouse Transfers:
   - APIs: `/api/inter-warehouse-transfers`, `/items`, `/dispatch`, `/receive`, `/cancel`
   - State Machine: `draft -> dispatched -> received`, `draft -> cancelled`
@@ -113,14 +113,18 @@ Neu ergänzt (additiv, umgesetzt):
   - `GET /api/auth/me` liefert additiv `permissions: string[]`
   - neue Router: `/api/permissions`, `/api/pages`, `/api/roles`
   - neue Dependency `require_permissions(...)` in Phase-5-Routern
+  - benutzerzentrierte Access-Profile:
+    - `GET /api/users?managed_only=true`
+    - `GET /api/users/{user_id}/access-profile`
+    - `PUT /api/users/{user_id}/access-profile`
+    - effektive Rechte: `(role_permissions - deny_permissions) U allow_permissions`
 - UI Preferences + Dashboard-Konfiguration:
   - `/api/ui-preferences/me`
   - `/api/dashboard/cards/catalog`
   - `/api/dashboard/config/me`
   - `/api/dashboard/config/roles/{role_id}`
-- Pricing + Services:
+- Pricing:
   - `/api/pricing/*` (Basispreise, Kundenpreise, Preisauflösung)
-  - `/api/services`
 - Kundenhierarchie:
   - `/api/customers/{customer_id}/locations`
   - `/api/customers/{customer_id}/contacts`
@@ -135,7 +139,7 @@ Neu ergänzt (additiv, umgesetzt):
   - Export-Tracking in `invoice_exports`
 - Frontend:
   - Permission-Guards in Routing/Navigation
-  - neue Seiten `/services`, `/sales-orders`, `/invoices`, `/customers`
+  - neue Seiten `/sales-orders`, `/invoices`, `/customers`
   - Theme-Persistenz und Dashboard-Customizing
 
 Phase-5-Validierung (Stand 2026-02-14):
@@ -284,12 +288,26 @@ npm install
 npm run test
 ```
 
-Frontend E2E (gegen laufenden Stack auf `http://localhost:8080`):
+Frontend E2E (isolierter Standardlauf mit eigenem Compose-Project + automatischem `down -v`):
 
 ```bash
 cd frontend
 npx playwright install
 npm run test:e2e
+```
+
+Frontend E2E Raw (gegen bereits laufenden Stack, z. B. `http://localhost:8080`):
+
+```bash
+cd frontend
+npm run test:e2e:raw
+```
+
+One-time Cleanup fuer bereits bestehende E2E/Testdaten:
+
+```bash
+python3 scripts/cleanup_test_data.py --mode dry-run
+python3 scripts/cleanup_test_data.py --mode apply
 ```
 
 ## Prod Verification Checklist

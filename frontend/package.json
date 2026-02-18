@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "sh -c 'playwright test --project=web-desktop --project=ios-iphone-se --project=ios-ipad; code=$?; rm -rf test-results playwright-report blob-report; exit $code'",
+    "test:e2e": "../scripts/run_e2e_isolated.sh",
+    "test:e2e:raw": "sh -c 'playwright test --project=web-desktop --project=ios-iphone-se --project=ios-ipad \"$@\"; code=$?; rm -rf test-results playwright-report blob-report; exit $code' --",
     "test:e2e:responsive": "sh -c 'playwright test tests/e2e/shell-navigation-smoke.spec.ts --project=ios-iphone-se --project=ios-ipad; code=$?; rm -rf test-results playwright-report blob-report; exit $code'",
     "test:ui": "playwright test --ui",
     "playwright:install": "playwright install --with-deps"

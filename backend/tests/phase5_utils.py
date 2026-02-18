@@ -53,24 +53,6 @@ async def create_customer(client: AsyncClient, admin_token: str, prefix: str) ->
     return int(response.json()["id"])
 
 
-async def create_service(client: AsyncClient, admin_token: str, prefix: str) -> int:
-    response = await client.post(
-        "/api/services",
-        headers=auth_headers(admin_token),
-        json={
-            "service_number": f"{prefix}-SRV",
-            "name": f"Service {prefix}",
-            "description": "Phase5 test service",
-            "net_price": "35.00",
-            "vat_rate": "19",
-            "currency": "EUR",
-            "status": "active",
-        },
-    )
-    assert response.status_code == 201
-    return int(response.json()["id"])
-
-
 async def create_base_price(
     client: AsyncClient,
     admin_token: str,
@@ -91,4 +73,3 @@ async def create_base_price(
         },
     )
     assert response.status_code == 201
-
