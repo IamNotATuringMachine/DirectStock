@@ -2,6 +2,7 @@
 
 ## Trigger
 - Sudden rise in 401/403 responses for previously healthy workflows.
+- Prometheus alert `DirectStockRbacDenialsSpike` fires.
 
 ## On-call order
 1. Primary backend on-call

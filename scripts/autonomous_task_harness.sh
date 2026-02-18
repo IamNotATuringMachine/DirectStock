@@ -12,6 +12,9 @@ if [ "${ENFORCE_REFRACTOR_SCOPE:-0}" = "1" ]; then
   ./scripts/check_refactor_scope_allowlist.sh
 fi
 
+echo "==> Running file size limits guard"
+SIZE_GUARD_MODE="${SIZE_GUARD_MODE:-changed}" ./scripts/check_file_size_limits.sh
+
 echo "==> Running frontend checks"
 (
   cd frontend
@@ -92,6 +95,11 @@ fi
 if [ "${RUN_OBSERVABILITY_SMOKE:-0}" = "1" ]; then
   echo "==> Running observability smoke checks"
   ./scripts/observability/smoke.sh
+fi
+
+if [ "${RUN_GOLDEN_TASKS:-0}" = "1" ]; then
+  echo "==> Running golden tasks"
+  GOLDEN_TASK_MODE="${GOLDEN_TASK_MODE:-smoke}" ./scripts/run_golden_tasks.sh
 fi
 
 if [ "${COLLECT_SCORECARD_METRICS:-0}" = "1" ]; then

@@ -1,4 +1,4 @@
-goods_receipt	/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/goods_receipt-full.json
-returns	/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/returns-full.json
-picking	/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/picking-full.json
-reports	/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/reports-full.json
+goods_receipt	/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/goods_receipt-smoke.json
+returns	/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/returns-smoke.json
+picking	/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/picking-smoke.json
+reports	/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/docs/validation/metrics/perf-results/reports-smoke.json

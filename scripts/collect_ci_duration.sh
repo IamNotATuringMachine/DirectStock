@@ -144,7 +144,13 @@ for entry in raw_runs:
 if not runs:
     raise SystemExit("No workflow runs with duration metadata were found.")
 
-durations = [item["duration_seconds"] for item in runs]
+completed_runs = [item for item in runs if item["status"] == "completed"]
+non_completed_runs = [item for item in runs if item["status"] != "completed"]
+
+if not completed_runs:
+    raise SystemExit("No completed workflow runs with duration metadata were found.")
+
+durations = [item["duration_seconds"] for item in completed_runs]
 mean_seconds = int(statistics.mean(durations))
 p50_seconds = int(statistics.median(durations))
 durations_sorted = sorted(durations)
@@ -158,23 +164,41 @@ def humanize(seconds: int) -> str:
 with open(output_path, "w", encoding="utf-8") as out:
     out.write("# CI Duration Snapshot\n\n")
     out.write(f"Generated at: {datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')}\n\n")
+    if len(completed_runs) < 20:
+        out.write("## Status\n\n")
+        out.write(
+            f"Insufficient sample: only {len(completed_runs)} completed runs available "
+            "(target >= 20).\n\n"
+        )
     out.write("## Scorecard Signals\n\n")
     out.write("| Metric | Value | Target |\n")
     out.write("| --- | --- | --- |\n")
-    out.write(f"| Sample size | {len(runs)} (requested {run_limit}) | >= 20 |\n")
+    out.write(f"| Completed sample size | {len(completed_runs)} (requested {run_limit}) | >= 20 |\n")
+    out.write(f"| Non-completed runs (cancelled/in_progress/queued) | {len(non_completed_runs)} | track separately |\n")
     out.write(f"| Mean duration | {humanize(mean_seconds)} | < 15.00 min |\n")
     out.write(f"| Median duration (p50) | {humanize(p50_seconds)} | < 15.00 min |\n")
     out.write(f"| p90 duration | {humanize(p90_seconds)} | < 20.00 min |\n")
-    out.write("\n## Recent Runs\n\n")
+    out.write("\n## Completed Runs\n\n")
     out.write("| Run | Branch | Status | Conclusion | Duration | Link |\n")
     out.write("| --- | --- | --- | --- | ---: | --- |\n")
-    for run in runs:
+    for run in completed_runs:
         url = run["url"]
         link = f"[open]({url})" if url else "-"
         out.write(
             f"| {run['id']} | {run['branch']} | {run['status']} | {run['conclusion']} | "
             f"{humanize(run['duration_seconds'])} | {link} |\n"
         )
+    if non_completed_runs:
+        out.write("\n## Non-completed Runs\n\n")
+        out.write("| Run | Branch | Status | Conclusion | Duration | Link |\n")
+        out.write("| --- | --- | --- | --- | ---: | --- |\n")
+        for run in non_completed_runs:
+            url = run["url"]
+            link = f"[open]({url})" if url else "-"
+            out.write(
+                f"| {run['id']} | {run['branch']} | {run['status']} | {run['conclusion']} | "
+                f"{humanize(run['duration_seconds'])} | {link} |\n"
+            )
 
 print(f"Wrote {output_path}")
 PY

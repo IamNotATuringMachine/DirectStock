@@ -16,7 +16,7 @@ os.environ["ASYNC_DATABASE_URL"] = f"sqlite+aiosqlite:///{test_db_path}"
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_USERNAME", "admin")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_EMAIL", "admin@example.com")
-os.environ.setdefault("DIRECTSTOCK_ADMIN_PASSWORD", "change-me-admin-password")
+os.environ.setdefault("DIRECTSTOCK_ADMIN_PASSWORD", "DirectStock2026!")
 os.environ.setdefault("OBSERVABILITY_ENABLED", "false")
 os.environ.setdefault("METRICS_ENABLED", "false")
 

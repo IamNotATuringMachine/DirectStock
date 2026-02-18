@@ -103,6 +103,7 @@ Run this matrix based on change type before marking tasks complete:
    - `./scripts/check_api_contract_drift.sh`
 4. Refactor-scope controlled changes:
    - `ENFORCE_REFRACTOR_SCOPE=1 ./scripts/autonomous_task_harness.sh`
+   - `SIZE_GUARD_MODE=changed ./scripts/check_file_size_limits.sh`
 5. E2E-sensitive frontend workflow changes:
    - `cd frontend && npm run test:e2e:hermetic`
    - `cd frontend && npm run test:e2e:smoke`
@@ -119,3 +120,5 @@ Run this matrix based on change type before marking tasks complete:
    - `./scripts/check_mutation_integrity.py`
 9. Observability-sensitive changes:
    - `./scripts/observability/smoke.sh`
+10. LLM golden-task verification:
+   - `./scripts/run_golden_tasks.sh`

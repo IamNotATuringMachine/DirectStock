@@ -7,7 +7,7 @@ cd "${ROOT_DIR}"
 PERF_MODE="${PERF_MODE:-smoke}"
 PERF_USE_COMPOSE="${PERF_USE_COMPOSE:-1}"
 PERF_USERNAME="${PERF_USERNAME:-admin}"
-PERF_PASSWORD="${PERF_PASSWORD:-change-me-admin-password}"
+PERF_PASSWORD="${PERF_PASSWORD:-DirectStock2026!}"
 RESULTS_DIR="${ROOT_DIR}/docs/validation/metrics/perf-results"
 MANIFEST_FILE="${RESULTS_DIR}/latest-manifest.tsv"
 
@@ -145,7 +145,7 @@ if [[ "${PERF_USE_COMPOSE}" == "1" ]]; then
   wait_for_backend
 
   if ! check_login "${PERF_PASSWORD}"; then
-    if [[ "${PERF_PASSWORD}" == "change-me-admin-password" ]] && check_login "DirectStock2026!"; then
+    if [[ "${PERF_PASSWORD}" == "DirectStock2026!" ]] && check_login "change-me-admin-password"; then
       echo "Using fallback admin seed password for perf run."
     else
       echo "Perf login preflight failed for username=${PERF_USERNAME}" >&2

@@ -3,7 +3,7 @@ import { check, sleep } from "k6";
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8000";
 const USERNAME = __ENV.PERF_USERNAME || "admin";
-const PASSWORD = __ENV.PERF_PASSWORD || "change-me-admin-password";
+const PASSWORD = __ENV.PERF_PASSWORD || "DirectStock2026!";
 
 export const options = {
   vus: Number(__ENV.VUS || 1),

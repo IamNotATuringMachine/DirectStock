@@ -30,6 +30,7 @@ Schnelle, sichere Iterationen mit kleinen, validierten Schritten und reproduzier
 3. `X-Client-Operation-Id` Verhalten unverändert.
 4. PR-Scope gegen `docs/guides/refactor-scope-allowlist.md` prüfen.
 5. Vor Merge: lint, tests, build, smoke.
+6. Datei-Limits vor Merge prüfen (`./scripts/check_file_size_limits.sh`).
 
 ## Proof-First Regeln
 1. Small-diff first: pro Änderung nur ein klarer Zweck (Refactor, Guard, Test oder Doku).
@@ -58,9 +59,11 @@ pre-commit run --all-files
 ./scripts/collect_complexity_metrics.sh
 RUNS=20 TEST_FLAKE_CMD="cd frontend && npm run test:e2e:smoke" ./scripts/collect_test_flakiness.sh
 CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh
+./scripts/check_file_size_limits.sh
 ./scripts/perf/run_perf_smoke.sh
 ./scripts/perf/assert_budgets.sh
 ./scripts/install_gitleaks.sh
 ./scripts/check_security_gates.sh
 ./scripts/observability/smoke.sh
+./scripts/run_golden_tasks.sh
 ```

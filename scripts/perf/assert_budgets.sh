@@ -47,32 +47,49 @@ for line in manifest_path.read_text(encoding="utf-8").splitlines():
     data = json.loads(Path(file_path).read_text(encoding="utf-8"))
     metrics = data.get("metrics", {})
 
-    duration_values = metrics.get("http_req_duration", {}).get("values", {})
-    failed_values = metrics.get("http_req_failed", {}).get("values", {})
+    def metric_values(metric: object) -> dict[str, object]:
+        if not isinstance(metric, dict):
+            return {}
+        values = metric.get("values")
+        if isinstance(values, dict):
+            return values
+        return metric
+
+    duration_values = metric_values(metrics.get("http_req_duration", {}))
+    failed_values = metric_values(metrics.get("http_req_failed", {}))
+    request_values = metric_values(metrics.get("http_reqs", {}))
 
     p95_ms = float(duration_values.get("p(95)", 0.0))
-    p99_ms = float(duration_values.get("p(99)", 0.0))
-    error_rate = float(failed_values.get("rate", 0.0))
+    p99_ms = float(duration_values.get("p(99)", duration_values.get("max", 0.0)))
+    error_rate = float(failed_values.get("rate", failed_values.get("value", 0.0)))
+    request_count = float(request_values.get("count", 0.0))
 
     budget_ms = scenario_budgets.get(scenario, core_budget)
     within_latency = p95_ms <= budget_ms
     within_errors = error_rate <= max_error_rate
+    has_measurements = request_count > 0 and p95_ms > 0
 
     if not within_latency:
         violations.append(f"{scenario}: p95 {p95_ms:.2f}ms exceeds {budget_ms:.2f}ms")
     if not within_errors:
         violations.append(f"{scenario}: error rate {error_rate * 100:.2f}% exceeds {max_error_rate * 100:.2f}%")
+    if not has_measurements:
+        violations.append(
+            f"{scenario}: invalid latency sample (count={request_count:.0f}, p95={p95_ms:.2f}, p99={p99_ms:.2f})"
+        )
 
     rows.append(
         {
             "scenario": scenario,
             "file": file_path,
+            "request_count": request_count,
             "p95_ms": p95_ms,
             "p99_ms": p99_ms,
             "error_rate": error_rate,
             "budget_ms": budget_ms,
             "latency_ok": within_latency,
             "error_ok": within_errors,
+            "sample_ok": has_measurements,
         }
     )
 
@@ -86,12 +103,12 @@ with output_path.open("w", encoding="utf-8") as out:
     out.write(f"- Reports endpoints p95: <= {reports_budget:.2f}ms\n")
     out.write(f"- Max error rate: <= {max_error_rate * 100:.2f}%\n\n")
     out.write("## Scenario Results\n\n")
-    out.write("| Scenario | p95 (ms) | p99 (ms) | Error rate | Budget (ms) | Status |\n")
-    out.write("| --- | ---: | ---: | ---: | ---: | --- |\n")
+    out.write("| Scenario | Requests | p95 (ms) | p99 (ms) | Error rate | Budget (ms) | Status |\n")
+    out.write("| --- | ---: | ---: | ---: | ---: | ---: | --- |\n")
     for row in rows:
-        status = "PASS" if row["latency_ok"] and row["error_ok"] else "FAIL"
+        status = "PASS" if row["latency_ok"] and row["error_ok"] and row["sample_ok"] else "FAIL"
         out.write(
-            f"| {row['scenario']} | {row['p95_ms']:.2f} | {row['p99_ms']:.2f} | "
+            f"| {row['scenario']} | {row['request_count']:.0f} | {row['p95_ms']:.2f} | {row['p99_ms']:.2f} | "
             f"{row['error_rate'] * 100:.2f}% | {row['budget_ms']:.2f} | {status} |\n"
         )
 

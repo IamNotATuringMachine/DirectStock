@@ -53,9 +53,7 @@ class Settings(BaseSettings):
 
     default_admin_username: str = Field(default="admin", validation_alias="DIRECTSTOCK_ADMIN_USERNAME")
     default_admin_email: str = Field(default="admin@directstock.local", validation_alias="DIRECTSTOCK_ADMIN_EMAIL")
-    default_admin_password: str = Field(
-        default="change-me-admin-password", validation_alias="DIRECTSTOCK_ADMIN_PASSWORD"
-    )
+    default_admin_password: str = Field(default="DirectStock2026!", validation_alias="DIRECTSTOCK_ADMIN_PASSWORD")
 
     @model_validator(mode="after")
     def _validate_security_defaults(self) -> "Settings":
