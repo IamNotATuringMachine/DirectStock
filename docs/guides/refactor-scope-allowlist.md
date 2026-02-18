@@ -5,6 +5,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
 
 ## Erlaubte Bereiche
 1. Hygiene/Tooling/CI:
+   - `.env.example`
    - `.editorconfig`
    - `.pre-commit-config.yaml`
    - `.gitleaks.toml`
@@ -18,14 +19,25 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
 2. Frontend-Routing + Hotspots:
    - `frontend/src/App.tsx`
    - `frontend/src/components/AppLayout.tsx`
+   - `frontend/src/components/users/UserFormModal.tsx`
    - `frontend/src/routing/*`
+   - `frontend/src/stores/authStore.test.ts`
    - `frontend/src/pages/ProductFormPage.tsx`
    - `frontend/src/pages/GoodsReceiptPage.tsx`
    - `frontend/src/pages/GoodsIssuePage.tsx`
    - `frontend/src/pages/StockTransferPage.tsx`
+   - `frontend/src/pages/ShippingPage.tsx`
+   - `frontend/src/pages/PurchasingPage.tsx`
+   - `frontend/src/pages/InterWarehouseTransferPage.tsx`
+   - `frontend/src/pages/ReturnsPage.tsx`
+   - `frontend/src/pages/UsersPage.tsx`
    - `frontend/src/pages/ReportsPage.tsx`
    - `frontend/src/pages/goods-issue/**`
    - `frontend/src/pages/stock-transfer/**`
+   - `frontend/src/pages/shipping/**`
+   - `frontend/src/pages/purchasing/**`
+   - `frontend/src/pages/inter-warehouse-transfer/**`
+   - `frontend/src/pages/returns/**`
    - `frontend/src/pages/reports/**`
    - `frontend/src/pages/product-form/**`
    - `frontend/src/pages/goods-receipt/**`
@@ -37,6 +49,9 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `backend/app/routers/suppliers.py`
    - `backend/app/routers/shipping.py`
    - `backend/app/routers/returns.py`
+   - `backend/app/routers/returns_common.py`
+   - `backend/app/routers/returns_orders.py`
+   - `backend/app/routers/returns_items.py`
    - `backend/app/routers/purchasing.py`
    - `backend/app/routers/warehouses.py`
    - `backend/app/routers/inventory_counts.py`
@@ -68,6 +83,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `backend/alembic/versions/0034_wave3c_rbac_permission_backfill.py`
    - `backend/tests/test_rbac_phase2.py`
    - `backend/tests/test_rbac_permissions_phase5.py`
+   - `backend/tests/test_auth.py`
    - `backend/tests/test_seed.py`
    - `backend/tests/conftest.py`
    - `backend/tests/test_idempotency_regressions_phase6.py`
@@ -80,6 +96,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `docs/validation/engineering-scorecard.md`
    - `docs/validation/perf-budgets.md`
    - `docs/validation/security-gates.md`
+   - `docs/validation/golden-tasks/**`
    - `docs/validation/metrics/**`
    - `README.md`
    - `AGENTS.md`
@@ -92,10 +109,12 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `scripts/check_e2e_hermetic.sh`
    - `scripts/autonomous_task_harness.sh`
    - `scripts/check_refactor_scope_allowlist.sh`
+   - `scripts/check_file_size_limits.sh`
    - `scripts/check_api_contract_drift.sh`
    - `scripts/check_security_gates.sh`
    - `scripts/install_gitleaks.sh`
    - `scripts/check_mutation_integrity.py`
+   - `scripts/run_golden_tasks.sh`
    - `scripts/observability/**`
    - `scripts/collect_complexity_metrics.sh`
    - `scripts/collect_test_flakiness.sh`
@@ -103,6 +122,9 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `scripts/perf/**`
    - `docker-compose.dev.yml`
    - `docker-compose.prod.yml`
+   - `docker-compose.yml`
+   - `nginx/nginx.conf`
+   - `nginx/nginx.prod.conf`
    - `docker/observability/**`
 
 ## Nicht erlaubt (ohne expliziten Zusatzgrund)

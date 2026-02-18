@@ -247,3 +247,37 @@
   - Frontend hotspot decomposition (`ReportsPage`, `ProductFormWorkspaceView`, `GoodsReceiptWorkspaceView`).
   - Backend hotspot decomposition (`bootstrap_seed.py` split continuation).
 - This remains a dedicated follow-up wave after Steps 0-4 merge and CI acceptance.
+
+## Top-5 Measures (Wave 5+ hardening, in progress)
+- Added maintainability guardrails:
+  - `scripts/check_file_size_limits.sh`
+  - CI integration for size limits (`.github/workflows/ci.yml`, jobs `llm_guards` + `size_guard`)
+  - Harness integration (`scripts/autonomous_task_harness.sh`)
+- Added LLM golden-task framework:
+  - `docs/validation/golden-tasks/manifest.tsv`
+  - `docs/validation/golden-tasks/README.md`
+  - `scripts/run_golden_tasks.sh`
+  - Nightly CI job `golden_tasks_nightly`
+  - Report artifact: `docs/validation/metrics/golden-tasks-latest.md`
+- Improved CI-duration metric robustness:
+  - `scripts/collect_ci_duration.sh` now reports completed sample size explicitly and marks `<20` completed runs as insufficient.
+- Strengthened perf budget validity:
+  - `scripts/perf/assert_budgets.sh` now fails scenarios with invalid zero samples (`http_reqs=0`, `p95=0`, `p99=0`).
+  - `docs/validation/perf-budgets.md` updated with non-zero sample requirement.
+- Observability alerts aligned with exported metrics:
+  - `docker/observability/alerts.yml` now uses `http_requests_total` and includes latency + RBAC-denial alerts.
+
+## Top-5 Measures (follow-up completion)
+- Backend hotspot split completed without API changes:
+  - `backend/app/routers/operations/goods_receipts.py` now delegates to:
+    - `backend/app/routers/operations/goods_receipts_crud.py`
+    - `backend/app/routers/operations/goods_receipts_items.py`
+    - `backend/app/routers/operations/goods_receipts_workflow.py`
+  - `backend/app/routers/returns.py` now delegates to:
+    - `backend/app/routers/returns_common.py`
+    - `backend/app/routers/returns_orders.py`
+    - `backend/app/routers/returns_items.py`
+- Scope guard alignment completed for active branch surface:
+  - Allowlist script and guide now include required operational files touched in this wave.
+- Verification:
+  - `ENFORCE_REFRACTOR_SCOPE=1 ./scripts/autonomous_task_harness.sh` passed.
