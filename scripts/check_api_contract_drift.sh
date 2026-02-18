@@ -13,12 +13,12 @@ trap cleanup EXIT
 
 cd "${BACKEND_DIR}"
 
-if [ ! -x ".venv/bin/python" ]; then
-  echo "Missing backend venv python at backend/.venv/bin/python"
-  exit 1
+PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
+if [ ! -x "${PYTHON_BIN}" ]; then
+  PYTHON_BIN="${PYTHON_BIN_FALLBACK:-python3}"
 fi
 
-.venv/bin/python - <<'PY' > "${TMP_CURRENT}"
+"${PYTHON_BIN}" - <<'PY' > "${TMP_CURRENT}"
 import json
 from app.main import app
 
@@ -38,7 +38,7 @@ if [ ! -f "${SNAPSHOT_PATH}" ]; then
   exit 1
 fi
 
-SNAPSHOT_PATH="${SNAPSHOT_PATH}" CURRENT_PATH="${TMP_CURRENT}" .venv/bin/python - <<'PY'
+SNAPSHOT_PATH="${SNAPSHOT_PATH}" CURRENT_PATH="${TMP_CURRENT}" "${PYTHON_BIN}" - <<'PY'
 import json
 import os
 import sys
