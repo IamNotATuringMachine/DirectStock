@@ -4,8 +4,9 @@ title = "DirectStock gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Ignore local dependency artifacts"
+description = "Ignore local dependency artifacts and CI checkout metadata"
 paths = [
+  '''\.git/''',
   '''backend/\.venv/''',
   '''frontend/node_modules/''',
 ]
