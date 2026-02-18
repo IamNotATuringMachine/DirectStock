@@ -4,7 +4,15 @@ import { ChevronDown, Loader2, Plus, X } from "lucide-react";
 
 import { createProductGroup, fetchProductGroups } from "../../../services/productsApi";
 
-export function ProductGroupSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function ProductGroupSelect({
+  value,
+  onChange,
+  testId = "product-form-group",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  testId?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
@@ -54,6 +62,7 @@ export function ProductGroupSelect({ value, onChange }: { value: string; onChang
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="input !pl-10 w-full text-left flex items-center justify-between transition-all focus:ring-2 ring-[var(--accent)]/20"
+        data-testid={testId}
       >
         <span className={value ? "text-[var(--ink)]" : "text-[var(--muted)]"}>
           {selectedGroup ? selectedGroup.name : "Keine Gruppe"}

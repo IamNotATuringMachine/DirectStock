@@ -53,7 +53,7 @@ describe("authStore", () => {
       },
     });
 
-    await useAuthStore.getState().login("admin", "change-me-admin-password");
+    await useAuthStore.getState().login("admin", "DirectStock2026!");
 
     const state = useAuthStore.getState();
     expect(state.accessToken).toBe("access-1");

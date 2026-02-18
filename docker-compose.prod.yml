@@ -26,9 +26,14 @@ services:
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
       DIRECTSTOCK_ADMIN_USERNAME: ${DIRECTSTOCK_ADMIN_USERNAME:-admin}
       DIRECTSTOCK_ADMIN_EMAIL: ${DIRECTSTOCK_ADMIN_EMAIL:-admin@directstock.local}
-      DIRECTSTOCK_ADMIN_PASSWORD: ${DIRECTSTOCK_ADMIN_PASSWORD:-change-me-admin-password}
+      DIRECTSTOCK_ADMIN_PASSWORD: ${DIRECTSTOCK_ADMIN_PASSWORD:-DirectStock2026!}
       CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
       SEED_ON_START: ${SEED_ON_START:-false}
+      OBSERVABILITY_ENABLED: ${OBSERVABILITY_ENABLED:-true}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
+      SLOW_QUERY_THRESHOLD_MS: ${SLOW_QUERY_THRESHOLD_MS:-200}
       EINVOICE_EN16931_VALIDATION_MODE: ${EINVOICE_EN16931_VALIDATION_MODE:-strict}
       EINVOICE_KOSIT_VALIDATOR_JAR: ${EINVOICE_KOSIT_VALIDATOR_JAR:-}
       EINVOICE_KOSIT_SCENARIO: ${EINVOICE_KOSIT_SCENARIO:-}
@@ -40,6 +45,47 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.107.0
+    profiles:
+      - observability
+    command:
+      - "--config=/etc/otelcol-contrib/config.yaml"
+    volumes:
+      - ./docker/observability/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "${OTEL_COLLECTOR_HEALTH_PORT:-13133}:13133"
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles:
+      - observability
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    depends_on:
+      - backend
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    profiles:
+      - observability
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
 
   nginx:
     image: nginx:1.27-alpine

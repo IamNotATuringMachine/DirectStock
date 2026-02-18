@@ -1,12 +1,12 @@
 from datetime import UTC, datetime
-from hashlib import sha1
+from hashlib import sha256
 from typing import Any
 
 from app.services.carriers.base import CarrierAdapter, CarrierCreateLabelResult, CarrierTrackingEvent
 
 
 def _tracking_from(seed: str) -> str:
-    digest = sha1(seed.encode("utf-8")).hexdigest().upper()
+    digest = sha256(seed.encode("utf-8")).hexdigest().upper()
     return digest[:18]
 
 
@@ -32,7 +32,9 @@ class SandboxCarrierAdapter(CarrierAdapter):
             f"% shipment={shipment_number}\n% tracking={tracking_number}\n"
             f"% recipient={recipient_name or '-'}\n% address={shipping_address or '-'}\n% created_at={now}\n"
         ).encode("utf-8")
-        return CarrierCreateLabelResult(tracking_number=tracking_number, label_bytes=content, mime_type="application/pdf")
+        return CarrierCreateLabelResult(
+            tracking_number=tracking_number, label_bytes=content, mime_type="application/pdf"
+        )
 
     def track(self, *, tracking_number: str) -> list[CarrierTrackingEvent]:
         now = datetime.now(UTC).isoformat()

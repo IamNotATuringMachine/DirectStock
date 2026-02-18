@@ -1,0 +1,146 @@
+{
+    "metrics": {
+        "vus_max": {
+            "value": 2,
+            "min": 2,
+            "max": 2
+        },
+        "http_req_connecting": {
+            "avg": 0.004052837988826816,
+            "min": 0,
+            "med": 0,
+            "max": 0.504291,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 179,
+            "value": 0
+        },
+        "vus": {
+            "value": 2,
+            "min": 2,
+            "max": 2
+        },
+        "http_req_waiting": {
+            "max": 255.152917,
+            "p(90)": 27.959758599999997,
+            "p(95)": 30.820678899999997,
+            "avg": 25.10042810614526,
+            "min": 8.8715,
+            "med": 23.726583
+        },
+        "iterations": {
+            "count": 178,
+            "rate": 8.742631642517312
+        },
+        "checks": {
+            "passes": 179,
+            "fails": 0,
+            "value": 1
+        },
+        "http_reqs": {
+            "count": 179,
+            "rate": 8.791747550621341
+        },
+        "data_sent": {
+            "count": 77091,
+            "rate": 3786.3944716477645
+        },
+        "http_req_sending": {
+            "p(90)": 0.0430166,
+            "p(95)": 0.051733599999999984,
+            "avg": 0.031074480446927382,
+            "min": 0.009584,
+            "med": 0.027625,
+            "max": 0.172375
+        },
+        "iteration_duration": {
+            "avg": 225.8122505730336,
+            "min": 209.938125,
+            "med": 225.84172949999999,
+            "max": 318.664334,
+            "p(90)": 229.7217795,
+            "p(95)": 232.8547063
+        },
+        "http_req_blocked": {
+            "max": 1.389,
+            "p(90)": 0.017100399999999998,
+            "p(95)": 0.024245499999999996,
+            "avg": 0.02088456983240224,
+            "min": 0.0025,
+            "med": 0.01075
+        },
+        "data_received": {
+            "count": 32532,
+            "rate": 1597.8387224402989
+        },
+        "http_req_duration": {
+            "max": 255.343334,
+            "p(90)": 28.242932800000002,
+            "p(95)": 31.282579099999992,
+            "avg": 25.363462284916192,
+            "min": 9.09575,
+            "med": 23.925709
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(95)": 31.282579099999992,
+            "avg": 25.363462284916192,
+            "min": 9.09575,
+            "med": 23.925709,
+            "max": 255.343334,
+            "p(90)": 28.242932800000002
+        },
+        "http_req_tls_handshaking": {
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0
+        },
+        "http_req_receiving": {
+            "p(95)": 0.39373749999999974,
+            "avg": 0.2319596983240222,
+            "min": 0.05125,
+            "med": 0.197875,
+            "max": 1.527375,
+            "p(90)": 0.3142998
+        }
+    },
+    "setup_data": {
+        "token": "<redacted>"
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "setup": {
+                "checks": {
+                    "login status is 200": {
+                        "id": "bb27b460b057923f4a083e3603c038b9",
+                        "passes": 1,
+                        "fails": 0,
+                        "name": "login status is 200",
+                        "path": "::setup::login status is 200"
+                    }
+                },
+                "name": "setup",
+                "path": "::setup",
+                "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+                "groups": {}
+            }
+        },
+        "checks": {
+            "pick waves list is 200": {
+                "path": "::pick waves list is 200",
+                "id": "b047babab9b49912e22ac81f945c15e7",
+                "passes": 178,
+                "fails": 0,
+                "name": "pick waves list is 200"
+            }
+        }
+    }
+}

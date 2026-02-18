@@ -67,6 +67,18 @@ ENFORCE_REFRACTOR_SCOPE=1 ./scripts/autonomous_task_harness.sh
 RUN_E2E_SMOKE=1 ./scripts/autonomous_task_harness.sh
 ```
 
+3. Include scorecard metrics (optional flakiness loop):
+
+```bash
+COLLECT_SCORECARD_METRICS=1 ./scripts/autonomous_task_harness.sh
+COLLECT_SCORECARD_METRICS=1 COLLECT_FLAKINESS=1 FLAKE_RUNS=20 ./scripts/autonomous_task_harness.sh
+
+# Optional performance/security waves
+RUN_PERF_SMOKE=1 ./scripts/autonomous_task_harness.sh
+RUN_SECURITY_GATES=1 RUN_GITLEAKS=0 ./scripts/autonomous_task_harness.sh
+RUN_OBSERVABILITY_SMOKE=1 ./scripts/autonomous_task_harness.sh
+```
+
 ## E2E Hermetic Rule
 E2E specs must not use:
 1. hardcoded base URLs (for example `http://localhost:5173`)
@@ -75,3 +87,38 @@ E2E specs must not use:
 Use:
 1. Playwright `baseURL` with `page.goto('/...')`
 2. relative artifact paths under `frontend/output` or `frontend/test-results`
+
+## Mandatory Verification Matrix
+Run this matrix based on change type before marking tasks complete:
+
+1. Frontend UI/Type changes:
+   - `cd frontend && npm run lint`
+   - `cd frontend && npm run test`
+   - `cd frontend && npm run build`
+2. Backend router/service changes:
+   - `cd backend && .venv/bin/ruff check --config ruff.toml app tests`
+   - `cd backend && .venv/bin/ruff format --config ruff.toml --check app tests`
+   - `cd backend && .venv/bin/python -m pytest -q`
+3. Contract-sensitive backend changes:
+   - `./scripts/check_api_contract_drift.sh`
+4. Refactor-scope controlled changes:
+   - `ENFORCE_REFRACTOR_SCOPE=1 ./scripts/autonomous_task_harness.sh`
+   - `SIZE_GUARD_MODE=changed ./scripts/check_file_size_limits.sh`
+5. E2E-sensitive frontend workflow changes:
+   - `cd frontend && npm run test:e2e:hermetic`
+   - `cd frontend && npm run test:e2e:smoke`
+6. Governance/Wave baseline updates:
+   - `./scripts/collect_complexity_metrics.sh`
+   - `RUNS=20 TEST_FLAKE_CMD="cd frontend && npm run test:e2e:smoke" ./scripts/collect_test_flakiness.sh`
+   - `CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh`
+7. Perf-sensitive backend changes:
+   - `./scripts/perf/run_perf_smoke.sh`
+   - `./scripts/perf/assert_budgets.sh`
+8. Security- or mutation-integrity-sensitive changes:
+   - `./scripts/install_gitleaks.sh` (once per machine)
+   - `./scripts/check_security_gates.sh`
+   - `./scripts/check_mutation_integrity.py`
+9. Observability-sensitive changes:
+   - `./scripts/observability/smoke.sh`
+10. LLM golden-task verification:
+   - `./scripts/run_golden_tasks.sh`

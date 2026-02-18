@@ -1,0 +1,11 @@
+id	category	description	smoke_command	full_command
+gt01	scope	Refactor scope guard	./scripts/check_refactor_scope_allowlist.sh	./scripts/check_refactor_scope_allowlist.sh
+gt02	maintainability	File-size guard	SIZE_GUARD_MODE=changed ./scripts/check_file_size_limits.sh	SIZE_GUARD_MODE=all ./scripts/check_file_size_limits.sh
+gt03	contract	OpenAPI contract drift	./scripts/check_api_contract_drift.sh	./scripts/check_api_contract_drift.sh
+gt04	integrity	Mutation integrity guard	if [ -x backend/.venv/bin/python ]; then backend/.venv/bin/python ./scripts/check_mutation_integrity.py; else python3 ./scripts/check_mutation_integrity.py; fi	if [ -x backend/.venv/bin/python ]; then backend/.venv/bin/python ./scripts/check_mutation_integrity.py; else python3 ./scripts/check_mutation_integrity.py; fi
+gt05	frontend	Frontend lint	(cd frontend && npm run lint)	(cd frontend && npm run lint)
+gt06	frontend	Frontend tests	(cd frontend && npm run test)	(cd frontend && npm run test)
+gt07	frontend	Frontend build	(cd frontend && npm run build)	(cd frontend && npm run build)
+gt08	backend	Backend lint	if [ -x backend/.venv/bin/ruff ]; then (cd backend && .venv/bin/ruff check --config ruff.toml app tests); else (cd backend && python3 -m ruff check --config ruff.toml app tests); fi	if [ -x backend/.venv/bin/ruff ]; then (cd backend && .venv/bin/ruff check --config ruff.toml app tests); else (cd backend && python3 -m ruff check --config ruff.toml app tests); fi
+gt09	backend	Backend tests	if [ -x backend/.venv/bin/python ]; then (cd backend && .venv/bin/python -m pytest -q tests/test_seed.py tests/test_auth_seed_contract.py); else (cd backend && python3 -m pytest -q tests/test_seed.py tests/test_auth_seed_contract.py); fi	if [ -x backend/.venv/bin/python ]; then (cd backend && .venv/bin/python -m pytest -q); else (cd backend && python3 -m pytest -q); fi
+gt10	performance	Perf smoke budget	./scripts/perf/run_perf_smoke.sh && ./scripts/perf/assert_budgets.sh	PERF_MODE=full ./scripts/perf/run_perf_smoke.sh && ./scripts/perf/assert_budgets.sh

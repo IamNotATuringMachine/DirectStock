@@ -4,10 +4,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.database import engine
 from app.middleware.audit import AuditMiddleware
 from app.middleware.error_handler import register_exception_handlers
 from app.middleware.idempotency import IdempotencyMiddleware
 from app.middleware.request_id import RequestIDMiddleware
+from app.observability.metrics import mount_metrics_endpoint
+from app.observability.tracing import setup_tracing, shutdown_tracing
 from app.routers.abc import router as abc_router
 from app.routers.audit_log import router as audit_log_router
 from app.routers.alerts import router as alerts_router
@@ -46,8 +49,10 @@ settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
+    setup_tracing(app=app, sync_engine=engine.sync_engine, settings=settings)
     yield
+    shutdown_tracing()
 
 
 app = FastAPI(
@@ -71,6 +76,9 @@ app.add_middleware(
 )
 
 register_exception_handlers(app)
+
+if settings.metrics_enabled:
+    mount_metrics_endpoint(app, path="/api/metrics")
 
 app.include_router(auth_router)
 app.include_router(users_router)
