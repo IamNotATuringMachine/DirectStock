@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.catalog import Product
 from app.models.inventory import Inventory, StockMovement
@@ -34,8 +34,9 @@ from app.schemas.user import MessageResponse
 
 router = APIRouter(prefix="/api/return-orders", tags=["returns"])
 
-READ_ROLES = ("admin", "lagerleiter", "versand", "controller", "auditor")
-WRITE_ROLES = ("admin", "lagerleiter", "versand")
+# Keep phase2 read parity (incl. controller/auditor) via role-permission mapping.
+RETURNS_READ_PERMISSION = "module.returns.read"
+RETURNS_WRITE_PERMISSION = "module.returns.write"
 
 TRANSITIONS: dict[str, set[str]] = {
     "registered": {"received", "cancelled"},
@@ -331,7 +332,7 @@ async def _ensure_spain_external_bin(db: AsyncSession) -> BinLocation:
 @router.get("", response_model=list[ReturnOrderResponse])
 async def list_return_orders(
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(RETURNS_READ_PERMISSION)),
 ) -> list[ReturnOrderResponse]:
     rows = list((await db.execute(select(ReturnOrder).order_by(ReturnOrder.id.desc()))).scalars())
     return [_to_order_response(item) for item in rows]
@@ -341,7 +342,7 @@ async def list_return_orders(
 async def create_return_order(
     payload: ReturnOrderCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> ReturnOrderResponse:
     order = ReturnOrder(
         return_number=payload.return_number or _generate_number(),
@@ -368,7 +369,7 @@ async def create_return_order(
 async def get_return_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(RETURNS_READ_PERMISSION)),
 ) -> ReturnOrderResponse:
     order = await _load_order_or_404(db, order_id)
     return _to_order_response(order)
@@ -379,7 +380,7 @@ async def update_return_order(
     order_id: int,
     payload: ReturnOrderUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> ReturnOrderResponse:
     order = await _load_order_or_404(db, order_id)
     if order.status in {"resolved", "cancelled"}:
@@ -397,7 +398,7 @@ async def update_return_order(
 async def delete_return_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> MessageResponse:
     order = await _load_order_or_404(db, order_id)
     if order.status not in {"registered", "cancelled"}:
@@ -413,7 +414,7 @@ async def update_return_order_status(
     order_id: int,
     payload: ReturnOrderStatusUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> ReturnOrderResponse:
     order = await _load_order_or_404(db, order_id)
     if payload.status not in TRANSITIONS[order.status]:
@@ -590,7 +591,7 @@ async def update_return_order_status(
 async def list_return_order_items(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(RETURNS_READ_PERMISSION)),
 ) -> list[ReturnOrderItemResponse]:
     await _load_order_or_404(db, order_id)
     rows = list(
@@ -610,7 +611,7 @@ async def create_return_order_item(
     order_id: int,
     payload: ReturnOrderItemCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> ReturnOrderItemResponse:
     order = await _load_order_or_404(db, order_id)
     if order.status in {"resolved", "cancelled"}:
@@ -637,7 +638,7 @@ async def update_return_order_item(
     item_id: int,
     payload: ReturnOrderItemUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> ReturnOrderItemResponse:
     order = await _load_order_or_404(db, order_id)
     if order.status in {"resolved", "cancelled"}:
@@ -665,7 +666,7 @@ async def delete_return_order_item(
     order_id: int,
     item_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> MessageResponse:
     order = await _load_order_or_404(db, order_id)
     if order.status in {"resolved", "cancelled"}:
@@ -686,7 +687,7 @@ async def dispatch_return_order_item_external(
     item_id: int,
     payload: ReturnOrderExternalDispatchPayload | None = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> ReturnOrderExternalDispatchResponse:
     order = await _load_order_or_404(db, order_id)
     if order.status in {"resolved", "cancelled"}:
@@ -785,7 +786,7 @@ async def receive_return_order_item_external(
     item_id: int,
     payload: ReturnOrderExternalReceivePayload,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(RETURNS_WRITE_PERMISSION)),
 ) -> ReturnOrderItemResponse:
     order = await _load_order_or_404(db, order_id)
     if order.status in {"resolved", "cancelled"}:

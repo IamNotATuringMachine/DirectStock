@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.catalog import Product
 from app.models.inventory import Inventory, InventoryCountItem, InventoryCountSession, StockMovement
@@ -25,7 +25,9 @@ from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api/inventory-counts", tags=["inventory-counts"])
 
-INVENTORY_COUNT_ROLES = ("admin", "lagerleiter", "lagermitarbeiter")
+INVENTORY_COUNT_READ_PERMISSION = "module.inventory_counts.read"
+INVENTORY_COUNT_WRITE_PERMISSION = "module.inventory_counts.write"
+INVENTORY_COUNT_CANCEL_PERMISSION = "module.inventory_counts.cancel"
 
 
 def _now() -> datetime:
@@ -122,7 +124,7 @@ def _to_session_response(item: InventoryCountSession) -> InventoryCountSessionRe
 async def list_inventory_count_sessions(
     status_filter: str | None = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
+    _=Depends(require_permissions(INVENTORY_COUNT_READ_PERMISSION)),
 ) -> list[InventoryCountSessionResponse]:
     stmt = select(InventoryCountSession).order_by(InventoryCountSession.id.desc())
     if status_filter:
@@ -135,7 +137,7 @@ async def list_inventory_count_sessions(
 async def create_inventory_count_session(
     payload: InventoryCountSessionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*INVENTORY_COUNT_ROLES)),
+    current_user: User = Depends(require_permissions(INVENTORY_COUNT_WRITE_PERMISSION)),
 ) -> InventoryCountSessionResponse:
     session = InventoryCountSession(
         session_number=payload.session_number or _generate_number("INV"),
@@ -159,7 +161,7 @@ async def create_inventory_count_session(
 async def get_inventory_count_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
+    _=Depends(require_permissions(INVENTORY_COUNT_READ_PERMISSION)),
 ) -> InventoryCountSessionResponse:
     session = await _get_session_or_404(db, session_id)
     return _to_session_response(session)
@@ -170,7 +172,7 @@ async def generate_inventory_count_items(
     session_id: int,
     payload: InventoryCountGenerateItemsRequest,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
+    _=Depends(require_permissions(INVENTORY_COUNT_WRITE_PERMISSION)),
 ) -> MessageResponse:
     session = await _get_session_or_404(db, session_id)
     if session.status == "completed":
@@ -240,7 +242,7 @@ async def generate_inventory_count_items(
 async def list_inventory_count_items(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
+    _=Depends(require_permissions(INVENTORY_COUNT_READ_PERMISSION)),
 ) -> list[InventoryCountItemResponse]:
     await _get_session_or_404(db, session_id)
 
@@ -290,7 +292,7 @@ async def count_inventory_item(
     item_id: int,
     payload: InventoryCountItemCountUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*INVENTORY_COUNT_ROLES)),
+    current_user: User = Depends(require_permissions(INVENTORY_COUNT_WRITE_PERMISSION)),
 ) -> InventoryCountItemResponse:
     session = await _get_session_or_404(db, session_id)
     if session.status == "completed":
@@ -321,7 +323,7 @@ async def count_inventory_item(
 async def complete_inventory_count_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*INVENTORY_COUNT_ROLES)),
+    current_user: User = Depends(require_permissions(INVENTORY_COUNT_WRITE_PERMISSION)),
 ) -> MessageResponse:
     session = await _get_session_or_404(db, session_id)
     if session.status == "completed":
@@ -439,7 +441,7 @@ async def complete_inventory_count_session(
 async def cancel_inventory_count_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(INVENTORY_COUNT_CANCEL_PERMISSION)),
 ) -> MessageResponse:
     session = await _get_session_or_404(db, session_id)
     if session.status == "completed":
@@ -453,7 +455,7 @@ async def cancel_inventory_count_session(
 async def inventory_count_summary(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*INVENTORY_COUNT_ROLES)),
+    _=Depends(require_permissions(INVENTORY_COUNT_READ_PERMISSION)),
 ) -> dict[str, int]:
     await _get_session_or_404(db, session_id)
     total = (

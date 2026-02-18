@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.catalog import ProductSupplier, ProductWarehouseSetting
 from app.models.inventory import Inventory
@@ -22,8 +22,8 @@ from app.schemas.phase3 import (
 
 router = APIRouter(prefix="/api/purchase-recommendations", tags=["purchase-recommendations"])
 
-READ_ROLES = ("admin", "lagerleiter", "einkauf", "controller", "auditor")
-WRITE_ROLES = ("admin", "lagerleiter", "einkauf")
+PURCHASE_RECOMMENDATIONS_READ_PERMISSION = "module.purchase_recommendations.read"
+PURCHASE_RECOMMENDATIONS_WRITE_PERMISSION = "module.purchase_recommendations.write"
 
 
 def _generate_number(prefix: str) -> str:
@@ -81,7 +81,7 @@ async def _preferred_supplier_id(db: AsyncSession, product_id: int) -> tuple[int
 async def generate_purchase_recommendations(
     payload: PurchaseRecommendationGenerateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(PURCHASE_RECOMMENDATIONS_WRITE_PERMISSION)),
 ) -> PurchaseRecommendationListResponse:
     settings_stmt = select(ProductWarehouseSetting)
     if payload.warehouse_id is not None:
@@ -155,7 +155,7 @@ async def list_purchase_recommendations(
     warehouse_id: int | None = Query(default=None),
     product_id: int | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(PURCHASE_RECOMMENDATIONS_READ_PERMISSION)),
 ) -> PurchaseRecommendationListResponse:
     stmt = select(PurchaseRecommendation).order_by(PurchaseRecommendation.generated_at.desc(), PurchaseRecommendation.id.desc())
     if status_filter:
@@ -173,7 +173,7 @@ async def list_purchase_recommendations(
 async def convert_recommendation_to_purchase_order(
     recommendation_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(PURCHASE_RECOMMENDATIONS_WRITE_PERMISSION)),
 ) -> PurchaseRecommendationConvertResponse:
     recommendation = (
         await db.execute(select(PurchaseRecommendation).where(PurchaseRecommendation.id == recommendation_id))
@@ -228,7 +228,7 @@ async def convert_recommendation_to_purchase_order(
 async def dismiss_recommendation(
     recommendation_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(PURCHASE_RECOMMENDATIONS_WRITE_PERMISSION)),
 ) -> PurchaseRecommendationResponse:
     recommendation = (
         await db.execute(select(PurchaseRecommendation).where(PurchaseRecommendation.id == recommendation_id))

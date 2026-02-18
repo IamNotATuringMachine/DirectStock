@@ -3,7 +3,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.catalog import Product, ProductSupplier, Supplier
 from app.schemas.supplier import (
     ProductSupplierCreate,
@@ -17,7 +17,8 @@ from app.schemas.supplier import (
 
 router = APIRouter(prefix="/api", tags=["suppliers"])
 
-SUPPLIER_ROLES = ("admin", "lagerleiter", "einkauf")
+SUPPLIER_READ_PERMISSION = "module.suppliers.read"
+SUPPLIER_WRITE_PERMISSION = "module.suppliers.write"
 
 
 def _to_supplier_response(item: Supplier) -> SupplierResponse:
@@ -56,7 +57,7 @@ async def list_suppliers(
     search: str | None = Query(default=None),
     is_active: bool | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_READ_PERMISSION)),
 ) -> SupplierListResponse:
     filters = []
     if search:
@@ -93,7 +94,7 @@ async def list_suppliers(
 async def create_supplier(
     payload: SupplierCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_WRITE_PERMISSION)),
 ) -> SupplierResponse:
     item = Supplier(**payload.model_dump())
     db.add(item)
@@ -111,7 +112,7 @@ async def create_supplier(
 async def get_supplier(
     supplier_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_READ_PERMISSION)),
 ) -> SupplierResponse:
     item = (await db.execute(select(Supplier).where(Supplier.id == supplier_id))).scalar_one_or_none()
     if item is None:
@@ -124,7 +125,7 @@ async def update_supplier(
     supplier_id: int,
     payload: SupplierUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_WRITE_PERMISSION)),
 ) -> SupplierResponse:
     item = (await db.execute(select(Supplier).where(Supplier.id == supplier_id))).scalar_one_or_none()
     if item is None:
@@ -142,7 +143,7 @@ async def update_supplier(
 async def delete_supplier(
     supplier_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_WRITE_PERMISSION)),
 ) -> None:
     item = (await db.execute(select(Supplier).where(Supplier.id == supplier_id))).scalar_one_or_none()
     if item is None:
@@ -156,7 +157,7 @@ async def delete_supplier(
 async def list_product_suppliers(
     product_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_READ_PERMISSION)),
 ) -> list[ProductSupplierResponse]:
     product = (await db.execute(select(Product).where(Product.id == product_id))).scalar_one_or_none()
     if product is None:
@@ -179,7 +180,7 @@ async def create_product_supplier(
     product_id: int,
     payload: ProductSupplierCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_WRITE_PERMISSION)),
 ) -> ProductSupplierResponse:
     product = (await db.execute(select(Product).where(Product.id == product_id))).scalar_one_or_none()
     if product is None:
@@ -207,7 +208,7 @@ async def update_product_supplier(
     relation_id: int,
     payload: ProductSupplierUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_WRITE_PERMISSION)),
 ) -> ProductSupplierResponse:
     item = (
         await db.execute(
@@ -233,7 +234,7 @@ async def delete_product_supplier(
     product_id: int,
     relation_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*SUPPLIER_ROLES)),
+    _=Depends(require_permissions(SUPPLIER_WRITE_PERMISSION)),
 ) -> None:
     item = (
         await db.execute(

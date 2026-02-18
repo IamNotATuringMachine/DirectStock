@@ -125,6 +125,7 @@ async def test_seeded_roles_include_wave1_module_permissions(tmp_path: Path):
         roles = list((await session.execute(select(Role).options(selectinload(Role.permissions)))).scalars())
         permissions = list((await session.execute(select(Permission))).scalars())
         permission_by_id = {permission.id: permission.code for permission in permissions}
+        permission_codes = {permission.code for permission in permissions}
 
         role_permissions = {
             role.name: {permission_by_id.get(permission.id, "") for permission in role.permissions} for role in roles
@@ -136,8 +137,53 @@ async def test_seeded_roles_include_wave1_module_permissions(tmp_path: Path):
         assert "module.operations.goods_issues.write" in role_permissions["lagermitarbeiter"]
         assert "module.operations.stock_transfers.write" in role_permissions["lagermitarbeiter"]
         assert "module.reports.read" in role_permissions["controller"]
+        assert "module.returns.read" in role_permissions["controller"]
         assert "module.reports.read" in role_permissions["auditor"]
+        assert "module.returns.read" in role_permissions["auditor"]
         assert "module.purchasing.write" in role_permissions["einkauf"]
         assert "module.shipping.write" in role_permissions["versand"]
+        assert "module.inventory_counts.cancel" in role_permissions["lagerleiter"]
+        assert "module.inventory_counts.write" in role_permissions["lagermitarbeiter"]
+        assert "module.alerts.write" in role_permissions["einkauf"]
+        assert "module.alerts.write" in role_permissions["controller"]
+        assert "module.alerts.read" in role_permissions["versand"]
+        assert "module.picking.write" in role_permissions["versand"]
+        assert "module.picking.read" in role_permissions["auditor"]
+        assert "module.approval_rules.read" in role_permissions["controller"]
+        assert "module.approval_rules.read" in role_permissions["auditor"]
+        assert "module.approval_rules.write" in role_permissions["lagerleiter"]
+        assert "module.approvals.read" in role_permissions["auditor"]
+        assert "module.approvals.write" in role_permissions["versand"]
+        assert "module.approvals.write" in role_permissions["einkauf"]
+        assert "module.inter_warehouse_transfers.read" in role_permissions["auditor"]
+        assert "module.inter_warehouse_transfers.write" in role_permissions["lagermitarbeiter"]
+        assert "module.purchase_recommendations.read" in role_permissions["controller"]
+        assert "module.purchase_recommendations.read" in role_permissions["auditor"]
+        assert "module.purchase_recommendations.write" in role_permissions["einkauf"]
+        assert "module.product_settings.read" in role_permissions["einkauf"]
+        assert "module.product_settings.write" in role_permissions["einkauf"]
+        assert "module.abc.read" in role_permissions["controller"]
+        assert "module.abc.read" in role_permissions["auditor"]
+        assert "module.abc.write" in role_permissions["einkauf"]
+        assert "module.audit_log.read" in role_permissions["controller"]
+        assert "module.audit_log.read" in role_permissions["auditor"]
+
+        expected_codes = {
+            "module.inventory_counts.cancel",
+            "module.approval_rules.read",
+            "module.approval_rules.write",
+            "module.approvals.read",
+            "module.approvals.write",
+            "module.inter_warehouse_transfers.read",
+            "module.inter_warehouse_transfers.write",
+            "module.purchase_recommendations.read",
+            "module.purchase_recommendations.write",
+            "module.product_settings.read",
+            "module.product_settings.write",
+            "module.abc.read",
+            "module.abc.write",
+            "module.audit_log.read",
+        }
+        assert expected_codes.issubset(permission_codes)
 
     await engine.dispose()

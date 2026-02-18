@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.catalog import Customer, CustomerLocation
 from app.models.inventory import GoodsIssue
@@ -32,8 +32,8 @@ from app.services.carriers.base import CarrierAdapterError
 router = APIRouter(prefix="/api", tags=["shipping"])
 settings = get_settings()
 
-READ_ROLES = ("admin", "lagerleiter", "versand", "controller", "auditor")
-WRITE_ROLES = ("admin", "lagerleiter", "versand")
+READ_PERMISSION = "module.shipping.read"
+WRITE_PERMISSION = "module.shipping.write"
 
 
 def _now() -> datetime:
@@ -169,7 +169,7 @@ async def list_shipments(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(READ_PERMISSION)),
 ) -> list[ShipmentResponse]:
     stmt = select(Shipment).order_by(Shipment.id.desc())
     if status_filter:
@@ -190,7 +190,7 @@ async def list_shipments(
 async def create_shipment(
     payload: ShipmentCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(WRITE_PERMISSION)),
 ) -> ShipmentResponse:
     if payload.goods_issue_id is not None:
         goods_issue = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == payload.goods_issue_id))).scalar_one_or_none()
@@ -238,7 +238,7 @@ async def create_shipment(
 async def get_shipment(
     shipment_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(READ_PERMISSION)),
 ) -> ShipmentResponse:
     item = (await db.execute(select(Shipment).where(Shipment.id == shipment_id))).scalar_one_or_none()
     if item is None:
@@ -250,7 +250,7 @@ async def get_shipment(
 async def create_shipment_label(
     shipment_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(WRITE_PERMISSION)),
 ) -> ShipmentResponse:
     item = (await db.execute(select(Shipment).where(Shipment.id == shipment_id))).scalar_one_or_none()
     if item is None:
@@ -336,7 +336,7 @@ async def get_shipment_tracking(
     shipment_id: int,
     refresh: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(READ_PERMISSION)),
 ) -> ShipmentTrackingResponse:
     item = (await db.execute(select(Shipment).where(Shipment.id == shipment_id))).scalar_one_or_none()
     if item is None:
@@ -391,7 +391,7 @@ async def get_shipment_tracking(
 async def cancel_shipment(
     shipment_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(WRITE_PERMISSION)),
 ) -> MessageResponse:
     item = (await db.execute(select(Shipment).where(Shipment.id == shipment_id))).scalar_one_or_none()
     if item is None:

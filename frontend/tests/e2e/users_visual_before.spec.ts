@@ -127,23 +127,23 @@ test('verify users page layout before modernization', async ({ page }) => {
 
 
     // Login and Navigate
-    await page.goto('http://localhost:5173/login');
+    await page.goto('/login');
     await page.fill('[data-testid="login-username"]', 'admin');
     await page.fill('[data-testid="login-password"]', 'password');
     await page.click('[data-testid="login-submit"]');
     await page.waitForURL('**/dashboard');
 
-    await page.goto('http://localhost:5173/users');
+    await page.goto('/users');
     await page.waitForSelector('h2:has-text("Benutzerverwaltung")', { state: 'visible' });
     await page.waitForTimeout(1000); // Allow animations/fetches to settle
 
     // Desktop Screenshot
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.waitForTimeout(500);
-    await page.screenshot({ path: '/Users/tobiasmorixbauer/.gemini/antigravity/brain/e02770e0-8393-439a-bbca-82a03aca2147/users_before_desktop.png', fullPage: true });
+    await page.screenshot({ path: 'output/users_before_desktop.png', fullPage: true });
 
     // Mobile Screenshot
     await page.setViewportSize({ width: 375, height: 667 });
     await page.waitForTimeout(500);
-    await page.screenshot({ path: '/Users/tobiasmorixbauer/.gemini/antigravity/brain/e02770e0-8393-439a-bbca-82a03aca2147/users_before_mobile.png', fullPage: true });
+    await page.screenshot({ path: 'output/users_before_mobile.png', fullPage: true });
 });

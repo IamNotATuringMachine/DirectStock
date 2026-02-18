@@ -68,14 +68,14 @@ test('verify scanner page layout', async ({ page }) => {
     });
 
     // Login
-    await page.goto('http://localhost:5173/login');
+    await page.goto('/login');
     await page.fill('[data-testid="login-username"]', 'admin');
     await page.fill('[data-testid="login-password"]', 'password');
     await page.click('[data-testid="login-submit"]');
     await page.waitForURL('**/dashboard');
 
     // Navigate to Scanner
-    await page.goto('http://localhost:5173/scanner');
+    await page.goto('/scanner');
     // Wait for the new header to appear
     await page.waitForSelector('h1:has-text("Scanner")', { state: 'visible' });
 
@@ -85,10 +85,10 @@ test('verify scanner page layout', async ({ page }) => {
     // Desktop Screenshot
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.waitForTimeout(500); // Allow resize to settle
-    await page.screenshot({ path: '/Users/tobiasmorixbauer/.gemini/antigravity/brain/9ea0c9c3-927e-4c40-8dab-f95367654367/scanner_after_desktop.png', fullPage: true });
+    await page.screenshot({ path: 'output/scanner_after_desktop.png', fullPage: true });
 
     // Mobile Screenshot
     await page.setViewportSize({ width: 375, height: 667 });
     await page.waitForTimeout(500); // Allow resize to settle
-    await page.screenshot({ path: '/Users/tobiasmorixbauer/.gemini/antigravity/brain/9ea0c9c3-927e-4c40-8dab-f95367654367/scanner_after_mobile.png', fullPage: true });
+    await page.screenshot({ path: 'output/scanner_after_mobile.png', fullPage: true });
 });

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.alerts import AlertEvent, AlertRule
 from app.models.auth import User
 from app.schemas.alerts import (
@@ -18,8 +18,8 @@ from app.schemas.alerts import (
 
 router = APIRouter(prefix="/api", tags=["alerts"])
 
-ALERT_READ_ROLES = ("admin", "lagerleiter", "lagermitarbeiter", "einkauf", "controller", "versand")
-ALERT_RULE_WRITE_ROLES = ("admin", "lagerleiter", "einkauf", "controller")
+ALERT_READ_PERMISSION = "module.alerts.read"
+ALERT_WRITE_PERMISSION = "module.alerts.write"
 
 
 def _to_rule_response(item: AlertRule) -> AlertRuleResponse:
@@ -71,7 +71,7 @@ async def list_alert_rules(
     is_active: bool | None = Query(default=None),
     search: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*ALERT_READ_ROLES)),
+    _=Depends(require_permissions(ALERT_READ_PERMISSION)),
 ) -> AlertRuleListResponse:
     filters = []
 
@@ -110,7 +110,7 @@ async def list_alert_rules(
 async def create_alert_rule(
     payload: AlertRuleCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*ALERT_RULE_WRITE_ROLES)),
+    _=Depends(require_permissions(ALERT_WRITE_PERMISSION)),
 ) -> AlertRuleResponse:
     item = AlertRule(**payload.model_dump())
     db.add(item)
@@ -123,7 +123,7 @@ async def create_alert_rule(
 async def get_alert_rule(
     rule_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*ALERT_READ_ROLES)),
+    _=Depends(require_permissions(ALERT_READ_PERMISSION)),
 ) -> AlertRuleResponse:
     item = (await db.execute(select(AlertRule).where(AlertRule.id == rule_id))).scalar_one_or_none()
     if item is None:
@@ -136,7 +136,7 @@ async def update_alert_rule(
     rule_id: int,
     payload: AlertRuleUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*ALERT_RULE_WRITE_ROLES)),
+    _=Depends(require_permissions(ALERT_WRITE_PERMISSION)),
 ) -> AlertRuleResponse:
     item = (await db.execute(select(AlertRule).where(AlertRule.id == rule_id))).scalar_one_or_none()
     if item is None:
@@ -154,7 +154,7 @@ async def update_alert_rule(
 async def delete_alert_rule(
     rule_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*ALERT_RULE_WRITE_ROLES)),
+    _=Depends(require_permissions(ALERT_WRITE_PERMISSION)),
 ) -> None:
     item = (await db.execute(select(AlertRule).where(AlertRule.id == rule_id))).scalar_one_or_none()
     if item is None:
@@ -175,7 +175,7 @@ async def list_alerts(
     product_id: int | None = Query(default=None),
     warehouse_id: int | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*ALERT_READ_ROLES)),
+    _=Depends(require_permissions(ALERT_READ_PERMISSION)),
 ) -> AlertListResponse:
     filters = []
     if status_filter:
@@ -222,7 +222,7 @@ async def list_alerts(
 async def acknowledge_alert(
     alert_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*ALERT_READ_ROLES)),
+    current_user: User = Depends(require_permissions(ALERT_READ_PERMISSION)),
 ) -> AlertEventResponse:
     item = (await db.execute(select(AlertEvent).where(AlertEvent.id == alert_id))).scalar_one_or_none()
     if item is None:

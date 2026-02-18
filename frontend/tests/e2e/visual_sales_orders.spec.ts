@@ -5,7 +5,7 @@ test.setTimeout(60000);
 test('visual stress test of sales orders page', async ({ page }) => {
     // Go to the login page
     console.log('Navigating to login...');
-    await page.goto('http://localhost:5173/login', { timeout: 30000 });
+    await page.goto('/login', { timeout: 30000 });
 
     // Fill in the login form
     console.log('Filling login form...');
@@ -20,7 +20,7 @@ test('visual stress test of sales orders page', async ({ page }) => {
 
     // Navigate to the Sales Orders page
     console.log('Navigating to sales orders...');
-    await page.goto('http://localhost:5173/sales-orders');
+    await page.goto('/sales-orders');
 
     // Wait for the page to load
     console.log('Waiting for page header...');
@@ -31,7 +31,7 @@ test('visual stress test of sales orders page', async ({ page }) => {
     console.log('Taking desktop screenshot...');
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.waitForTimeout(2000); // Allow layout to settle
-    await page.screenshot({ path: 'sales-orders-modern-desktop.png', fullPage: true });
+    await page.screenshot({ path: 'output/sales-orders-modern-desktop.png', fullPage: true });
 
     // Check for horizontal scrolling on body (should be 0)
     const scrollWidthDesktop = await page.evaluate(() => document.body.scrollWidth);
@@ -44,14 +44,14 @@ test('visual stress test of sales orders page', async ({ page }) => {
         console.log('Opening details...');
         await detailsButtons.first().click();
         await page.waitForTimeout(1000);
-        await page.screenshot({ path: 'sales-orders-details-desktop.png', fullPage: true });
+        await page.screenshot({ path: 'output/sales-orders-details-desktop.png', fullPage: true });
     }
 
     // 2. Mobile Viewport
     console.log('Taking mobile screenshot...');
     await page.setViewportSize({ width: 375, height: 667 });
     await page.waitForTimeout(2000); // Allow layout to settle
-    await page.screenshot({ path: 'sales-orders-modern-mobile.png', fullPage: true });
+    await page.screenshot({ path: 'output/sales-orders-modern-mobile.png', fullPage: true });
 
     // Check for horizontal scrolling on body (should be 0 or very close)
     const scrollWidthMobile = await page.evaluate(() => document.body.scrollWidth);
@@ -59,6 +59,6 @@ test('visual stress test of sales orders page', async ({ page }) => {
     expect(scrollWidthMobile).toBeLessThanOrEqual(viewportWidthMobile);
 
     // details should still be open
-    await page.screenshot({ path: 'sales-orders-details-mobile.png', fullPage: true });
+    await page.screenshot({ path: 'output/sales-orders-details-mobile.png', fullPage: true });
     console.log('Test completed.');
 });

@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user, get_db, require_roles
+from app.dependencies import get_current_user, get_db, require_permissions
 from app.models.inventory import Inventory
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 from app.schemas.warehouse import (
@@ -26,6 +26,8 @@ from app.utils.http_status import HTTP_422_UNPROCESSABLE
 from app.utils.qr_generator import generate_bin_label_png_bytes, generate_bin_labels_pdf
 
 router = APIRouter(prefix="/api", tags=["warehouses"])
+
+WAREHOUSE_WRITE_PERMISSION = "module.warehouses.write"
 
 
 def _to_warehouse_response(warehouse: Warehouse) -> WarehouseResponse:
@@ -98,7 +100,7 @@ async def list_warehouses(
 async def create_warehouse(
     payload: WarehouseCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> WarehouseResponse:
     warehouse = Warehouse(**payload.model_dump())
     db.add(warehouse)
@@ -130,7 +132,7 @@ async def update_warehouse(
     warehouse_id: int,
     payload: WarehouseUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> WarehouseResponse:
     result = await db.execute(select(Warehouse).where(Warehouse.id == warehouse_id))
     warehouse = result.scalar_one_or_none()
@@ -149,7 +151,7 @@ async def update_warehouse(
 async def delete_warehouse(
     warehouse_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> None:
     result = await db.execute(select(Warehouse).where(Warehouse.id == warehouse_id))
     warehouse = result.scalar_one_or_none()
@@ -177,7 +179,7 @@ async def create_zone(
     warehouse_id: int,
     payload: ZoneCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> ZoneResponse:
     warehouse = (await db.execute(select(Warehouse).where(Warehouse.id == warehouse_id))).scalar_one_or_none()
     if warehouse is None:
@@ -200,7 +202,7 @@ async def update_zone(
     zone_id: int,
     payload: ZoneUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> ZoneResponse:
     zone = (await db.execute(select(WarehouseZone).where(WarehouseZone.id == zone_id))).scalar_one_or_none()
     if zone is None:
@@ -218,7 +220,7 @@ async def update_zone(
 async def delete_zone(
     zone_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> None:
     zone = (await db.execute(select(WarehouseZone).where(WarehouseZone.id == zone_id))).scalar_one_or_none()
     if zone is None:
@@ -258,7 +260,7 @@ async def create_bin(
     zone_id: int,
     payload: BinCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> BinResponse:
     zone = (await db.execute(select(WarehouseZone).where(WarehouseZone.id == zone_id))).scalar_one_or_none()
     if zone is None:
@@ -285,7 +287,7 @@ async def create_bins_batch(
     zone_id: int,
     payload: BinBatchCreateRequest,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> BinBatchCreateResponse:
     zone = (await db.execute(select(WarehouseZone).where(WarehouseZone.id == zone_id))).scalar_one_or_none()
     if zone is None:
@@ -328,7 +330,7 @@ async def update_bin(
     bin_id: int,
     payload: BinUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> BinResponse:
     bin_location = (await db.execute(select(BinLocation).where(BinLocation.id == bin_id))).scalar_one_or_none()
     if bin_location is None:
@@ -351,7 +353,7 @@ async def update_bin(
 async def delete_bin(
     bin_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> None:
     bin_location = (await db.execute(select(BinLocation).where(BinLocation.id == bin_id))).scalar_one_or_none()
     if bin_location is None:
@@ -400,7 +402,7 @@ async def get_bin_qr_code(
 async def get_bin_qr_codes_pdf(
     payload: BinQrPdfRequest,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter")),
+    _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> Response:
     requested_ids = payload.bin_ids
     bins = list(

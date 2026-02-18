@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.inventory import Inventory, InventoryBatch, SerialNumber, StockMovement
 from app.models.phase4 import InterWarehouseTransfer, InterWarehouseTransferItem
@@ -23,8 +23,8 @@ from app.utils.http_status import HTTP_422_UNPROCESSABLE
 
 router = APIRouter(prefix="/api/inter-warehouse-transfers", tags=["inter-warehouse-transfers"])
 
-READ_ROLES = ("admin", "lagerleiter", "lagermitarbeiter", "auditor")
-WRITE_ROLES = ("admin", "lagerleiter", "lagermitarbeiter")
+INTER_WAREHOUSE_TRANSFER_READ_PERMISSION = "module.inter_warehouse_transfers.read"
+INTER_WAREHOUSE_TRANSFER_WRITE_PERMISSION = "module.inter_warehouse_transfers.write"
 
 
 def _now() -> datetime:
@@ -149,7 +149,7 @@ async def list_inter_warehouse_transfers(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(INTER_WAREHOUSE_TRANSFER_READ_PERMISSION)),
 ) -> list[InterWarehouseTransferResponse]:
     rows = list(
         (
@@ -168,7 +168,7 @@ async def list_inter_warehouse_transfers(
 async def create_inter_warehouse_transfer(
     payload: InterWarehouseTransferCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(INTER_WAREHOUSE_TRANSFER_WRITE_PERMISSION)),
 ) -> InterWarehouseTransferResponse:
     if payload.from_warehouse_id == payload.to_warehouse_id:
         raise HTTPException(status_code=HTTP_422_UNPROCESSABLE, detail="from_warehouse_id and to_warehouse_id must differ")
@@ -192,7 +192,7 @@ async def create_inter_warehouse_transfer(
 async def get_inter_warehouse_transfer(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(INTER_WAREHOUSE_TRANSFER_READ_PERMISSION)),
 ) -> InterWarehouseTransferDetailResponse:
     transfer = (
         await db.execute(select(InterWarehouseTransfer).where(InterWarehouseTransfer.id == transfer_id))
@@ -217,7 +217,7 @@ async def create_inter_warehouse_transfer_item(
     transfer_id: int,
     payload: InterWarehouseTransferItemCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(INTER_WAREHOUSE_TRANSFER_WRITE_PERMISSION)),
 ) -> InterWarehouseTransferItemResponse:
     transfer = (
         await db.execute(select(InterWarehouseTransfer).where(InterWarehouseTransfer.id == transfer_id))
@@ -259,7 +259,7 @@ async def create_inter_warehouse_transfer_item(
 async def dispatch_inter_warehouse_transfer(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(INTER_WAREHOUSE_TRANSFER_WRITE_PERMISSION)),
 ) -> MessageResponse:
     transfer = (
         await db.execute(select(InterWarehouseTransfer).where(InterWarehouseTransfer.id == transfer_id))
@@ -380,7 +380,7 @@ async def dispatch_inter_warehouse_transfer(
 async def receive_inter_warehouse_transfer(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(INTER_WAREHOUSE_TRANSFER_WRITE_PERMISSION)),
 ) -> MessageResponse:
     transfer = (
         await db.execute(select(InterWarehouseTransfer).where(InterWarehouseTransfer.id == transfer_id))
@@ -486,7 +486,7 @@ async def receive_inter_warehouse_transfer(
 async def cancel_inter_warehouse_transfer(
     transfer_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(INTER_WAREHOUSE_TRANSFER_WRITE_PERMISSION)),
 ) -> MessageResponse:
     transfer = (
         await db.execute(select(InterWarehouseTransfer).where(InterWarehouseTransfer.id == transfer_id))

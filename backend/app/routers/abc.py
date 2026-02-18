@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.catalog import Product
 from app.models.inventory import StockMovement
@@ -19,8 +19,8 @@ from app.schemas.phase3 import (
 
 router = APIRouter(prefix="/api/abc-classifications", tags=["abc-classifications"])
 
-READ_ROLES = ("admin", "lagerleiter", "einkauf", "controller", "auditor")
-WRITE_ROLES = ("admin", "lagerleiter", "einkauf")
+ABC_READ_PERMISSION = "module.abc.read"
+ABC_WRITE_PERMISSION = "module.abc.write"
 
 
 def _quantize(value: Decimal, digits: str = "0.01") -> Decimal:
@@ -53,7 +53,7 @@ def _run_response(item: AbcClassificationRun) -> AbcClassificationRunResponse:
 async def recompute_abc_classification(
     payload: AbcRecomputeRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(ABC_WRITE_PERMISSION)),
 ) -> AbcClassificationRunResponse:
     date_from, date_to = _date_window(payload)
     start = datetime.combine(date_from, datetime.min.time(), tzinfo=UTC)
@@ -129,7 +129,7 @@ async def recompute_abc_classification(
 async def list_abc_classification(
     run_id: int | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(ABC_READ_PERMISSION)),
 ) -> AbcClassificationListResponse:
     if run_id is None:
         run = (

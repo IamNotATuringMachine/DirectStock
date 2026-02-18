@@ -296,6 +296,7 @@ Frontend Unit:
 ```bash
 cd frontend
 npm install
+npm run test:e2e:hermetic
 npm run lint
 npm run format:check
 npm run test
@@ -307,6 +308,13 @@ Frontend E2E (isolierter Standardlauf mit eigenem Compose-Project + automatische
 cd frontend
 npx playwright install
 npm run test:e2e
+```
+
+Frontend E2E Smoke (isoliert, Desktop + Mobile):
+
+```bash
+cd frontend
+npm run test:e2e:smoke
 ```
 
 Frontend E2E Raw (gegen bereits laufenden Stack, z. B. `http://localhost:8080`):
@@ -327,6 +335,7 @@ Repository-Gates (optional, empfohlen vor PR):
 
 ```bash
 pre-commit run --all-files
+./scripts/autonomous_task_harness.sh
 ```
 
 Refactor-Review-Hilfen:

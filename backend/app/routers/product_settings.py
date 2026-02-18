@@ -3,14 +3,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.catalog import Product, ProductWarehouseSetting
 from app.models.warehouse import Warehouse
 from app.schemas.product_settings import ProductWarehouseSettingResponse, ProductWarehouseSettingUpsert
 
 router = APIRouter(prefix="/api", tags=["product-settings"])
 
-PRODUCT_SETTING_ROLES = ("admin", "lagerleiter", "einkauf")
+PRODUCT_SETTINGS_READ_PERMISSION = "module.product_settings.read"
+PRODUCT_SETTINGS_WRITE_PERMISSION = "module.product_settings.write"
 
 
 def _to_response(item: ProductWarehouseSetting) -> ProductWarehouseSettingResponse:
@@ -40,7 +41,7 @@ def _to_response(item: ProductWarehouseSetting) -> ProductWarehouseSettingRespon
 async def list_product_warehouse_settings(
     product_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*PRODUCT_SETTING_ROLES)),
+    _=Depends(require_permissions(PRODUCT_SETTINGS_READ_PERMISSION)),
 ) -> list[ProductWarehouseSettingResponse]:
     product = (await db.execute(select(Product).where(Product.id == product_id))).scalar_one_or_none()
     if product is None:
@@ -67,7 +68,7 @@ async def upsert_product_warehouse_setting(
     warehouse_id: int,
     payload: ProductWarehouseSettingUpsert,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*PRODUCT_SETTING_ROLES)),
+    _=Depends(require_permissions(PRODUCT_SETTINGS_WRITE_PERMISSION)),
 ) -> ProductWarehouseSettingResponse:
     product = (await db.execute(select(Product).where(Product.id == product_id))).scalar_one_or_none()
     if product is None:
@@ -115,7 +116,7 @@ async def delete_product_warehouse_setting(
     product_id: int,
     warehouse_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*PRODUCT_SETTING_ROLES)),
+    _=Depends(require_permissions(PRODUCT_SETTINGS_WRITE_PERMISSION)),
 ) -> None:
     item = (
         await db.execute(

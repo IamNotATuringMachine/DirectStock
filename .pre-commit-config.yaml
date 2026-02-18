@@ -56,3 +56,9 @@ repos:
         entry: bash -lc 'cd frontend && npm run format:check'
         pass_filenames: false
         files: ^frontend/
+      - id: frontend-e2e-hermetic
+        name: frontend-e2e-hermetic
+        language: system
+        entry: bash -lc 'cd frontend && npm run test:e2e:hermetic'
+        pass_filenames: false
+        files: ^frontend/tests/e2e/.*\.spec\.ts$

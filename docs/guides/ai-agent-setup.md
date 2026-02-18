@@ -46,3 +46,32 @@ For every completed task:
 4. Report files changed, behavior changes, and test outcomes.
 
 Never weaken security, RBAC, audit logging, or idempotency constraints without explicit approval.
+
+## Autonomous Harness (LLM-First)
+Use a deterministic entrypoint for autonomous repo work:
+
+```bash
+./scripts/autonomous_task_harness.sh
+```
+
+Optional strict modes:
+1. Include allowlist enforcement:
+
+```bash
+ENFORCE_REFRACTOR_SCOPE=1 ./scripts/autonomous_task_harness.sh
+```
+
+2. Include isolated E2E smoke:
+
+```bash
+RUN_E2E_SMOKE=1 ./scripts/autonomous_task_harness.sh
+```
+
+## E2E Hermetic Rule
+E2E specs must not use:
+1. hardcoded base URLs (for example `http://localhost:5173`)
+2. absolute user paths (for example `/Users/...`)
+
+Use:
+1. Playwright `baseURL` with `page.goto('/...')`
+2. relative artifact paths under `frontend/output` or `frontend/test-results`

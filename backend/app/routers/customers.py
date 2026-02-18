@@ -3,7 +3,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.catalog import Customer, CustomerContact, CustomerLocation
 from app.schemas.customer import (
     CustomerContactCreate,
@@ -22,7 +22,10 @@ from app.schemas.customer import (
 
 router = APIRouter(prefix="/api", tags=["customers"])
 
-CUSTOMER_ROLES = ("admin", "lagerleiter", "versand")
+# Keep legacy access parity from phase2: customer read endpoints are limited
+# to roles that could previously manage customer master data.
+CUSTOMER_READ_PERMISSION = "module.customers.write"
+CUSTOMER_WRITE_PERMISSION = "module.customers.write"
 
 
 def _to_customer_response(item: Customer) -> CustomerResponse:
@@ -132,7 +135,7 @@ async def list_customers(
     search: str | None = Query(default=None),
     is_active: bool | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_READ_PERMISSION)),
 ) -> CustomerListResponse:
     filters = []
     if search:
@@ -169,7 +172,7 @@ async def list_customers(
 async def create_customer(
     payload: CustomerCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> CustomerResponse:
     item = Customer(**payload.model_dump())
     db.add(item)
@@ -187,7 +190,7 @@ async def create_customer(
 async def get_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_READ_PERMISSION)),
 ) -> CustomerResponse:
     item = await _get_customer_or_404(db, customer_id)
     return _to_customer_response(item)
@@ -198,7 +201,7 @@ async def update_customer(
     customer_id: int,
     payload: CustomerUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> CustomerResponse:
     item = await _get_customer_or_404(db, customer_id)
 
@@ -214,7 +217,7 @@ async def update_customer(
 async def delete_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> None:
     item = await _get_customer_or_404(db, customer_id)
     await db.delete(item)
@@ -226,7 +229,7 @@ async def list_customer_locations(
     customer_id: int,
     is_active: bool | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_READ_PERMISSION)),
 ) -> CustomerLocationListResponse:
     await _get_customer_or_404(db, customer_id)
 
@@ -252,7 +255,7 @@ async def create_customer_location(
     customer_id: int,
     payload: CustomerLocationCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> CustomerLocationResponse:
     await _get_customer_or_404(db, customer_id)
     item = CustomerLocation(customer_id=customer_id, **payload.model_dump())
@@ -271,7 +274,7 @@ async def get_customer_location(
     customer_id: int,
     location_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_READ_PERMISSION)),
 ) -> CustomerLocationResponse:
     item = await _get_customer_location_or_404(db, customer_id, location_id)
     return _to_location_response(item)
@@ -283,7 +286,7 @@ async def update_customer_location(
     location_id: int,
     payload: CustomerLocationUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> CustomerLocationResponse:
     item = await _get_customer_location_or_404(db, customer_id, location_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -302,7 +305,7 @@ async def delete_customer_location(
     customer_id: int,
     location_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> None:
     item = await _get_customer_location_or_404(db, customer_id, location_id)
     await db.delete(item)
@@ -315,7 +318,7 @@ async def list_customer_contacts(
     location_id: int | None = Query(default=None, alias="location_id"),
     is_active: bool | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_READ_PERMISSION)),
 ) -> CustomerContactListResponse:
     await _get_customer_or_404(db, customer_id)
     if location_id is not None:
@@ -346,7 +349,7 @@ async def create_customer_contact(
     customer_id: int,
     payload: CustomerContactCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> CustomerContactResponse:
     await _get_customer_or_404(db, customer_id)
     await _ensure_contact_location_belongs_customer(
@@ -368,7 +371,7 @@ async def update_customer_contact(
     contact_id: int,
     payload: CustomerContactUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> CustomerContactResponse:
     await _get_customer_or_404(db, customer_id)
     item = (
@@ -401,7 +404,7 @@ async def delete_customer_contact(
     customer_id: int,
     contact_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*CUSTOMER_ROLES)),
+    _=Depends(require_permissions(CUSTOMER_WRITE_PERMISSION)),
 ) -> None:
     await _get_customer_or_404(db, customer_id)
     item = (

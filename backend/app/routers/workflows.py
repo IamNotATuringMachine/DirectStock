@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import Role, User
 from app.models.phase3 import ApprovalAction, ApprovalRequest, ApprovalRule
 from app.schemas.phase3 import (
@@ -18,10 +18,10 @@ from app.schemas.phase3 import (
 
 router = APIRouter(prefix="/api", tags=["workflows"])
 
-RULE_READ_ROLES = ("admin", "lagerleiter", "einkauf", "controller", "auditor")
-RULE_WRITE_ROLES = ("admin", "lagerleiter")
-APPROVAL_READ_ROLES = ("admin", "lagerleiter", "einkauf", "versand", "controller", "auditor")
-APPROVAL_WRITE_ROLES = ("admin", "lagerleiter", "einkauf", "versand")
+APPROVAL_RULE_READ_PERMISSION = "module.approval_rules.read"
+APPROVAL_RULE_WRITE_PERMISSION = "module.approval_rules.write"
+APPROVAL_READ_PERMISSION = "module.approvals.read"
+APPROVAL_WRITE_PERMISSION = "module.approvals.write"
 
 
 def _to_rule_response(item: ApprovalRule) -> ApprovalRuleResponse:
@@ -64,7 +64,7 @@ async def _validate_required_role(db: AsyncSession, role_name: str) -> None:
 async def list_approval_rules(
     entity_type: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*RULE_READ_ROLES)),
+    _=Depends(require_permissions(APPROVAL_RULE_READ_PERMISSION)),
 ) -> list[ApprovalRuleResponse]:
     stmt = select(ApprovalRule).order_by(ApprovalRule.id.asc())
     if entity_type:
@@ -77,7 +77,7 @@ async def list_approval_rules(
 async def create_approval_rule(
     payload: ApprovalRuleCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*RULE_WRITE_ROLES)),
+    _=Depends(require_permissions(APPROVAL_RULE_WRITE_PERMISSION)),
 ) -> ApprovalRuleResponse:
     await _validate_required_role(db, payload.required_role)
     item = ApprovalRule(**payload.model_dump())
@@ -92,7 +92,7 @@ async def update_approval_rule(
     rule_id: int,
     payload: ApprovalRuleUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*RULE_WRITE_ROLES)),
+    _=Depends(require_permissions(APPROVAL_RULE_WRITE_PERMISSION)),
 ) -> ApprovalRuleResponse:
     item = (await db.execute(select(ApprovalRule).where(ApprovalRule.id == rule_id))).scalar_one_or_none()
     if item is None:
@@ -115,7 +115,7 @@ async def update_approval_rule(
 async def delete_approval_rule(
     rule_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*RULE_WRITE_ROLES)),
+    _=Depends(require_permissions(APPROVAL_RULE_WRITE_PERMISSION)),
 ) -> None:
     item = (await db.execute(select(ApprovalRule).where(ApprovalRule.id == rule_id))).scalar_one_or_none()
     if item is None:
@@ -130,7 +130,7 @@ async def list_approvals(
     entity_type: str | None = Query(default=None),
     entity_id: int | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*APPROVAL_READ_ROLES)),
+    _=Depends(require_permissions(APPROVAL_READ_PERMISSION)),
 ) -> list[ApprovalRequestResponse]:
     stmt = select(ApprovalRequest).order_by(ApprovalRequest.id.desc())
     if status_filter:
@@ -148,7 +148,7 @@ async def list_approvals(
 async def create_approval_request(
     payload: ApprovalRequestCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*APPROVAL_WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(APPROVAL_WRITE_PERMISSION)),
 ) -> ApprovalRequestResponse:
     request = ApprovalRequest(
         entity_type=payload.entity_type,
@@ -222,7 +222,7 @@ async def approve_request(
     request_id: int,
     payload: ApprovalRequestAction,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*APPROVAL_WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(APPROVAL_WRITE_PERMISSION)),
 ) -> ApprovalRequestResponse:
     return await _apply_approval_action(
         request_id=request_id,
@@ -238,7 +238,7 @@ async def reject_request(
     request_id: int,
     payload: ApprovalRequestAction,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*APPROVAL_WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(APPROVAL_WRITE_PERMISSION)),
 ) -> ApprovalRequestResponse:
     return await _apply_approval_action(
         request_id=request_id,

@@ -7,6 +7,7 @@ COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-directstock_e2e_${PROJECT_SUFFIX}}
 POSTGRES_DB="${POSTGRES_DB:-directstock_e2e_${PROJECT_SUFFIX}}"
 NGINX_PORT="${NGINX_PORT:-$((18080 + RANDOM % 1000))}"
 E2E_BASE_URL="${E2E_BASE_URL:-http://localhost:${NGINX_PORT}}"
+E2E_RAW_SCRIPT="${E2E_RAW_SCRIPT:-test:e2e:raw}"
 
 export POSTGRES_DB
 export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://directstock:directstock@postgres:5432/${POSTGRES_DB}}"
@@ -50,5 +51,5 @@ fi
 
 (
   cd "${ROOT_DIR}/frontend"
-  npm run test:e2e:raw -- "$@"
+  npm run "${E2E_RAW_SCRIPT}" -- "$@"
 )

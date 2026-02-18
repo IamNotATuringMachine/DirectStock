@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.catalog import Product, Supplier
 from app.models.phase3 import ApprovalRequest, ApprovalRule
@@ -27,7 +27,8 @@ from app.schemas.user import MessageResponse
 
 router = APIRouter(prefix="/api", tags=["purchasing"])
 
-PURCHASING_READ_ROLES = ("admin", "lagerleiter", "einkauf")
+PURCHASING_READ_PERMISSION = "module.purchasing.read"
+PURCHASING_WRITE_PERMISSION = "module.purchasing.write"
 
 
 TRANSITIONS: dict[str, set[str]] = {
@@ -122,7 +123,7 @@ async def _ensure_order_can_be_completed(db: AsyncSession, *, order_id: int) -> 
 async def list_purchase_orders(
     status_filter: str | None = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*PURCHASING_READ_ROLES)),
+    _=Depends(require_permissions(PURCHASING_READ_PERMISSION)),
 ) -> list[PurchaseOrderResponse]:
     stmt = select(PurchaseOrder).order_by(PurchaseOrder.id.desc())
     if status_filter:
@@ -135,7 +136,7 @@ async def list_purchase_orders(
 async def resolve_purchase_order_by_number(
     order_number: str = Query(min_length=1),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*PURCHASING_READ_ROLES)),
+    _=Depends(require_permissions(PURCHASING_READ_PERMISSION)),
 ) -> PurchaseOrderResolveResponse:
     normalized = order_number.strip()
     order = (
@@ -190,7 +191,7 @@ async def resolve_purchase_order_by_number(
 async def create_purchase_order(
     payload: PurchaseOrderCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    current_user: User = Depends(require_permissions(PURCHASING_WRITE_PERMISSION)),
 ) -> PurchaseOrderResponse:
     if payload.supplier_id is not None:
         supplier = (await db.execute(select(Supplier).where(Supplier.id == payload.supplier_id))).scalar_one_or_none()
@@ -220,7 +221,7 @@ async def create_purchase_order(
 async def get_purchase_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*PURCHASING_READ_ROLES)),
+    _=Depends(require_permissions(PURCHASING_READ_PERMISSION)),
 ) -> PurchaseOrderResponse:
     item = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if item is None:
@@ -233,7 +234,7 @@ async def update_purchase_order(
     order_id: int,
     payload: PurchaseOrderUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    _=Depends(require_permissions(PURCHASING_WRITE_PERMISSION)),
 ) -> PurchaseOrderResponse:
     item = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if item is None:
@@ -258,7 +259,7 @@ async def update_purchase_order(
 async def delete_purchase_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    _=Depends(require_permissions(PURCHASING_WRITE_PERMISSION)),
 ) -> MessageResponse:
     item = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if item is None:
@@ -276,7 +277,7 @@ async def update_purchase_order_status(
     order_id: int,
     payload: PurchaseOrderStatusUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    current_user: User = Depends(require_permissions(PURCHASING_WRITE_PERMISSION)),
 ) -> PurchaseOrderResponse:
     item = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if item is None:
@@ -371,7 +372,7 @@ async def update_purchase_order_status(
 async def list_purchase_order_items(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*PURCHASING_READ_ROLES)),
+    _=Depends(require_permissions(PURCHASING_READ_PERMISSION)),
 ) -> list[PurchaseOrderItemResponse]:
     order = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if order is None:
@@ -394,7 +395,7 @@ async def create_purchase_order_item(
     order_id: int,
     payload: PurchaseOrderItemCreate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    _=Depends(require_permissions(PURCHASING_WRITE_PERMISSION)),
 ) -> PurchaseOrderItemResponse:
     order = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if order is None:
@@ -419,7 +420,7 @@ async def update_purchase_order_item(
     item_id: int,
     payload: PurchaseOrderItemUpdate,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    _=Depends(require_permissions(PURCHASING_WRITE_PERMISSION)),
 ) -> PurchaseOrderItemResponse:
     order = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if order is None:
@@ -451,7 +452,7 @@ async def delete_purchase_order_item(
     order_id: int,
     item_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles("admin", "lagerleiter", "einkauf")),
+    _=Depends(require_permissions(PURCHASING_WRITE_PERMISSION)),
 ) -> MessageResponse:
     order = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
     if order is None:

@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.audit import AuditLog
 from app.schemas.phase3 import AuditLogEntryResponse, AuditLogListResponse
 
 router = APIRouter(prefix="/api/audit-log", tags=["audit-log"])
-READ_ROLES = ("admin", "lagerleiter", "controller", "auditor")
+AUDIT_LOG_READ_PERMISSION = "module.audit_log.read"
 
 
 def _to_response(item: AuditLog) -> AuditLogEntryResponse:
@@ -45,7 +45,7 @@ async def list_audit_log(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(AUDIT_LOG_READ_PERMISSION)),
 ) -> AuditLogListResponse:
     filters = []
     if user_id is not None:

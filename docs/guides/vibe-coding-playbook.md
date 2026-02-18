@@ -34,6 +34,7 @@ Schnelle, sichere Iterationen mit kleinen, validierten Schritten und reproduzier
 ## Command Matrix
 ```bash
 # Frontend
+cd frontend && npm run test:e2e:hermetic
 cd frontend && npm run lint
 cd frontend && npm run format:check
 cd frontend && npm run test
@@ -46,4 +47,5 @@ cd backend && python -m pytest -q
 
 # Repo
 pre-commit run --all-files
+./scripts/autonomous_task_harness.sh
 ```

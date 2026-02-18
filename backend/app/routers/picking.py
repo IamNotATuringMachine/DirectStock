@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.catalog import Product
 from app.models.inventory import GoodsIssue, GoodsIssueItem
@@ -22,8 +22,8 @@ from app.schemas.phase3 import (
 
 router = APIRouter(prefix="/api", tags=["picking"])
 
-READ_ROLES = ("admin", "lagerleiter", "lagermitarbeiter", "versand", "auditor")
-WRITE_ROLES = ("admin", "lagerleiter", "lagermitarbeiter", "versand")
+PICKING_READ_PERMISSION = "module.picking.read"
+PICKING_WRITE_PERMISSION = "module.picking.write"
 
 
 def _now() -> datetime:
@@ -129,7 +129,7 @@ async def _task_response_rows(db: AsyncSession, wave_id: int) -> list[PickTaskRe
 async def create_pick_wave(
     payload: PickWaveCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(PICKING_WRITE_PERMISSION)),
 ) -> PickWaveDetailResponse:
     issue_stmt = (
         select(GoodsIssue.id)
@@ -208,7 +208,7 @@ async def create_pick_wave(
 @router.get("/pick-waves", response_model=list[PickWaveResponse])
 async def list_pick_waves(
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(PICKING_READ_PERMISSION)),
 ) -> list[PickWaveResponse]:
     rows = list((await db.execute(select(PickWave).order_by(PickWave.id.desc()))).scalars())
     return [_to_wave_response(item) for item in rows]
@@ -218,7 +218,7 @@ async def list_pick_waves(
 async def get_pick_wave(
     wave_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(PICKING_READ_PERMISSION)),
 ) -> PickWaveDetailResponse:
     wave = (await db.execute(select(PickWave).where(PickWave.id == wave_id))).scalar_one_or_none()
     if wave is None:
@@ -231,7 +231,7 @@ async def get_pick_wave(
 async def release_pick_wave(
     wave_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(PICKING_WRITE_PERMISSION)),
 ) -> PickWaveResponse:
     wave = (await db.execute(select(PickWave).where(PickWave.id == wave_id))).scalar_one_or_none()
     if wave is None:
@@ -251,7 +251,7 @@ async def update_pick_task(
     task_id: int,
     payload: PickTaskUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(PICKING_WRITE_PERMISSION)),
 ) -> PickTaskResponse:
     task = (await db.execute(select(PickTask).where(PickTask.id == task_id))).scalar_one_or_none()
     if task is None:
@@ -320,7 +320,7 @@ async def update_pick_task(
 async def complete_pick_wave(
     wave_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(PICKING_WRITE_PERMISSION)),
 ) -> PickWaveResponse:
     wave = (await db.execute(select(PickWave).where(PickWave.id == wave_id))).scalar_one_or_none()
     if wave is None:

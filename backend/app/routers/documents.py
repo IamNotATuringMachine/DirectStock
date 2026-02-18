@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, require_roles
+from app.dependencies import get_db, require_permissions
 from app.models.catalog import Customer, Product, Supplier
 from app.models.auth import User
 from app.models.inventory import GoodsIssue, GoodsReceipt, InventoryCountSession, StockTransfer
@@ -21,8 +21,8 @@ from app.schemas.phase3 import DocumentListResponse, DocumentResponse
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
-READ_ROLES = ("admin", "lagerleiter", "einkauf", "versand", "controller", "auditor")
-WRITE_ROLES = ("admin", "lagerleiter", "einkauf", "versand")
+READ_PERMISSION = "module.documents.read"
+WRITE_PERMISSION = "module.documents.write"
 
 ALLOWED_MIME_TYPES = {"application/pdf", "image/png", "image/jpeg"}
 MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024
@@ -136,7 +136,7 @@ async def list_documents(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(READ_PERMISSION)),
 ) -> DocumentListResponse:
     stmt = select(Document)
     if entity_type:
@@ -171,7 +171,7 @@ async def upload_document(
     document_type: str = Form(...),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_permissions(WRITE_PERMISSION)),
 ) -> DocumentResponse:
     normalized_entity_type = _normalize_name(entity_type, field_name="entity_type")
     normalized_document_type = _normalize_name(document_type, field_name="document_type")
@@ -238,7 +238,7 @@ async def upload_document(
 async def download_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*READ_ROLES)),
+    _=Depends(require_permissions(READ_PERMISSION)),
 ):
     item = (await db.execute(select(Document).where(Document.id == document_id))).scalar_one_or_none()
     if item is None:
@@ -256,7 +256,7 @@ async def download_document(
 async def delete_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_roles(*WRITE_ROLES)),
+    _=Depends(require_permissions(WRITE_PERMISSION)),
 ) -> None:
     item = (await db.execute(select(Document).where(Document.id == document_id))).scalar_one_or_none()
     if item is None:
