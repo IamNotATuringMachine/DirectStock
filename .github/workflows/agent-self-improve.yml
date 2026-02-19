@@ -1,0 +1,61 @@
+name: Agent Self-Improvement
+
+on:
+    schedule:
+        # Weekly on Monday at 07:00 UTC
+        - cron: "0 7 * * 1"
+    push:
+        paths:
+            - "docs/agents/incident-log.md"
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    self-improve:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+
+            - name: Run self-improvement check
+              run: python3 scripts/agent_self_improve.py --mode check
+
+            - name: Run self-improvement apply (if improvements found)
+              run: python3 scripts/agent_self_improve.py --mode apply --emit-decision-log
+              continue-on-error: true
+
+            - name: Run policy lint
+              run: python3 scripts/agent_policy_lint.py --strict --provider all --format json
+
+            - name: Check for changes
+              id: changes
+              run: |
+                  if [ -n "$(git status --porcelain)" ]; then
+                    echo "has_changes=true" >> $GITHUB_OUTPUT
+                  else
+                    echo "has_changes=false" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Create PR for policy updates
+              if: steps.changes.outputs.has_changes == 'true'
+              run: |
+                  git config user.name "Agent Self-Improvement Bot"
+                  git config user.email "agent-bot@directstock.dev"
+                  BRANCH="chore/agent-self-improve-$(date +%Y%m%d-%H%M%S)"
+                  git checkout -b "$BRANCH"
+                  git add AGENTS.md docs/agents/ scripts/ .agents/
+                  git commit -m "chore(agents): automated self-improvement cycle"
+                  git push origin "$BRANCH"
+                  BODY="Automated policy and gate improvements from agent self-improvement runner. See docs/agents/auto-improvement-backlog.md for details."
+                  gh pr create \
+                    --title "chore(agents): automated self-improvement cycle" \
+                    --body "$BODY" \
+                    --base main
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

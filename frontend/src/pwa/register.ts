@@ -3,7 +3,7 @@ import { registerSW } from "virtual:pwa-register";
 
 type UpdateServiceWorker = (reloadPage?: boolean) => Promise<void>;
 
-export type PwaRegistrationState = {
+type PwaRegistrationState = {
   needRefresh: boolean;
   offlineReady: boolean;
   updateServiceWorker: UpdateServiceWorker | null;

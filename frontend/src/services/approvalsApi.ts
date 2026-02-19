@@ -28,7 +28,7 @@ export async function fetchApprovals(params?: {
   return response.data;
 }
 
-export async function createApprovalRequest(payload: {
+async function createApprovalRequest(payload: {
   entity_type: "purchase_order" | "return_order";
   entity_id: number;
   amount?: string | null;

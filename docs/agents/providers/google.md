@@ -1,4 +1,4 @@
-# Google Provider Profile (Gemini + ADK/A2A)
+# Google Provider Profile (Gemini CLI + ADK + A2A)
 
 ## Scope
 - Adapter: `GEMINI.md`
@@ -10,12 +10,44 @@
 2. `agent_engine_patterns`
 3. `a2a_interoperability`
 4. `mcp_tooling`
+5. `gemini_cli_headless`
+6. `context_import_directives`
 
 ## Capability To Behavior Mapping
 1. `adk_workflows` -> model multi-step autonomous work as explicit workflow state transitions.
 2. `agent_engine_patterns` -> package repeatable task patterns as deterministic execution contracts.
 3. `a2a_interoperability` -> handoffs must be transport-agnostic and schema-disciplined.
 4. `mcp_tooling` -> prefer MCP-backed context retrieval for repo/runtime truth.
+5. `gemini_cli_headless` -> use `gemini -p "<prompt>" --headless` for automated/CI workflows.
+6. `context_import_directives` -> use `@import` in GEMINI.md for modular context loading.
+
+## ADK Workflow Agent Types (v2, Feb 2026)
+| Type | Use When |
+|---|---|
+| Sequential | Ordered subtasks with dependencies |
+| Parallel | Independent subtasks that can run concurrently |
+| Loop (LoopAgent) | Iterative refinement until quality gate passes — e.g., lint → fix → lint until clean |
+| Custom (CustomAgent) | Complex branching logic with conditional paths and state management |
+
+### LoopAgent Pattern
+Use for iterative quality convergence:
+```
+LoopAgent: run tests → if fail → fix → re-test → until pass OR max iterations
+```
+Max iterations should be set (default: 5) to prevent infinite loops.
+
+### CustomAgent Pattern
+Use for conditional workflows:
+```
+CustomAgent: check file type → if backend → run pytest → if frontend → run vitest + build
+```
+
+## Conversation Checkpointing
+For long-running tasks (30+ min), use conversation checkpointing:
+1. Checkpoint after each major subtask completion
+2. Include verification results and changed files in checkpoint context
+3. Resume from last checkpoint on failure or context refresh
+4. Store checkpoint summaries in task handoff format
 
 ## Deterministic Runtime Rules
 1. Model all multi-agent handoffs with explicit objective, scope, and verification payloads.
@@ -26,6 +58,8 @@
 6. For frontend UI/UX changes, run a mandatory visual diff gate for desktop and mobile before completion.
 7. For frontend UI/UX changes, run a mandatory accessibility gate for desktop and mobile before completion.
 8. Enforce a fallback sequence when design-tooling providers are unavailable.
+9. Reference `.agents/workflows/` for step-by-step execution patterns.
+10. Use conversation checkpointing for long-running tasks.
 
 ## Fallback Order
 1. `AGENTS.md`
@@ -43,6 +77,7 @@
    - `./scripts/check_design_token_drift.sh`
    - mobile commands must target `--project=ios-iphone-se --project=ios-ipad`
 4. If MCP or external design SaaS is unavailable, execute local visual/a11y/token gates and report fallback evidence.
+5. If headless mode is unavailable, run tasks interactively via CLI.
 
 ## Mandatory Verification Artifacts
 1. `python3 scripts/check_provider_capabilities.py --provider google --format json`

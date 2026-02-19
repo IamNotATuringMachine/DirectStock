@@ -1,6 +1,6 @@
 import type { Permission } from "../types";
 
-export type PermissionPresentation = {
+type PermissionPresentation = {
   title: string;
   subtitle: string;
   category: string;

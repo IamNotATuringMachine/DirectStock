@@ -189,7 +189,7 @@ export async function createShipment(payload: {
   return response.data;
 }
 
-export async function fetchShipment(shipmentId: number): Promise<Shipment> {
+async function fetchShipment(shipmentId: number): Promise<Shipment> {
   if (shipmentId < 0 || isOfflineNow()) {
     const shipments = await fetchShipments();
     const found = shipments.find((item) => item.id === shipmentId);

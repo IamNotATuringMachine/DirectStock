@@ -1,0 +1,35 @@
+{
+    "permissions": {
+        "allow": [
+            "Read",
+            "Write",
+            "Edit",
+            "MultiEdit",
+            "Bash(cd backend*)",
+            "Bash(cd frontend*)",
+            "Bash(npm *)",
+            "Bash(npx *)",
+            "Bash(python *)",
+            "Bash(python3 *)",
+            "Bash(docker *)",
+            "Bash(docker compose *)",
+            "Bash(./scripts/*)",
+            "Bash(git *)",
+            "Bash(cat *)",
+            "Bash(head *)",
+            "Bash(tail *)",
+            "Bash(wc *)",
+            "Bash(grep *)",
+            "Bash(find *)",
+            "Bash(ls *)",
+            "Bash(echo *)",
+            "Bash(playwright *)"
+        ],
+        "deny": [
+            "Bash(rm -rf /)",
+            "Bash(rm -rf /*)",
+            "Bash(: > .env)",
+            "Bash(curl * | bash)"
+        ]
+    }
+}

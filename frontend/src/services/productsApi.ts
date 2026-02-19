@@ -9,7 +9,7 @@ import type {
   ProductUpdatePayload,
 } from "../types";
 
-export type ProductListParams = {
+type ProductListParams = {
   page: number;
   pageSize: number;
   search?: string;

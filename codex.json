@@ -1,0 +1,40 @@
+{
+    "name": "DirectStock",
+    "description": "Warehouse Management System — React 19 + FastAPI + PostgreSQL",
+    "policyFile": "AGENTS.md",
+    "defaultReasoningEffort": "high",
+    "allowedPaths": [
+        "backend/",
+        "frontend/",
+        "scripts/",
+        "docs/",
+        ".agents/",
+        ".claude/",
+        "nginx/",
+        "docker/"
+    ],
+    "excludedPaths": [
+        "node_modules/",
+        ".git/",
+        "__pycache__/",
+        "DirectStock/"
+    ],
+    "mcpProfile": "dev-autonomy",
+    "parallelAgentHints": {
+        "frontend": {
+            "scope": "frontend/",
+            "policy": "frontend/AGENTS.md",
+            "testCommand": "cd frontend && npm run test"
+        },
+        "backend": {
+            "scope": "backend/",
+            "policy": "backend/AGENTS.md",
+            "testCommand": "cd backend && python -m pytest -q"
+        },
+        "governance": {
+            "scope": "docs/agents/",
+            "policy": "AGENTS.md",
+            "testCommand": "./scripts/agent_governance_check.sh"
+        }
+    }
+}

@@ -1,4 +1,4 @@
-# OpenAI Provider Profile (Codex + Responses)
+# OpenAI Provider Profile (Codex CLI + Codex App + Responses)
 
 ## Scope
 - Adapter: `CODEX.md`
@@ -11,6 +11,8 @@
 3. `background_mode`
 4. `mcp_tooling`
 5. `multi_agent_workflows`
+6. `codex_app_orchestration`
+7. `reasoning_effort_tiers`
 
 ## Capability To Behavior Mapping
 1. `responses_api` -> use Responses-native execution path for tool orchestration.
@@ -18,6 +20,15 @@
 3. `background_mode` -> use for long-running checks/evals to avoid partial task closure.
 4. `mcp_tooling` -> prefer MCP-backed context before external lookups for repo-local truth.
 5. `multi_agent_workflows` -> handoff payloads must include objective, scope, verification evidence.
+6. `codex_app_orchestration` -> delegate parallel tasks via Codex App command center (macOS).
+7. `reasoning_effort_tiers` -> select effort level based on task complexity (medium/high/xhigh).
+
+## Reasoning Effort Guide
+| Effort | Use When |
+|---|---|
+| `medium` | Single-file edits, doc updates, simple fixes |
+| `high` | Multi-file features, refactors, test writing |
+| `xhigh` | Architecture changes, complex debugging, cross-cutting concerns |
 
 ## Deterministic Runtime Rules
 1. Prefer Responses-native tool flows for agent tasks.
@@ -25,6 +36,7 @@
 3. Keep `AGENTS.md` highest policy source; adapter text is compatibility-only.
 4. Emit verification commands and outcomes for each completed task.
 5. Emit runtime evidence when falling back from an unavailable capability.
+6. Reference `.agents/workflows/` for step-by-step execution patterns.
 
 ## Fallback Order
 1. `AGENTS.md`
@@ -34,6 +46,19 @@
 ## Failure Handling
 1. If required capability is unavailable, continue with best local fallback and log risk in task output.
 2. If high-risk change is executed, append pre/post evidence to `docs/agents/decision-log.md`.
+3. If Codex App is unavailable, run tasks sequentially via CLI.
+
+## Codex App Integration (Feb 2026)
+The macOS Codex App reads `codex.json` at repository root for native project integration:
+- Default reasoning effort, allowed paths, MCP profile binding
+- Parallel agent hints for frontend/backend/governance scopes
+- See `codex.json` for the project-specific configuration
+
+## GitHub Agentic Workflows
+GitHub supports Codex agents triggered from Actions (technical preview, Feb 2026):
+- Define agent tasks in `.github/agentic-workflows/` (YAML + Markdown)
+- Use for automated issue triage, documentation maintenance, code quality checks
+- Agents inherit `AGENTS.md` as their instruction set
 
 ## Mandatory Verification Artifacts
 1. `python3 scripts/check_provider_capabilities.py --provider openai --format json`

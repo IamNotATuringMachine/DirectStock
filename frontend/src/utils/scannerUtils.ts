@@ -1,6 +1,6 @@
 export type ParsedScanType = "bin_qr" | "product_qr" | "po_qr" | "serial_qr" | "ean" | "unknown";
 
-export type ParsedScan = {
+type ParsedScan = {
   raw: string;
   normalized: string;
   type: ParsedScanType;

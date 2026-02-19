@@ -6,7 +6,7 @@ export async function fetchPermissions(): Promise<Permission[]> {
   return response.data;
 }
 
-export async function fetchPagesCatalog(): Promise<Page[]> {
+async function fetchPagesCatalog(): Promise<Page[]> {
   const response = await api.get<Page[]>("/pages");
   return response.data;
 }
@@ -16,7 +16,7 @@ export async function fetchRoles(): Promise<Role[]> {
   return response.data;
 }
 
-export async function createRole(payload: {
+async function createRole(payload: {
   name: string;
   description?: string | null;
   permission_codes: string[];
@@ -25,17 +25,17 @@ export async function createRole(payload: {
   return response.data;
 }
 
-export async function updateRole(roleId: number, payload: { name?: string; description?: string | null }): Promise<Role> {
+async function updateRole(roleId: number, payload: { name?: string; description?: string | null }): Promise<Role> {
   const response = await api.put<Role>(`/roles/${roleId}`, payload);
   return response.data;
 }
 
-export async function updateRolePermissions(roleId: number, permissionCodes: string[]): Promise<Role> {
+async function updateRolePermissions(roleId: number, permissionCodes: string[]): Promise<Role> {
   const response = await api.put<Role>(`/roles/${roleId}/permissions`, { permission_codes: permissionCodes });
   return response.data;
 }
 
-export async function deleteRole(roleId: number): Promise<{ message: string }> {
+async function deleteRole(roleId: number): Promise<{ message: string }> {
   const response = await api.delete<{ message: string }>(`/roles/${roleId}`);
   return response.data;
 }

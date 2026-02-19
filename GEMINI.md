@@ -13,16 +13,38 @@ Active repo mode: `unrestricted_senior`.
 - Use nested `backend/AGENTS.md` and `frontend/AGENTS.md` for scoped deltas.
 - Avoid duplicating policy text in this file.
 
+## Context Imports
+Load these files for full project context at session start:
+
+@import .ai-context.md
+@import backend/AGENTS.md
+@import frontend/AGENTS.md
+@import docs/agents/repo-map.md
+@import docs/agents/change-playbooks.md
+@import docs/agents/patterns.md
+
 ## Gemini CLI Setup Hint
 Gemini CLI can load multiple context filenames. Configure `context.fileName` so `AGENTS.md` is included:
 
 ```json
 {
   "context": {
-    "fileName": ["AGENTS.md", "GEMINI.md", "frontend/AGENTS.md"]
+    "fileName": ["AGENTS.md", "GEMINI.md", "frontend/AGENTS.md", "backend/AGENTS.md"]
   }
 }
 ```
+
+## Headless Mode
+For automated/CI workflows, use Gemini CLI in headless mode:
+```bash
+gemini -p "Follow AGENTS.md. Task: <description>" --headless
+```
+
+## Conversation Checkpointing
+For long-running tasks, use conversation checkpointing to preserve state:
+- Checkpoint after each major subtask completion
+- Include verification results in checkpoint context
+- Resume from last checkpoint on failure
 
 ## Operational Notes
 - When editing files, follow the nearest applicable `AGENTS.md`.
@@ -38,3 +60,17 @@ Gemini CLI can load multiple context filenames. Configure `context.fileName` so 
   - `cd frontend && npm run test:e2e:visual -- --project=web-desktop`
   - `cd frontend && npm run test:e2e:a11y:mobile`
   - `cd frontend && npm run test:e2e:visual:mobile`
+
+## ADK Workflow Patterns
+When using Google ADK for multi-agent orchestration:
+1. Model each task as an explicit state transition
+2. Use sequential agent for ordered subtasks, parallel agent for independent work
+3. Package repeatable patterns as deterministic execution contracts
+4. Handoffs must follow `docs/agents/handoff-protocol.md`
+
+## A2A Interoperability
+For Agent-to-Agent communication:
+1. Use schema-disciplined payloads (see `docs/agents/handoff.schema.json`)
+2. Implement capability probing before delegation
+3. Use protocol adapters with graceful fallbacks
+4. Keep transport-agnostic — don't couple to specific MCP implementation

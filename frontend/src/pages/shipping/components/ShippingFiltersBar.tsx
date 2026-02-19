@@ -1,6 +1,6 @@
 import type { ShipmentCarrier } from "../../../services/shippingApi";
 
-export type ShippingFiltersBarProps = {
+type ShippingFiltersBarProps = {
   statusFilter: string;
   carrierFilter: "" | ShipmentCarrier;
   onStatusFilterChange: (value: string) => void;

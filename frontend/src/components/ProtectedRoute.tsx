@@ -23,7 +23,7 @@ export function ProtectedRoute({ children }: { children: ReactElement }) {
   return children;
 }
 
-export function RequireRole({
+function RequireRole({
   children,
   roles,
 }: {

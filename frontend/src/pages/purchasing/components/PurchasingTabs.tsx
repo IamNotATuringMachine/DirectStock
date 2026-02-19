@@ -2,7 +2,7 @@ import { AlertCircle, FileText, Filter } from "lucide-react";
 
 import type { PurchasingTab } from "../model";
 
-export type PurchasingTabsProps = {
+type PurchasingTabsProps = {
   tab: PurchasingTab;
   onTabChange: (tab: PurchasingTab) => void;
 };

@@ -24,7 +24,7 @@ export type UserListResponse = {
   items: User[];
 };
 
-export type PermissionOverrideEffect = "allow" | "deny";
+type PermissionOverrideEffect = "allow" | "deny";
 
 export type UserAccessProfile = {
   user_id: number;
@@ -64,7 +64,7 @@ export type TokenResponse = {
   expires_in: number;
 };
 
-export type ApiError = {
+type ApiError = {
   code: string;
   message: string;
   request_id: string;

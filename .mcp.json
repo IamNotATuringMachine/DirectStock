@@ -53,18 +53,48 @@
         "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_memory_server.sh\""
       ],
       "env": {}
+    },
+    "directstock-sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {}
+    },
+    "directstock-fetch": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-fetch"
+      ],
+      "env": {}
+    },
+    "directstock-docker": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-docker"
+      ],
+      "env": {}
     }
   },
   "profiles": {
     "dev-autonomy": {
-      "description": "Local autonomy profile with full DirectStock MCP topology and memory context.",
+      "description": "Local autonomy profile with full DirectStock MCP topology, memory context, reasoning, and infra access.",
       "servers": [
         "directstock-filesystem",
         "directstock-postgres",
         "directstock-github",
         "directstock-playwright",
         "directstock-git",
-        "directstock-memory"
+        "directstock-memory",
+        "directstock-sequential-thinking",
+        "directstock-fetch",
+        "directstock-docker"
       ]
     },
     "dev-full": {
@@ -75,7 +105,10 @@
         "directstock-github",
         "directstock-playwright",
         "directstock-git",
-        "directstock-memory"
+        "directstock-memory",
+        "directstock-sequential-thinking",
+        "directstock-fetch",
+        "directstock-docker"
       ]
     },
     "ci-readonly": {

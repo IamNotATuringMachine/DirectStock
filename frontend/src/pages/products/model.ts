@@ -2,7 +2,7 @@ import type { ProductStatus } from "../../types";
 
 export const productStatuses: ProductStatus[] = ["active", "blocked", "deprecated", "archived"];
 
-export const productStatusLabels: Record<ProductStatus, string> = {
+const productStatusLabels: Record<ProductStatus, string> = {
   active: "Aktiv",
   blocked: "Gesperrt",
   deprecated: "Veraltet",

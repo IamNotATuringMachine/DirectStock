@@ -20,7 +20,7 @@ import {
 } from "./offlineQueueStore";
 import type { EnqueueInput, OfflineQueueItem, SyncResult } from "./offlineQueueTypes";
 
-export type { EnqueueInput, OfflineQueueItem, OfflineQueueStatus, SyncResult } from "./offlineQueueTypes";
+export type {  OfflineQueueItem,   } from "./offlineQueueTypes";
 export { subscribeOfflineQueueChanges };
 
 export async function allocateLocalEntityId(): Promise<number> {

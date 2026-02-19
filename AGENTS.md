@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Version: 2026-02-19-v4 | Scope: repository root (`DirectStock/`)
+> Version: 2026-02-19-v5 | Scope: repository root (`DirectStock/`)
 >
 > Autonomy mode: unrestricted_senior
 
@@ -103,32 +103,81 @@ For any high-risk action (destructive git, breaking contract, security-critical 
    - rollback hint
    - verification command(s) and result(s)
 
+## Context Loading Priority
+Agents must load context in this order to optimize their context window:
+
+1. This `AGENTS.md` (always first).
+2. Nearest nested `AGENTS.md` for the scope being edited.
+3. `ARCHITECTURE.md` (if architecture-level context is needed).
+4. Relevant entrypoint doc from `docs/agents/entrypoints/`.
+5. Relevant context pack from `docs/agents/context-packs/`.
+6. `docs/agents/repo-index.json` for structured file navigation.
+7. Source files: load only files being modified plus their immediate dependencies.
+8. `docs/agents/patterns.md` for previously successful approaches.
+
+Do not pre-load the entire codebase. Load incrementally and prefer entrypoint docs over raw source exploration.
+
+## Architecture Quick-Reference
+- Full architecture overview with Mermaid diagrams: `ARCHITECTURE.md`.
+- System flow: Browser → Nginx → FastAPI → PostgreSQL.
+- Key rule: routers/pages orchestrate only; logic lives in services/hooks.
+- File size targets: pages <350 LOC, modules <500 LOC.
+
+## Agent Workflows
+Executable step-by-step recipes for common tasks. Located in `.agents/workflows/`:
+1. `feature-implementation.md` — end-to-end: branch → code → test → PR
+2. `bug-fix.md` — reproduce → root-cause → fix → verify
+3. `frontend-page-modernize.md` — audit → refactor → test → visual baseline
+4. `backend-endpoint.md` — schema → router → service → test → contract check
+5. `self-improvement-run.md` — incident scan → policy update → gate validation
+
+All workflows use `// turbo-all` for autonomous execution.
+
 ## Monorepo Navigation
 - `backend/`: FastAPI, SQLAlchemy 2.x, Alembic, auth/RBAC/audit/idempotency.
-- `frontend/`: React 19, Vite 6, TypeScript, TanStack Query, Zustand, PWA.
+- `frontend/`: React 19, Vite 7, TypeScript, TanStack Query, Zustand, PWA.
 - `nginx/`: reverse proxy (`/` frontend, `/api/*` backend).
 - `scripts/`: seed/import/batch/check automation.
 - `docs/`: implementation guides and validation artifacts.
+- `.agents/workflows/`: executable agent task recipes.
 - `directstock_phase*.md`: project status and phase history.
 
 ## Source Of Truth
-1. API contract: `backend/app/schemas/*` and `frontend/src/types.ts`.
-2. Project status baseline: `directstock_phase5.md`.
-3. Tests as executable specification.
-4. Agent handoff protocol: `docs/agents/handoff-protocol.md`.
-5. Agent incident log process: `docs/agents/incident-log.md`.
-6. Domain entrypoints for LLM navigation: `docs/agents/entrypoints/*`.
-7. High-risk forensic log: `docs/agents/decision-log.md`.
-8. Context packs: `docs/agents/context-packs/*`.
-9. Provider capability docs: `docs/agents/providers/*`.
-10. Machine-readable repository navigation index: `docs/agents/repo-index.json`.
+1. Architecture overview: `ARCHITECTURE.md`.
+2. API contract: `backend/app/schemas/*` and `frontend/src/types.ts`.
+3. Project status baseline: `directstock_phase5.md`.
+4. Tests as executable specification.
+5. Agent handoff protocol: `docs/agents/handoff-protocol.md`.
+6. Agent incident log process: `docs/agents/incident-log.md`.
+7. Domain entrypoints for LLM navigation: `docs/agents/entrypoints/*`.
+8. High-risk forensic log: `docs/agents/decision-log.md`.
+9. Context packs: `docs/agents/context-packs/*`.
+10. Provider capability docs: `docs/agents/providers/*`.
+11. Machine-readable repository navigation index: `docs/agents/repo-index.json`.
+12. Agent workflows: `.agents/workflows/*`.
+13. Root AI context: `.ai-context.md`.
+14. Golden task evaluation suite: `docs/agents/golden-tasks.md`.
+15. Agent patterns knowledge base: `docs/agents/patterns.md`.
+16. Codex App project config: `codex.json`.
+17. Claude skills: `.claude/skills/*`.
 
 ## Autonomous Self-Improvement Policy
 1. Self-improvement is enabled in `unrestricted_senior` mode.
 2. Runner: `scripts/agent_self_improve.py`.
-3. Allowed touch scope for autonomous policy updates: `AGENTS`, `docs`, `scripts`.
+3. Allowed touch scope for autonomous policy updates: `AGENTS`, `docs`, `scripts`, `.agents`.
 4. Default recurrence trigger: same incident category >= 3 occurrences in 14 days.
 5. All autonomous high-risk policy updates must write pre/post evidence to `docs/agents/decision-log.md`.
+6. Automation: GitHub Actions runs `agent_self_improve.py` weekly and on incident-log changes (`.github/workflows/agent-self-improve.yml`).
+7. Agents should proactively log patterns they observe to `docs/agents/incident-log.md` during normal work.
+
+## What Agents Should Auto-Fix
+When an agent notices a recurring issue, it should act like a senior SWE:
+1. **Missing test coverage**: Write the test, don't just note it.
+2. **Drift in types/contracts**: Sync immediately, don't defer.
+3. **Files exceeding LOC limits**: Refactor into smaller modules.
+4. **Missing entrypoints**: Generate the entrypoint doc.
+5. **Stale documentation**: Update docs/agents/ files to reflect reality.
+6. **New workflow patterns**: Create a new `.agents/workflows/` file if a pattern repeats 3+ times.
 
 ## Autonomous Governance Maintenance Hooks
 1. Validate policy contract parity: `python3 scripts/agent_policy_lint.py --strict --provider all --format json`.
@@ -144,6 +193,8 @@ For any high-risk action (destructive git, breaking contract, security-critical 
 3. Add or tighten executable gates in `scripts/*` and CI workflows.
 4. Record high-risk governance changes in `docs/agents/decision-log.md`.
 5. Keep loop non-noisy: no timestamp-only churn without semantic policy/gate impact.
+6. Agents encountering a novel failure should log it immediately, not defer to session end.
+7. Golden task evaluation suite: `docs/agents/golden-tasks.md` defines tasks agents must complete correctly. Use `scripts/run_golden_tasks.sh` to validate.
 
 ## Architecture Defaults (Non-Blocking)
 ### Backend
@@ -166,6 +217,16 @@ Work is complete only when all are true:
 - Relevant automated tests were executed locally and reported.
 - Behavioral/API changes were documented.
 - Reproduction steps are clear.
+
+## Agent Session Footer
+Before ending any work session, agents must check whether any of these need updating:
+1. `docs/agents/incident-log.md` — if a failure or unexpected behavior occurred.
+2. `docs/agents/entrypoints/*.md` — if files were added, removed, or significantly restructured.
+3. `docs/agents/repo-index.json` — if project structure changed (run `python3 scripts/generate_repo_index.py --write`).
+4. `docs/agents/patterns.md` — if a successful approach was discovered that could help future sessions.
+5. `docs/agents/decision-log.md` — if any high-risk action was taken.
+
+This is advisory, not blocking. Skip if nothing changed.
 
 ## Handoff Minimum (Required)
 For agent-to-agent or wave handoff, include all fields from `docs/agents/handoff-protocol.md`:
@@ -192,6 +253,7 @@ Optional machine-readable payload format:
 5. Keep context packs current under `docs/agents/context-packs/*`.
 6. Keep `docs/agents/repo-index.json` synchronized via `python3 scripts/generate_repo_index.py --write`.
 7. Treat `/DirectStock` (Obsidian workspace) as non-production context unless explicitly requested.
+8. Keep frontend free of dead code. Run `cd frontend && npm run knip` to detect unused files, exports, and dependencies.
 
 ## Standard Commands
 ```bash
@@ -206,6 +268,9 @@ cd backend && python -m pytest -q
 cd frontend && npm run test
 cd frontend && npm run test:e2e
 cd frontend && npm run test:e2e:raw
+
+# Dead code detection
+cd frontend && npm run knip
 
 # Agent governance
 ./scripts/agent_governance_check.sh

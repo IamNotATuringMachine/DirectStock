@@ -78,7 +78,7 @@ function getDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function txReadAll<T>(storeName: string): Promise<T[]> {
+async function txReadAll<T>(storeName: string): Promise<T[]> {
   const db = await getDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, "readonly");

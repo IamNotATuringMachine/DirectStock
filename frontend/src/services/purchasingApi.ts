@@ -23,7 +23,7 @@ export async function createPurchaseOrder(payload: {
   return response.data;
 }
 
-export async function updatePurchaseOrder(
+async function updatePurchaseOrder(
   orderId: number,
   payload: {
     supplier_id?: number | null;
@@ -62,6 +62,6 @@ export async function createPurchaseOrderItem(
   return response.data;
 }
 
-export async function deletePurchaseOrderItem(orderId: number, itemId: number): Promise<void> {
+async function deletePurchaseOrderItem(orderId: number, itemId: number): Promise<void> {
   await api.delete(`/purchase-orders/${orderId}/items/${itemId}`);
 }

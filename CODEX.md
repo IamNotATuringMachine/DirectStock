@@ -19,6 +19,22 @@ Codex natively uses `AGENTS.md` as the primary project instruction file. This fi
 - Record high-risk decisions in `docs/agents/decision-log.md`.
 - Keep provider parity valid with `python3 scripts/agent_policy_lint.py --strict --provider openai --format json`.
 
+## Codex App Integration (Feb 2026)
+For the macOS Codex App (command center for parallel agents):
+- Delegate long-running tasks to background mode
+- Use parallel agents for independent subtasks (e.g., frontend + backend simultaneously)
+- Poll results and merge
+
+## Reasoning Effort Guidance
+- `medium`: routine single-file edits, documentation updates, simple bug fixes
+- `high`: multi-file features, refactors, test writing
+- `xhigh`: complex architecture changes, cross-cutting concerns, debugging multi-system issues
+
+## Multi-Surface Workflow
+1. **CLI**: scaffold features, run tests, quick iteration
+2. **IDE**: polish code, detailed edits, review diffs
+3. **Cloud agents**: large independent tasks, parallel execution
+
 ## Optional Codex Config Pattern
 If your team uses fallback filenames, keep `AGENTS.md` first and add fallbacks in `~/.codex/config.toml`:
 

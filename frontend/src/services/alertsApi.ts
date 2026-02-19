@@ -50,7 +50,7 @@ export async function fetchAlertRules(params: {
   return response.data;
 }
 
-export async function createAlertRule(payload: {
+async function createAlertRule(payload: {
   name: string;
   rule_type: "low_stock" | "zero_stock" | "expiry_window";
   severity?: "low" | "medium" | "high" | "critical";

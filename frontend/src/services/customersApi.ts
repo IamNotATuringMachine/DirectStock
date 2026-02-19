@@ -42,7 +42,7 @@ export async function createCustomer(payload: {
   return response.data;
 }
 
-export async function updateCustomer(
+async function updateCustomer(
   customerId: number,
   payload: {
     company_name?: string;
@@ -98,7 +98,7 @@ export async function createCustomerLocation(
   return response.data;
 }
 
-export async function updateCustomerLocation(
+async function updateCustomerLocation(
   customerId: number,
   locationId: number,
   payload: {
@@ -156,7 +156,7 @@ export async function createCustomerContact(
   return response.data;
 }
 
-export async function updateCustomerContact(
+async function updateCustomerContact(
   customerId: number,
   contactId: number,
   payload: {

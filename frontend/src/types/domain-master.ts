@@ -270,7 +270,7 @@ export type InventoryByBinItem = {
   unit: string;
 };
 
-export type InventoryBatchItem = {
+type InventoryBatchItem = {
   id: number;
   product_id: number;
   product_number: string;

@@ -116,7 +116,7 @@ export type SalesOrderDetail = {
   items: SalesOrderItem[];
 };
 
-export type SalesOrderListResponse = {
+type SalesOrderListResponse = {
   items: SalesOrder[];
   total: number;
   page: number;
@@ -162,7 +162,7 @@ export type InvoiceDetail = {
   items: InvoiceItem[];
 };
 
-export type InvoiceListResponse = {
+type InvoiceListResponse = {
   items: Invoice[];
   total: number;
   page: number;
