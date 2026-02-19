@@ -1,6 +1,6 @@
 # Agent Governance Snapshot
 
-Generated at: 2026-02-19T10:30:30Z
+Generated at: 2026-02-19T10:55:51Z
 
 ## Summary
 
