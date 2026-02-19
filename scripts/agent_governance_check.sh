@@ -127,8 +127,12 @@ if [ -f docs/agents/policy.contract.yaml ]; then
 fi
 
 if [ -f scripts/agent_policy_lint.py ]; then
+  policy_python="python3"
+  if [ -x backend/.venv/bin/python ]; then
+    policy_python="backend/.venv/bin/python"
+  fi
   set +e
-  policy_lint_output="$(python3 scripts/agent_policy_lint.py --strict --provider all --format json 2>&1)"
+  policy_lint_output="$(${policy_python} scripts/agent_policy_lint.py --strict --provider all --format json 2>&1)"
   policy_lint_rc=$?
   set -e
   if [ "${policy_lint_rc}" -ne 0 ]; then

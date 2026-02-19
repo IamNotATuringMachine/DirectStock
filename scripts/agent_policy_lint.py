@@ -44,6 +44,44 @@ def _path_exists(path_like: str) -> bool:
     return path.exists()
 
 
+def _format_json_path(path_parts: Any) -> str:
+    parts = list(path_parts)
+    if not parts:
+        return "$"
+
+    rendered = "$"
+    for part in parts:
+        if isinstance(part, int):
+            rendered += f"[{part}]"
+        else:
+            rendered += f".{part}"
+    return rendered
+
+
+def validate_schema(contract: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+    findings: list[str] = []
+
+    if not isinstance(schema, dict):
+        return ["policy schema must be an object"]
+
+    try:
+        import jsonschema  # type: ignore
+    except Exception:
+        return ["schema validation unavailable: install python package 'jsonschema'"]
+
+    try:
+        validator_cls = jsonschema.validators.validator_for(schema)
+        validator_cls.check_schema(schema)
+        validator = validator_cls(schema)
+    except Exception as exc:
+        return [f"policy schema invalid: {exc}"]
+
+    for error in sorted(validator.iter_errors(contract), key=lambda err: (list(err.absolute_path), err.message)):
+        findings.append(f"schema violation at {_format_json_path(error.absolute_path)}: {error.message}")
+
+    return findings
+
+
 def _gate_path_from_command(command: str) -> Path | None:
     try:
         tokens = shlex.split(command)
@@ -226,7 +264,7 @@ def main() -> int:
 
     try:
         contract = _load_data(CONTRACT_PATH)
-        _ = _load_data(SCHEMA_PATH)
+        schema = _load_data(SCHEMA_PATH)
     except Exception as exc:
         print(f"Failed to load policy files: {exc}", file=sys.stderr)
         return 2
@@ -234,8 +272,12 @@ def main() -> int:
     if not isinstance(contract, dict):
         print("Policy contract must be an object", file=sys.stderr)
         return 2
+    if not isinstance(schema, dict):
+        print("Policy schema must be an object", file=sys.stderr)
+        return 2
 
     findings = validate_contract(contract, strict=args.strict, provider=args.provider)
+    findings.extend(validate_schema(contract, schema))
 
     payload = {
         "valid": len(findings) == 0,
