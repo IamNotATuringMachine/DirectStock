@@ -8,6 +8,9 @@
     "decision_classes",
     "high_risk_protocol",
     "provider_matrix",
+    "provider_runtime_contracts",
+    "eval_gates",
+    "self_improvement_noise_guard",
     "self_improvement_policy",
     "required_gates"
   ],
@@ -41,6 +44,32 @@
         "openai": {"$ref": "#/$defs/provider"},
         "anthropic": {"$ref": "#/$defs/provider"},
         "google": {"$ref": "#/$defs/provider"}
+      },
+      "additionalProperties": false
+    },
+    "provider_runtime_contracts": {
+      "type": "object",
+      "required": ["openai", "anthropic", "google"],
+      "properties": {
+        "openai": {"$ref": "#/$defs/provider_runtime_contract"},
+        "anthropic": {"$ref": "#/$defs/provider_runtime_contract"},
+        "google": {"$ref": "#/$defs/provider_runtime_contract"}
+      },
+      "additionalProperties": false
+    },
+    "eval_gates": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "self_improvement_noise_guard": {
+      "type": "object",
+      "required": ["enabled", "block_timestamp_only_churn", "require_semantic_diff_for_pr"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "block_timestamp_only_churn": {"type": "boolean"},
+        "require_semantic_diff_for_pr": {"type": "boolean"}
       },
       "additionalProperties": false
     },
@@ -96,6 +125,25 @@
           "uniqueItems": true
         },
         "fallback_order": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider_runtime_contract": {
+      "type": "object",
+      "required": ["required_behaviors", "verification_artifacts"],
+      "properties": {
+        "required_behaviors": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "verification_artifacts": {
           "type": "array",
           "items": {"type": "string", "minLength": 1},
           "minItems": 1,

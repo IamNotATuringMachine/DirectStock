@@ -32,6 +32,33 @@ on:
     - cron: "0 3 */2 * *"
 
 jobs:
+  provider_capability_matrix:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [openai, anthropic, google]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install provider lint deps
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install jsonschema
+
+      - name: Validate policy parity for provider
+        run: python3 scripts/agent_policy_lint.py --strict --provider "${{ matrix.provider }}" --format json
+
+      - name: Validate provider runtime capabilities
+        run: python3 scripts/check_provider_capabilities.py --strict --provider "${{ matrix.provider }}" --format json
+
   llm_guards:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -41,11 +68,22 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Refactor scope allowlist
         run: ./scripts/check_refactor_scope_allowlist.sh
 
       - name: File size limits guard
         run: SIZE_GUARD_MODE=changed ./scripts/check_file_size_limits.sh
+
+      - name: Repo index drift guard
+        run: python3 scripts/generate_repo_index.py --check
+
+      - name: Entrypoint coverage guard
+        run: python3 scripts/check_entrypoint_coverage.py
 
   size_guard:
     if: github.event_name != 'schedule'
@@ -358,7 +396,10 @@ jobs:
       - name: Install governance lint dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install jsonschema
+          python3 -m pip install jsonschema pytest
+
+      - name: Self-improve regression tests
+        run: python3 -m pytest -q tests/test_agent_self_improve.py
 
       - name: Run agent autonomy conformance scan
         id: governance

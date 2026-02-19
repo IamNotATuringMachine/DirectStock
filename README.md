@@ -1,6 +1,9 @@
-# DirectStock Sprint 1 Foundation
+# DirectStock Platform (Phase 5+)
 
-Dieses Repository enthält die Sprint-1-Implementierung für DirectStock inkl. Phase `1.11.1-1.11.5`:
+Dieses Repository enthält den aktuellen produktionsnahen Stand von DirectStock (Backend + Frontend + Governance).
+Die ursprüngliche Sprint-1-Basis ist vollständig erweitert bis einschließlich Phase 5 mit zusätzlichen Governance-/Autonomy-Gates für LLM-gestützte Entwicklung.
+
+Aktuelle Plattform-Bausteine:
 
 - Infrastruktur mit Docker Compose (`postgres`, `backend`, `frontend`, `nginx`)
 - FastAPI-Backend mit Alembic-Migrationen
@@ -11,6 +14,8 @@ Dieses Repository enthält die Sprint-1-Implementierung für DirectStock inkl. P
 - Deterministischer Seed auf MVP-Niveau und Legacy-Importer (Fail-fast CSV-Validierung)
 - Backend-Tests, Frontend-Unit-Tests und Playwright-E2E-Basissuite
 - Separate Production-Runtime-Artefakte
+- AGENTS-zentrierte Multi-Provider-Governance (OpenAI, Anthropic, Google)
+- MCP-Profile für autonome Entwicklung, CI-Read-only und Governance-Reviews
 
 ## AI Agent Instructions
 

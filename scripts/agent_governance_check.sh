@@ -118,6 +118,7 @@ for path in \
   docs/agents/handoff-protocol.md \
   docs/agents/incident-log.md \
   docs/agents/repo-map.md \
+  docs/agents/repo-index.json \
   docs/agents/change-playbooks.md \
   docs/agents/handoff.schema.json; do
   require_file "${path}" "Create ${path}."
@@ -147,6 +148,52 @@ if [ -f scripts/agent_policy_lint.py ]; then
 else
   add_finding "Missing required script: scripts/agent_policy_lint.py"
   add_action "Create scripts/agent_policy_lint.py and integrate provider parity linting."
+fi
+
+if [ -f scripts/check_provider_capabilities.py ]; then
+  provider_python="python3"
+  if [ -x backend/.venv/bin/python ]; then
+    provider_python="backend/.venv/bin/python"
+  fi
+  set +e
+  provider_check_output="$(${provider_python} scripts/check_provider_capabilities.py --provider all --strict --format json 2>&1)"
+  provider_check_rc=$?
+  set -e
+  if [ "${provider_check_rc}" -ne 0 ]; then
+    add_finding "Provider capability check failed: ${provider_check_output}"
+    add_action "Fix provider runtime contracts and profile evidence consumed by scripts/check_provider_capabilities.py."
+  fi
+else
+  add_finding "Missing required script: scripts/check_provider_capabilities.py"
+  add_action "Create scripts/check_provider_capabilities.py and wire it into governance checks."
+fi
+
+if [ -f scripts/generate_repo_index.py ]; then
+  set +e
+  repo_index_output="$(python3 scripts/generate_repo_index.py --check 2>&1)"
+  repo_index_rc=$?
+  set -e
+  if [ "${repo_index_rc}" -ne 0 ]; then
+    add_finding "Repository index drift check failed: ${repo_index_output}"
+    add_action "Run python3 scripts/generate_repo_index.py --write and commit docs/agents/repo-index.json."
+  fi
+else
+  add_finding "Missing required script: scripts/generate_repo_index.py"
+  add_action "Create scripts/generate_repo_index.py for machine-readable navigation index generation."
+fi
+
+if [ -f scripts/check_entrypoint_coverage.py ]; then
+  set +e
+  entrypoint_output="$(python3 scripts/check_entrypoint_coverage.py 2>&1)"
+  entrypoint_rc=$?
+  set -e
+  if [ "${entrypoint_rc}" -ne 0 ]; then
+    add_finding "Entrypoint coverage check failed: ${entrypoint_output}"
+    add_action "Repair docs/agents/entrypoints coverage so all active modules are mapped."
+  fi
+else
+  add_finding "Missing required script: scripts/check_entrypoint_coverage.py"
+  add_action "Create scripts/check_entrypoint_coverage.py and wire into governance checks."
 fi
 
 require_file "scripts/check_branch_protection.sh" "Create scripts/check_branch_protection.sh for autonomous auto-merge guardrails."

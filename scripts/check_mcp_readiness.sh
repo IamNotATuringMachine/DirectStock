@@ -234,6 +234,7 @@ cfg_postgres="no"
 cfg_github="no"
 cfg_playwright="no"
 cfg_git="no"
+cfg_memory="no"
 
 if [ "${config_source}" = ".mcp.json" ]; then
   if server_enabled_repo "filesystem"; then cfg_filesystem="yes"; fi
@@ -241,12 +242,14 @@ if [ "${config_source}" = ".mcp.json" ]; then
   if server_enabled_repo "github"; then cfg_github="yes"; fi
   if server_enabled_repo "playwright"; then cfg_playwright="yes"; fi
   if server_enabled_repo "git"; then cfg_git="yes"; fi
+  if server_enabled_repo "memory"; then cfg_memory="yes"; fi
 else
   if has_any_heading "[mcp_servers.filesystem]" "[mcp_servers.directstock_filesystem]"; then cfg_filesystem="yes"; fi
   if has_any_heading "[mcp_servers.postgres]" "[mcp_servers.directstock_postgres]"; then cfg_postgres="yes"; fi
   if has_any_heading "[mcp_servers.github]" "[mcp_servers.directstock_github]"; then cfg_github="yes"; fi
   if has_any_heading "[mcp_servers.playwright]" "[mcp_servers.directstock_playwright]"; then cfg_playwright="yes"; fi
   if has_any_heading "[mcp_servers.git]" "[mcp_servers.directstock_git]"; then cfg_git="yes"; fi
+  if has_any_heading "[mcp_servers.memory]" "[mcp_servers.directstock_memory]"; then cfg_memory="yes"; fi
 fi
 
 status_filesystem="blocked"
@@ -259,6 +262,8 @@ status_playwright="blocked"
 note_playwright="server not configured"
 status_git="blocked"
 note_git="server not configured"
+status_memory="blocked"
+note_memory="server not configured"
 
 if [ "${cfg_filesystem}" = "yes" ]; then
   if command -v npx >/dev/null 2>&1; then
@@ -342,6 +347,16 @@ if [ "${cfg_git}" = "yes" ]; then
   fi
 fi
 
+if [ "${cfg_memory}" = "yes" ]; then
+  if command -v npx >/dev/null 2>&1; then
+    result="$(run_probe "npx -y @modelcontextprotocol/server-memory --help")"
+    status_memory="${result%%|*}"
+    note_memory="${result#*|}"
+  else
+    note_memory="npx not found"
+  fi
+fi
+
 overall="ready"
 evaluate_server() {
   local configured="$1"
@@ -375,6 +390,9 @@ fi
 if [ "${overall}" != "failing" ]; then
   evaluate_server "${cfg_git}" "${status_git}"
 fi
+if [ "${overall}" != "failing" ]; then
+  evaluate_server "${cfg_memory}" "${status_memory}"
+fi
 
 {
   echo "# MCP Readiness Snapshot"
@@ -400,6 +418,7 @@ fi
   echo "| github | ${cfg_github} | ${status_github} | ${note_github} |"
   echo "| playwright | ${cfg_playwright} | ${status_playwright} | ${note_playwright} |"
   echo "| git | ${cfg_git} | ${status_git} | ${note_git} |"
+  echo "| memory | ${cfg_memory} | ${status_memory} | ${note_memory} |"
   echo
   echo "## Probe Semantics"
   echo

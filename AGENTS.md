@@ -56,6 +56,19 @@ Default mapping:
 
 There is no `always_escalate` class in `unrestricted_senior`.
 
+## Deterministic No-Question Rules
+For `auto_execute`, agents must proceed without clarification when all needed facts are discoverable from code, docs, tests, or runtime signals.
+
+Apply directly without asking when:
+1. A path/module/owner can be resolved from repository structure or nearest scoped `AGENTS.md`.
+2. A validation command already exists in repo scripts/docs and can be executed as-is.
+3. A contract/type drift is mechanistically fixable by synchronizing schema/types/tests.
+4. A missing operational default can be resolved by existing policy defaults in this file.
+
+Ask once only if:
+1. Product intent has two or more materially different user outcomes.
+2. Top-level instructions conflict and cannot be reconciled via local evidence.
+
 ## Priority And Conflict Handling
 1. Direct user/developer/system instructions.
 2. Closest nested `AGENTS.md` that covers the edited file.
@@ -73,6 +86,7 @@ If instructions conflict, apply the highest-priority rule and document assumptio
 6. Run and report relevant tests/checks before closing work.
 7. Keep `docs/agents/decision-log.md` updated for high-risk operations.
 8. Keep provider parity valid via `python3 scripts/agent_policy_lint.py --strict --provider all --format json`.
+9. Keep provider runtime capability gates valid via `python3 scripts/check_provider_capabilities.py --provider all --format json`.
 
 ## High-Risk Execution Protocol
 For any high-risk action (destructive git, breaking contract, security-critical change, invasive migration):
@@ -107,6 +121,7 @@ For any high-risk action (destructive git, breaking contract, security-critical 
 7. High-risk forensic log: `docs/agents/decision-log.md`.
 8. Context packs: `docs/agents/context-packs/*`.
 9. Provider capability docs: `docs/agents/providers/*`.
+10. Machine-readable repository navigation index: `docs/agents/repo-index.json`.
 
 ## Autonomous Self-Improvement Policy
 1. Self-improvement is enabled in `unrestricted_senior` mode.
@@ -119,6 +134,16 @@ For any high-risk action (destructive git, breaking contract, security-critical 
 1. Validate policy contract parity: `python3 scripts/agent_policy_lint.py --strict --provider all --format json`.
 2. Validate MCP CI profile with read-only posture: `MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh`.
 3. Validate branch protection baseline for autonomous auto-merge: `./scripts/check_branch_protection.sh`.
+4. Validate provider runtime capability contracts: `python3 scripts/check_provider_capabilities.py --provider all --format json`.
+5. Validate repo index drift: `python3 scripts/generate_repo_index.py --check`.
+6. Validate entrypoint coverage drift: `python3 scripts/check_entrypoint_coverage.py`.
+
+## Incident To Policy To Eval Loop
+1. Capture recurring failures in `docs/agents/incident-log.md`.
+2. Convert recurring categories into explicit policy or contract updates.
+3. Add or tighten executable gates in `scripts/*` and CI workflows.
+4. Record high-risk governance changes in `docs/agents/decision-log.md`.
+5. Keep loop non-noisy: no timestamp-only churn without semantic policy/gate impact.
 
 ## Architecture Defaults (Non-Blocking)
 ### Backend
@@ -165,7 +190,8 @@ Optional machine-readable payload format:
 3. Router/page modules should orchestrate only; business logic should live in services/hooks/view-models.
 4. Keep domain entrypoint docs current under `docs/agents/entrypoints/*`.
 5. Keep context packs current under `docs/agents/context-packs/*`.
-6. Treat `/DirectStock` (Obsidian workspace) as non-production context unless explicitly requested.
+6. Keep `docs/agents/repo-index.json` synchronized via `python3 scripts/generate_repo_index.py --write`.
+7. Treat `/DirectStock` (Obsidian workspace) as non-production context unless explicitly requested.
 
 ## Standard Commands
 ```bash
@@ -184,6 +210,7 @@ cd frontend && npm run test:e2e:raw
 # Agent governance
 ./scripts/agent_governance_check.sh
 python3 scripts/agent_policy_lint.py --strict --provider all --format json
+python3 scripts/check_provider_capabilities.py --provider all --format json
 
 # Production
 docker compose -f docker-compose.prod.yml up -d --build
@@ -199,7 +226,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ## Active Modules (Phase 5)
 ### Backend routers
-`auth`, `users`, `products`, `warehouses`, `inventory`, `operations`, `dashboard`, `customers`, `suppliers`, `product_settings`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `abc`, `purchase_recommendations`, `picking`, `returns`, `workflows`, `documents`, `audit_log`, `external_api`, `integration_clients`, `shipping`, `inter_warehouse_transfers`, `permissions`, `pages`, `roles`, `ui_preferences`, `dashboard_config`, `pricing`, `services_catalog`, `sales_orders`, `invoices`
+`auth`, `users`, `products`, `warehouses`, `inventory`, `operations`, `dashboard`, `customers`, `suppliers`, `product_settings`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `abc`, `purchase_recommendations`, `picking`, `returns`, `workflows`, `documents`, `audit_log`, `external_api`, `integration_clients`, `shipping`, `inter_warehouse_transfers`, `permissions`, `pages`, `roles`, `ui_preferences`, `dashboard_config`, `pricing`, `sales_orders`, `invoices`
 
 ### Frontend pages
-`Products`, `ProductForm`, `GoodsReceipt`, `GoodsIssue`, `StockTransfer`, `Inventory`, `InventoryCount`, `Purchasing`, `Reports`, `Alerts`, `Dashboard`, `Scanner`, `Warehouse`, `Picking`, `Returns`, `Approvals`, `Documents`, `AuditTrail`, `Shipping`, `InterWarehouseTransfer`, `Users`, `Services`, `SalesOrders`, `Invoices`
+`Products`, `ProductForm`, `GoodsReceipt`, `GoodsIssue`, `StockTransfer`, `Inventory`, `InventoryCount`, `Purchasing`, `Reports`, `Alerts`, `Dashboard`, `Scanner`, `Warehouse`, `Picking`, `Returns`, `Approvals`, `Documents`, `AuditTrail`, `Shipping`, `InterWarehouseTransfer`, `Users`, `Customers`, `SalesOrders`, `Invoices`

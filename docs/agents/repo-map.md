@@ -23,11 +23,9 @@
 - Types contract: `frontend/src/types.ts`, `frontend/src/types/*`
 
 ## Agent Entrypoints By Domain
-- Operations: `docs/agents/entrypoints/operations.md`
-- Reports: `docs/agents/entrypoints/reports.md`
-- Returns: `docs/agents/entrypoints/returns.md`
-- Shipping: `docs/agents/entrypoints/shipping.md`
-- Product Form: `docs/agents/entrypoints/product-form.md`
+Entrypoints are maintained per active backend module plus frontend page map under:
+- `docs/agents/entrypoints/*.md`
+- `docs/agents/repo-index.json` (machine-readable router/service/schema/test map)
 
 ## Context Packs
 - Backend: `docs/agents/context-packs/backend.md`
@@ -40,4 +38,6 @@
 1. API compatibility: `./scripts/check_api_contract_drift.sh`
 2. Refactor scope safety: `./scripts/check_refactor_scope_allowlist.sh`
 3. File chunking policy: `./scripts/check_file_size_limits.sh`
-4. Autonomous governance: `./scripts/agent_governance_check.sh`
+4. Repo index drift: `python3 scripts/generate_repo_index.py --check`
+5. Entrypoint coverage drift: `python3 scripts/check_entrypoint_coverage.py`
+6. Autonomous governance: `./scripts/agent_governance_check.sh`

@@ -25,6 +25,7 @@ Run provider parity lint before closing governance-impacting changes:
 
 ```bash
 python3 scripts/agent_policy_lint.py --strict --provider all --format json
+python3 scripts/check_provider_capabilities.py --strict --provider all --format json
 ```
 
 Provider-specific checks:
@@ -154,9 +155,14 @@ Run this matrix based on change type before marking tasks complete:
    - `python3 scripts/agent_policy_lint.py --strict --provider all --format json`
 13. Autonomous self-improvement dry run:
    - `python3 scripts/agent_self_improve.py --mode dry-run --max-changes 5 --touch AGENTS docs scripts`
-14. MCP CI profile + read-only posture:
+14. Provider runtime capability parity:
+   - `python3 scripts/check_provider_capabilities.py --strict --provider all --format json`
+15. Repo index + entrypoint drift guards:
+   - `python3 scripts/generate_repo_index.py --check`
+   - `python3 scripts/check_entrypoint_coverage.py`
+16. MCP CI profile + read-only posture:
    - `MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh`
-15. Branch protection baseline for autonomous auto-merge:
+17. Branch protection baseline for autonomous auto-merge:
    - `./scripts/check_branch_protection.sh`
    - `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1 ./scripts/check_branch_protection.sh` (strict mode, fail if repo plan does not expose branch-protection API)
    - CI toggle: set repository variable `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1` to enforce strict mode in `agent_self_improve.yml`.
@@ -171,3 +177,10 @@ Quick bootstrap across Codex, Claude Code, and Gemini CLI:
 ```bash
 ./scripts/setup_mcp_multi_cli.sh
 ```
+
+## One-Command Agent Runners
+Use `Makefile` shortcuts for deterministic autonomous execution:
+1. `make agent-fast`
+2. `make agent-full`
+3. `make agent-governance`
+4. `make agent-mcp`

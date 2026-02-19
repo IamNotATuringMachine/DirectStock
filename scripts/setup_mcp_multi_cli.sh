@@ -10,6 +10,7 @@ PG_WRAPPER="${MCP_DIR}/start_postgres_server.sh"
 GH_WRAPPER="${MCP_DIR}/start_github_server.sh"
 PW_WRAPPER="${MCP_DIR}/start_playwright_server.sh"
 GT_WRAPPER="${MCP_DIR}/start_git_server.sh"
+MW_WRAPPER="${MCP_DIR}/start_memory_server.sh"
 
 announce() {
   printf "\n==> %s\n" "$1"
@@ -70,6 +71,13 @@ setup_codex() {
   else
     echo "codex git server already configured"
   fi
+
+  if ! has_toml_section memory; then
+    append_codex_section memory "${MW_WRAPPER}"
+    echo "added codex memory server"
+  else
+    echo "codex memory server already configured"
+  fi
 }
 
 setup_claude() {
@@ -80,8 +88,8 @@ setup_claude() {
   fi
 
   local scope="project"
-  local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git")
-  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}")
+  local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git" "directstock-memory")
+  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}")
   local i
 
   for i in "${!names[@]}"; do
@@ -109,8 +117,8 @@ setup_gemini() {
   fi
 
   local scope="project"
-  local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git")
-  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}")
+  local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git" "directstock-memory")
+  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}")
   local i
 
   for i in "${!names[@]}"; do

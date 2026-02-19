@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,9 @@ REQUIRED_ROOT_FIELDS = {
     "decision_classes",
     "high_risk_protocol",
     "provider_matrix",
+    "provider_runtime_contracts",
+    "eval_gates",
+    "self_improvement_noise_guard",
     "self_improvement_policy",
     "required_gates",
 }
@@ -58,28 +62,30 @@ def _format_json_path(path_parts: Any) -> str:
     return rendered
 
 
-def validate_schema(contract: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+def validate_schema(contract: dict[str, Any], schema: dict[str, Any]) -> tuple[list[str], bool]:
     findings: list[str] = []
+    missing_dependency = False
 
     if not isinstance(schema, dict):
-        return ["policy schema must be an object"]
+        return ["policy schema must be an object"], missing_dependency
 
     try:
         import jsonschema  # type: ignore
     except Exception:
-        return ["schema validation unavailable: install python package 'jsonschema'"]
+        missing_dependency = True
+        return [], missing_dependency
 
     try:
         validator_cls = jsonschema.validators.validator_for(schema)
         validator_cls.check_schema(schema)
         validator = validator_cls(schema)
     except Exception as exc:
-        return [f"policy schema invalid: {exc}"]
+        return [f"policy schema invalid: {exc}"], missing_dependency
 
     for error in sorted(validator.iter_errors(contract), key=lambda err: (list(err.absolute_path), err.message)):
         findings.append(f"schema violation at {_format_json_path(error.absolute_path)}: {error.message}")
 
-    return findings
+    return findings, missing_dependency
 
 
 def _gate_path_from_command(command: str) -> Path | None:
@@ -179,6 +185,55 @@ def validate_contract(contract: dict[str, Any], *, strict: bool, provider: str) 
         elif fallback_order[0] != "AGENTS.md":
             findings.append(f"provider_matrix.{provider_name}.fallback_order must start with AGENTS.md")
 
+    runtime_contracts = contract.get("provider_runtime_contracts")
+    if not isinstance(runtime_contracts, dict):
+        findings.append("provider_runtime_contracts must be an object")
+        runtime_contracts = {}
+    for provider_name in providers_to_check:
+        runtime_data = runtime_contracts.get(provider_name)
+        if not isinstance(runtime_data, dict):
+            findings.append(f"provider_runtime_contracts.{provider_name} missing or invalid")
+            continue
+
+        required_behaviors = runtime_data.get("required_behaviors")
+        if not isinstance(required_behaviors, list) or not required_behaviors:
+            findings.append(f"provider_runtime_contracts.{provider_name}.required_behaviors must be a non-empty list")
+
+        verification_artifacts = runtime_data.get("verification_artifacts")
+        if not isinstance(verification_artifacts, list) or not verification_artifacts:
+            findings.append(f"provider_runtime_contracts.{provider_name}.verification_artifacts must be a non-empty list")
+        elif strict:
+            for artifact in verification_artifacts:
+                if not isinstance(artifact, str) or not artifact:
+                    findings.append(
+                        f"provider_runtime_contracts.{provider_name}.verification_artifacts contains invalid entry"
+                    )
+                    continue
+                if not _path_exists(artifact):
+                    findings.append(
+                        f"provider_runtime_contracts.{provider_name}.verification_artifact missing: {artifact}"
+                    )
+
+    eval_gates = contract.get("eval_gates")
+    if not isinstance(eval_gates, list) or not eval_gates:
+        findings.append("eval_gates must be a non-empty list")
+    elif strict:
+        for command in eval_gates:
+            if not isinstance(command, str) or not command.strip():
+                findings.append("eval_gates entries must be non-empty strings")
+                continue
+            gate_path = _gate_path_from_command(command)
+            if gate_path is not None and not gate_path.exists():
+                findings.append(f"eval_gates references missing path: {gate_path.relative_to(REPO_ROOT)}")
+
+    noise_guard = contract.get("self_improvement_noise_guard")
+    if not isinstance(noise_guard, dict):
+        findings.append("self_improvement_noise_guard must be an object")
+    else:
+        for field in ("enabled", "block_timestamp_only_churn", "require_semantic_diff_for_pr"):
+            if not isinstance(noise_guard.get(field), bool):
+                findings.append(f"self_improvement_noise_guard.{field} must be a boolean")
+
     self_improvement = contract.get("self_improvement_policy")
     if not isinstance(self_improvement, dict):
         findings.append("self_improvement_policy must be an object")
@@ -259,6 +314,7 @@ def parse_args() -> argparse.Namespace:
         help="Validate one provider section or all",
     )
     parser.add_argument("--format", choices=["md", "json"], default="md", help="Output format")
+    parser.add_argument("--no-fallback", action="store_true", help=argparse.SUPPRESS)
     return parser.parse_args()
 
 
@@ -287,7 +343,25 @@ def main() -> int:
         return 2
 
     findings = validate_contract(contract, strict=args.strict, provider=args.provider)
-    findings.extend(validate_schema(contract, schema))
+    schema_findings, schema_dependency_missing = validate_schema(contract, schema)
+    if schema_dependency_missing:
+        backend_python = REPO_ROOT / "backend/.venv/bin/python"
+        if not args.no_fallback and backend_python.exists():
+            command = [str(backend_python), str(Path(__file__).resolve()), *sys.argv[1:], "--no-fallback"]
+            process = subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True)
+            if process.stdout:
+                print(process.stdout.rstrip())
+            if process.stderr:
+                print(process.stderr.rstrip(), file=sys.stderr)
+            return process.returncode
+        print(
+            "Missing dependency 'jsonschema' and no fallback interpreter available. "
+            "Run backend/.venv/bin/python scripts/agent_policy_lint.py ...",
+            file=sys.stderr,
+        )
+        return 2
+
+    findings.extend(schema_findings)
 
     payload = {
         "valid": len(findings) == 0,

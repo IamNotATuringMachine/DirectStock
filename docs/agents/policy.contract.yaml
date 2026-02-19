@@ -56,6 +56,61 @@
       ]
     }
   },
+  "provider_runtime_contracts": {
+    "openai": {
+      "required_behaviors": [
+        "responses_api_first",
+        "conversation_state_preserved",
+        "background_mode_for_long_tasks",
+        "remote_mcp_tooling_supported",
+        "tool_result_traceability"
+      ],
+      "verification_artifacts": [
+        "docs/agents/providers/openai.md",
+        "scripts/check_provider_capabilities.py"
+      ]
+    },
+    "anthropic": {
+      "required_behaviors": [
+        "claude_code_hooks_available",
+        "memory_files_supported",
+        "prompt_caching_supported",
+        "mcp_connector_supported",
+        "tool_result_traceability"
+      ],
+      "verification_artifacts": [
+        "docs/agents/providers/anthropic.md",
+        "scripts/check_provider_capabilities.py"
+      ]
+    },
+    "google": {
+      "required_behaviors": [
+        "adk_workflows_supported",
+        "agent_engine_patterns_supported",
+        "a2a_interoperability_supported",
+        "mcp_tooling_supported",
+        "tool_result_traceability"
+      ],
+      "verification_artifacts": [
+        "docs/agents/providers/google.md",
+        "scripts/check_provider_capabilities.py"
+      ]
+    }
+  },
+  "eval_gates": [
+    "./scripts/agent_governance_check.sh",
+    "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
+    "python3 scripts/check_provider_capabilities.py --provider all --format json",
+    "python3 scripts/generate_repo_index.py --check",
+    "python3 scripts/check_entrypoint_coverage.py",
+    "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
+    "./scripts/check_branch_protection.sh"
+  ],
+  "self_improvement_noise_guard": {
+    "enabled": true,
+    "block_timestamp_only_churn": true,
+    "require_semantic_diff_for_pr": true
+  },
   "self_improvement_policy": {
     "enabled": true,
     "runner_script": "scripts/agent_self_improve.py",
@@ -73,6 +128,9 @@
   "required_gates": [
     "./scripts/agent_governance_check.sh",
     "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
+    "python3 scripts/check_provider_capabilities.py --provider all --format json",
+    "python3 scripts/generate_repo_index.py --check",
+    "python3 scripts/check_entrypoint_coverage.py",
     "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
     "./scripts/check_branch_protection.sh"
   ]

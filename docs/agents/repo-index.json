@@ -1,0 +1,633 @@
+{
+  "active_modules": [
+    "auth",
+    "users",
+    "products",
+    "warehouses",
+    "inventory",
+    "operations",
+    "dashboard",
+    "customers",
+    "suppliers",
+    "product_settings",
+    "purchasing",
+    "inventory_counts",
+    "reports",
+    "alerts",
+    "abc",
+    "purchase_recommendations",
+    "picking",
+    "returns",
+    "workflows",
+    "documents",
+    "audit_log",
+    "external_api",
+    "integration_clients",
+    "shipping",
+    "inter_warehouse_transfers",
+    "permissions",
+    "pages",
+    "roles",
+    "ui_preferences",
+    "dashboard_config",
+    "pricing",
+    "sales_orders",
+    "invoices"
+  ],
+  "frontend_top_pages": [
+    "AlertsPage.tsx",
+    "ApprovalsPage.tsx",
+    "AuditTrailPage.tsx",
+    "CustomersPage.tsx",
+    "DashboardPage.tsx",
+    "DocumentsPage.tsx",
+    "GoodsIssuePage.tsx",
+    "GoodsReceiptPage.tsx",
+    "InterWarehouseTransferPage.tsx",
+    "InventoryCountPage.tsx",
+    "InventoryPage.tsx",
+    "InvoicesPage.tsx",
+    "PickingPage.tsx",
+    "ProductDetailPage.tsx",
+    "ProductFormPage.tsx",
+    "ProductsPage.tsx",
+    "PurchasingPage.tsx",
+    "ReportsPage.tsx",
+    "ReturnsPage.tsx",
+    "SalesOrdersPage.tsx",
+    "ScannerPage.tsx",
+    "ShippingPage.tsx",
+    "StockTransferPage.tsx",
+    "UsersPage.tsx",
+    "WarehousePage.tsx"
+  ],
+  "modules": [
+    {
+      "module": "auth",
+      "routers": [
+        "backend/app/routers/auth.py"
+      ],
+      "services": [
+        "backend/app/services/auth_service.py"
+      ],
+      "schemas": [
+        "backend/app/schemas/auth.py"
+      ],
+      "tests": [
+        "backend/tests/test_auth.py",
+        "backend/tests/test_auth_seed_contract.py",
+        "backend/tests/test_external_api_auth.py",
+        "frontend/tests/e2e/auth-guards-flow.spec.ts"
+      ],
+      "frontend": []
+    },
+    {
+      "module": "users",
+      "routers": [
+        "backend/app/routers/users.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_users.py",
+        "frontend/tests/e2e/users-access-profile-flow.spec.ts",
+        "frontend/tests/e2e/users_visual_after.spec.ts",
+        "frontend/tests/e2e/users_visual_before.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/UsersPage.tsx",
+        "frontend/src/pages/users/UsersView.tsx",
+        "frontend/src/pages/users/components/UsersHeader.tsx",
+        "frontend/src/pages/users/components/UsersPasswordModal.tsx",
+        "frontend/src/pages/users/components/UsersTable.tsx"
+      ]
+    },
+    {
+      "module": "products",
+      "routers": [
+        "backend/app/routers/products.py"
+      ],
+      "services": [],
+      "schemas": [
+        "backend/app/schemas/product_settings.py"
+      ],
+      "tests": [
+        "backend/tests/test_products.py",
+        "frontend/tests/e2e/products-page-ui.spec.ts",
+        "frontend/tests/e2e/products-search.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/ProductsPage.tsx",
+        "frontend/src/pages/product-form/components/ProductSuppliersSection.tsx",
+        "frontend/src/pages/product-form/components/ProductSuppliersTab.tsx",
+        "frontend/src/pages/products/ProductsView.tsx"
+      ]
+    },
+    {
+      "module": "warehouses",
+      "routers": [
+        "backend/app/routers/warehouses.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_warehouses.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/product-form/components/ProductWarehouseSection.tsx",
+        "frontend/src/pages/warehouse/components/WarehouseWarehousesPanel.tsx"
+      ]
+    },
+    {
+      "module": "inventory",
+      "routers": [
+        "backend/app/routers/inventory.py"
+      ],
+      "services": [
+        "backend/app/services/operations/inventory_service.py"
+      ],
+      "schemas": [
+        "backend/app/schemas/inventory.py",
+        "backend/app/schemas/inventory_counts.py"
+      ],
+      "tests": [
+        "backend/tests/test_inventory.py",
+        "backend/tests/test_inventory_counts.py",
+        "frontend/tests/e2e/inventory-count-flow.spec.ts",
+        "frontend/tests/e2e/inventory-count-page-ui.spec.ts",
+        "frontend/tests/e2e/inventory-page-ui.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/InventoryCountPage.tsx",
+        "frontend/src/pages/InventoryPage.tsx",
+        "frontend/src/pages/inventory-count/InventoryCountView.tsx",
+        "frontend/src/pages/inventory-count/components/InventoryCountActionsPanel.tsx",
+        "frontend/src/pages/inventory-count/components/InventoryCountItemsTable.tsx",
+        "frontend/src/pages/inventory-count/components/InventoryCountQuickCapturePanel.tsx",
+        "frontend/src/pages/inventory-count/components/InventoryCountSessionsPanel.tsx",
+        "frontend/src/pages/inventory/InventoryView.tsx",
+        "frontend/src/pages/reports/components/sections/InventoryAccuracySection.tsx"
+      ]
+    },
+    {
+      "module": "operations",
+      "routers": [
+        "backend/app/routers/operations/__init__.py",
+        "backend/app/routers/operations/common.py",
+        "backend/app/routers/operations/goods_issues.py",
+        "backend/app/routers/operations/goods_issues_workflow.py",
+        "backend/app/routers/operations/goods_receipts.py",
+        "backend/app/routers/operations/goods_receipts_crud.py",
+        "backend/app/routers/operations/goods_receipts_items.py",
+        "backend/app/routers/operations/goods_receipts_workflow.py",
+        "backend/app/routers/operations/labels.py",
+        "backend/app/routers/operations/receipt_helpers.py",
+        "backend/app/routers/operations/response_mappers.py",
+        "backend/app/routers/operations/stock_transfers.py",
+        "backend/app/routers/operations/stock_transfers_workflow.py"
+      ],
+      "services": [
+        "backend/app/services/operations/__init__.py",
+        "backend/app/services/operations/inventory_service.py",
+        "backend/app/services/operations/issue_service.py",
+        "backend/app/services/operations/receipt_service.py",
+        "backend/app/services/operations/transfer_service.py"
+      ],
+      "schemas": [
+        "backend/app/schemas/operations.py"
+      ],
+      "tests": [
+        "backend/tests/test_operations.py"
+      ],
+      "frontend": []
+    },
+    {
+      "module": "dashboard",
+      "routers": [
+        "backend/app/routers/dashboard.py"
+      ],
+      "services": [],
+      "schemas": [
+        "backend/app/schemas/dashboard.py"
+      ],
+      "tests": [
+        "backend/tests/test_dashboard.py",
+        "frontend/tests/e2e/dashboard-config-flow.spec.ts",
+        "frontend/tests/e2e/dashboard-page-ui.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/DashboardPage.tsx"
+      ]
+    },
+    {
+      "module": "customers",
+      "routers": [
+        "backend/app/routers/customers.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_customers.py",
+        "backend/tests/test_customers_hierarchy.py",
+        "frontend/tests/e2e/customers-hierarchy-flow.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/CustomersPage.tsx",
+        "frontend/src/pages/customers/CustomersView.tsx"
+      ]
+    },
+    {
+      "module": "suppliers",
+      "routers": [
+        "backend/app/routers/suppliers.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_suppliers.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/product-form/components/ProductSuppliersSection.tsx",
+        "frontend/src/pages/product-form/components/ProductSuppliersTab.tsx"
+      ]
+    },
+    {
+      "module": "product_settings",
+      "routers": [
+        "backend/app/routers/product_settings.py"
+      ],
+      "services": [],
+      "schemas": [
+        "backend/app/schemas/product_settings.py"
+      ],
+      "tests": [
+        "backend/tests/test_product_settings.py"
+      ],
+      "frontend": []
+    },
+    {
+      "module": "purchasing",
+      "routers": [
+        "backend/app/routers/purchasing.py"
+      ],
+      "services": [],
+      "schemas": [
+        "backend/app/schemas/purchasing.py"
+      ],
+      "tests": [
+        "frontend/tests/e2e/purchasing-page-ui.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/PurchasingPage.tsx",
+        "frontend/src/pages/purchasing/PurchasingPageContainer.tsx",
+        "frontend/src/pages/purchasing/PurchasingView.tsx",
+        "frontend/src/pages/purchasing/components/PurchasingAbcTab.tsx",
+        "frontend/src/pages/purchasing/components/PurchasingOrderDetails.tsx",
+        "frontend/src/pages/purchasing/components/PurchasingOrdersSidebar.tsx",
+        "frontend/src/pages/purchasing/components/PurchasingRecommendationsTab.tsx",
+        "frontend/src/pages/purchasing/components/PurchasingTabs.tsx"
+      ]
+    },
+    {
+      "module": "inventory_counts",
+      "routers": [
+        "backend/app/routers/inventory_counts.py"
+      ],
+      "services": [],
+      "schemas": [
+        "backend/app/schemas/inventory_counts.py"
+      ],
+      "tests": [
+        "backend/tests/test_inventory_counts.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/inventory-count/components/InventoryCountSessionsPanel.tsx"
+      ]
+    },
+    {
+      "module": "reports",
+      "routers": [
+        "backend/app/routers/reports/__init__.py",
+        "backend/app/routers/reports/analytics_kpis_report.py",
+        "backend/app/routers/reports/analytics_reports.py",
+        "backend/app/routers/reports/common.py",
+        "backend/app/routers/reports/export_formatters.py",
+        "backend/app/routers/reports/forecast_reports.py",
+        "backend/app/routers/reports/movement_reports.py",
+        "backend/app/routers/reports/stock_reports.py"
+      ],
+      "services": [
+        "backend/app/services/reports/__init__.py",
+        "backend/app/services/reports/aggregation_service.py"
+      ],
+      "schemas": [
+        "backend/app/schemas/reports.py"
+      ],
+      "tests": [
+        "backend/tests/test_reports.py",
+        "backend/tests/test_reports_forecast.py",
+        "frontend/tests/e2e/reports-business-flow.spec.ts",
+        "frontend/tests/e2e/reports-filter.spec.ts",
+        "frontend/tests/e2e/reports-forecast-flow.spec.ts",
+        "frontend/tests/e2e/reports-returns-repair-columns.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/ReportsPage.tsx",
+        "frontend/src/pages/reports/components/ReportsFilterBar.tsx",
+        "frontend/src/pages/reports/components/ReportsHeader.tsx",
+        "frontend/src/pages/reports/components/ReportsKpiCards.tsx",
+        "frontend/src/pages/reports/components/ReportsPagination.tsx",
+        "frontend/src/pages/reports/components/ReportsTrendForecastFilters.tsx",
+        "frontend/src/pages/reports/hooks/useReportsData.ts",
+        "frontend/src/pages/reports/hooks/useReportsFilters.ts"
+      ]
+    },
+    {
+      "module": "alerts",
+      "routers": [
+        "backend/app/routers/alerts.py"
+      ],
+      "services": [
+        "backend/app/services/alerts.py"
+      ],
+      "schemas": [
+        "backend/app/schemas/alerts.py"
+      ],
+      "tests": [
+        "backend/tests/test_alerts.py",
+        "frontend/tests/e2e/alerts-flow.spec.ts",
+        "frontend/tests/e2e/alerts-page-ui.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/AlertsPage.tsx",
+        "frontend/src/pages/alerts/AlertsView.tsx"
+      ]
+    },
+    {
+      "module": "abc",
+      "routers": [
+        "backend/app/routers/abc.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_abc_classification.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/purchasing/components/PurchasingAbcTab.tsx",
+        "frontend/src/pages/reports/components/sections/AbcSection.tsx"
+      ]
+    },
+    {
+      "module": "purchase_recommendations",
+      "routers": [
+        "backend/app/routers/purchase_recommendations.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_purchase_recommendations.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/reports/components/sections/PurchaseRecommendationsSection.tsx"
+      ]
+    },
+    {
+      "module": "picking",
+      "routers": [
+        "backend/app/routers/picking.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_picking.py",
+        "frontend/tests/e2e/picking-page-ui.spec.ts",
+        "frontend/tests/e2e/picking-wave-flow.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/PickingPage.tsx",
+        "frontend/src/pages/picking/PickingView.tsx",
+        "frontend/src/pages/reports/components/sections/PickingPerformanceSection.tsx"
+      ]
+    },
+    {
+      "module": "returns",
+      "routers": [
+        "backend/app/routers/returns.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_inbound_returns_workflow_extensions.py",
+        "backend/tests/test_returns.py",
+        "frontend/tests/e2e/capture_returns_before.spec.ts",
+        "frontend/tests/e2e/reports-returns-repair-columns.spec.ts",
+        "frontend/tests/e2e/returns-flow.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/ReturnsPage.tsx",
+        "frontend/src/pages/reports/components/sections/ReturnsSection.tsx",
+        "frontend/src/pages/returns/ReturnsPageContainer.tsx",
+        "frontend/src/pages/returns/ReturnsView.tsx",
+        "frontend/src/pages/returns/components/ReturnsItemsPanel.tsx",
+        "frontend/src/pages/returns/components/ReturnsOrdersPanel.tsx",
+        "frontend/src/pages/returns/components/ReturnsWorkflowPanel.tsx"
+      ]
+    },
+    {
+      "module": "workflows",
+      "routers": [
+        "backend/app/routers/workflows.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [],
+      "frontend": []
+    },
+    {
+      "module": "documents",
+      "routers": [
+        "backend/app/routers/documents.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_documents.py",
+        "frontend/tests/e2e/documents-attachment-flow.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/DocumentsPage.tsx"
+      ]
+    },
+    {
+      "module": "audit_log",
+      "routers": [
+        "backend/app/routers/audit_log.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "frontend/tests/e2e/audit-log-visibility.spec.ts"
+      ],
+      "frontend": []
+    },
+    {
+      "module": "external_api",
+      "routers": [
+        "backend/app/routers/external_api.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_external_api_auth.py",
+        "backend/tests/test_external_api_contract.py"
+      ],
+      "frontend": []
+    },
+    {
+      "module": "integration_clients",
+      "routers": [
+        "backend/app/routers/integration_clients.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [],
+      "frontend": []
+    },
+    {
+      "module": "shipping",
+      "routers": [
+        "backend/app/routers/shipping.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_shipping_carriers.py",
+        "frontend/tests/e2e/shipping-flow.spec.ts"
+      ],
+      "frontend": [
+        "frontend/src/pages/ShippingPage.tsx",
+        "frontend/src/pages/shipping/ShippingPageContainer.tsx",
+        "frontend/src/pages/shipping/ShippingView.tsx",
+        "frontend/src/pages/shipping/components/ShippingCreatePanel.tsx",
+        "frontend/src/pages/shipping/components/ShippingFiltersBar.tsx",
+        "frontend/src/pages/shipping/components/ShippingShipmentDetails.tsx",
+        "frontend/src/pages/shipping/components/ShippingShipmentsList.tsx"
+      ]
+    },
+    {
+      "module": "inter_warehouse_transfers",
+      "routers": [
+        "backend/app/routers/inter_warehouse_transfers.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_inter_warehouse_transfers.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/inter-warehouse-transfer/components/InterWarehouseTransferSidebar.tsx"
+      ]
+    },
+    {
+      "module": "permissions",
+      "routers": [
+        "backend/app/routers/permissions.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_rbac_permissions_phase5.py"
+      ],
+      "frontend": []
+    },
+    {
+      "module": "pages",
+      "routers": [
+        "backend/app/routers/pages.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [],
+      "frontend": []
+    },
+    {
+      "module": "roles",
+      "routers": [
+        "backend/app/routers/roles.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [],
+      "frontend": []
+    },
+    {
+      "module": "ui_preferences",
+      "routers": [
+        "backend/app/routers/ui_preferences.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_ui_preferences_phase5.py"
+      ],
+      "frontend": []
+    },
+    {
+      "module": "dashboard_config",
+      "routers": [
+        "backend/app/routers/dashboard_config.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "frontend/tests/e2e/dashboard-config-flow.spec.ts"
+      ],
+      "frontend": []
+    },
+    {
+      "module": "pricing",
+      "routers": [
+        "backend/app/routers/pricing.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_pricing_phase5.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/product-form/components/ProductPricingSection.tsx",
+        "frontend/src/pages/product-form/components/ProductPricingTab.tsx"
+      ]
+    },
+    {
+      "module": "sales_orders",
+      "routers": [
+        "backend/app/routers/sales_orders.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_sales_orders_phase5.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/SalesOrdersPage.tsx",
+        "frontend/src/pages/sales-orders/SalesOrdersView.tsx"
+      ]
+    },
+    {
+      "module": "invoices",
+      "routers": [
+        "backend/app/routers/invoices.py"
+      ],
+      "services": [],
+      "schemas": [],
+      "tests": [
+        "backend/tests/test_invoices_phase5.py"
+      ],
+      "frontend": [
+        "frontend/src/pages/InvoicesPage.tsx"
+      ]
+    }
+  ]
+}

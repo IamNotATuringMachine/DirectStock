@@ -18,6 +18,7 @@ declare -a ALLOWLIST_REGEX=(
   '^frontend/\.prettierrc$'
   '^frontend/\.prettierignore$'
   '^\.gitignore$'
+  '^Makefile$'
   '^frontend/src/App\.tsx$'
   '^frontend/src/components/AppLayout\.tsx$'
   '^frontend/src/components/users/UserFormModal\.tsx$'
@@ -167,6 +168,7 @@ declare -a ALLOWLIST_REGEX=(
   '^docs/validation/security-gates\.md$'
   '^docs/validation/golden-tasks/.*'
   '^docs/validation/metrics/.*'
+  '^tests/test_agent_self_improve\.py$'
   '^README\.md$'
   '^AGENTS\.md$'
   '^CLAUDE\.md$'
@@ -181,8 +183,11 @@ declare -a ALLOWLIST_REGEX=(
   '^frontend/src/services/offlineQueueStore\.ts$'
   '^frontend/src/services/offlineQueueTypes\.ts$'
   '^scripts/agent_policy_lint\.py$'
+  '^scripts/check_provider_capabilities\.py$'
   '^scripts/agent_self_improve\.py$'
   '^scripts/check_branch_protection\.sh$'
+  '^scripts/generate_repo_index\.py$'
+  '^scripts/check_entrypoint_coverage\.py$'
 )
 
 resolve_base_ref() {

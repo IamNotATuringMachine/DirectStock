@@ -31,8 +31,16 @@ def _load_json_compatible(path: Path) -> dict[str, Any]:
     return json.loads(text)
 
 
-def _write_json_compatible(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+def _write_text_if_changed(path: Path, content: str) -> bool:
+    current = path.read_text(encoding="utf-8") if path.exists() else ""
+    if current == content:
+        return False
+    path.write_text(content, encoding="utf-8")
+    return True
+
+
+def _write_json_compatible(path: Path, payload: dict[str, Any]) -> bool:
+    return _write_text_if_changed(path, json.dumps(payload, indent=2) + "\n")
 
 
 def _run_policy_lint() -> dict[str, Any]:
@@ -157,6 +165,70 @@ def _ensure_contract_defaults(contract: dict[str, Any]) -> tuple[dict[str, Any],
                 provider_value[key] = default_value
                 changed = True
 
+    runtime_contracts = contract.setdefault("provider_runtime_contracts", {})
+    runtime_defaults = {
+        "openai": {
+            "required_behaviors": [
+                "responses_api_first",
+                "conversation_state_preserved",
+                "background_mode_for_long_tasks",
+                "remote_mcp_tooling_supported",
+                "tool_result_traceability",
+            ],
+            "verification_artifacts": [
+                "docs/agents/providers/openai.md",
+                "scripts/check_provider_capabilities.py",
+            ],
+        },
+        "anthropic": {
+            "required_behaviors": [
+                "claude_code_hooks_available",
+                "memory_files_supported",
+                "prompt_caching_supported",
+                "mcp_connector_supported",
+                "tool_result_traceability",
+            ],
+            "verification_artifacts": [
+                "docs/agents/providers/anthropic.md",
+                "scripts/check_provider_capabilities.py",
+            ],
+        },
+        "google": {
+            "required_behaviors": [
+                "adk_workflows_supported",
+                "agent_engine_patterns_supported",
+                "a2a_interoperability_supported",
+                "mcp_tooling_supported",
+                "tool_result_traceability",
+            ],
+            "verification_artifacts": [
+                "docs/agents/providers/google.md",
+                "scripts/check_provider_capabilities.py",
+            ],
+        },
+    }
+    for provider_name, runtime_default in runtime_defaults.items():
+        runtime_value = runtime_contracts.get(provider_name)
+        if not isinstance(runtime_value, dict):
+            runtime_contracts[provider_name] = runtime_default
+            changed = True
+            continue
+        for key, default_value in runtime_default.items():
+            if key not in runtime_value:
+                runtime_value[key] = default_value
+                changed = True
+
+    noise_guard = contract.setdefault("self_improvement_noise_guard", {})
+    noise_defaults = {
+        "enabled": True,
+        "block_timestamp_only_churn": True,
+        "require_semantic_diff_for_pr": True,
+    }
+    for key, value in noise_defaults.items():
+        if key not in noise_guard:
+            noise_guard[key] = value
+            changed = True
+
     self_improvement = contract.setdefault("self_improvement_policy", {})
     defaults = {
         "enabled": True,
@@ -175,6 +247,22 @@ def _ensure_contract_defaults(contract: dict[str, Any]) -> tuple[dict[str, Any],
         contract["required_gates"] = [
             "./scripts/agent_governance_check.sh",
             "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
+            "python3 scripts/check_provider_capabilities.py --provider all --format json",
+            "python3 scripts/generate_repo_index.py --check",
+            "python3 scripts/check_entrypoint_coverage.py",
+            "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
+            "./scripts/check_branch_protection.sh",
+        ]
+        changed = True
+
+    eval_gates = contract.get("eval_gates")
+    if not isinstance(eval_gates, list) or not eval_gates:
+        contract["eval_gates"] = [
+            "./scripts/agent_governance_check.sh",
+            "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
+            "python3 scripts/check_provider_capabilities.py --provider all --format json",
+            "python3 scripts/generate_repo_index.py --check",
+            "python3 scripts/check_entrypoint_coverage.py",
             "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
             "./scripts/check_branch_protection.sh",
         ]
@@ -183,12 +271,9 @@ def _ensure_contract_defaults(contract: dict[str, Any]) -> tuple[dict[str, Any],
     return contract, changed
 
 
-def _write_backlog(*, lint_payload: dict[str, Any], recurring_incidents: list[tuple[str, int]], recommendations: list[str]) -> None:
-    now_iso = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+def _write_backlog(*, lint_payload: dict[str, Any], recurring_incidents: list[tuple[str, int]], recommendations: list[str]) -> bool:
     lines = [
         "# Agent Auto-Improvement Backlog",
-        "",
-        f"Generated at: {now_iso}",
         "",
         "## Lint Status",
         "",
@@ -209,7 +294,7 @@ def _write_backlog(*, lint_payload: dict[str, Any], recurring_incidents: list[tu
     else:
         lines.append("- No changes required.")
 
-    BACKLOG_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return _write_text_if_changed(BACKLOG_PATH, "\n".join(lines) + "\n")
 
 
 def _append_incident_proposal(recurring_incidents: list[tuple[str, int]]) -> bool:
@@ -232,9 +317,9 @@ def _append_incident_proposal(recurring_incidents: list[tuple[str, int]]) -> boo
     return True
 
 
-def _append_decision_log(*, modified_files: list[str], recommendations: list[str]) -> None:
+def _append_decision_log(*, modified_files: list[str], recommendations: list[str]) -> bool:
     if not DECISION_LOG_PATH.exists():
-        return
+        return False
 
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     entry = [
@@ -251,7 +336,9 @@ def _append_decision_log(*, modified_files: list[str], recommendations: list[str
         "  - `python3 scripts/agent_policy_lint.py --strict --provider all --format json` -> PASS",
         "",
     ]
-    DECISION_LOG_PATH.write_text(DECISION_LOG_PATH.read_text(encoding="utf-8") + "\n" + "\n".join(entry), encoding="utf-8")
+    return _write_text_if_changed(
+        DECISION_LOG_PATH, DECISION_LOG_PATH.read_text(encoding="utf-8") + "\n" + "\n".join(entry)
+    )
 
 
 def _ensure_agents_hooks() -> bool:
@@ -267,9 +354,11 @@ def _ensure_agents_hooks() -> bool:
         "1. Validate policy contract parity: `python3 scripts/agent_policy_lint.py --strict --provider all --format json`.\n"
         "2. Validate MCP profile in CI posture: `MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh`.\n"
         "3. Validate branch protection baseline: `./scripts/check_branch_protection.sh`.\n"
+        "4. Validate provider runtime capability contracts: `python3 scripts/check_provider_capabilities.py --provider all --format json`.\n"
+        "5. Validate repo index drift: `python3 scripts/generate_repo_index.py --check`.\n"
+        "6. Validate entrypoint coverage drift: `python3 scripts/check_entrypoint_coverage.py`.\n"
     )
-    AGENTS_PATH.write_text(AGENTS_PATH.read_text(encoding="utf-8").rstrip() + block + "\n", encoding="utf-8")
-    return True
+    return _write_text_if_changed(AGENTS_PATH, AGENTS_PATH.read_text(encoding="utf-8").rstrip() + block + "\n")
 
 
 def _ensure_branch_guard_script() -> bool:
@@ -303,28 +392,28 @@ def run(*, mode: str, max_changes: int, touch: set[str], emit_decision_log: bool
         recommendations.append("Repair policy contract parity and missing required fields.")
     if recurring_incidents:
         recommendations.append("Recurring incidents detected; append governance hardening proposal.")
-    if not recommendations:
-        recommendations.append("No policy drift detected.")
 
     modified_files: list[str] = []
+    governance_impact = bool(lint_findings or recurring_incidents)
     if mode == "apply":
         changes = 0
 
         if "docs" in touch and changes < max_changes:
-            _write_backlog(
+            backlog_changed = _write_backlog(
                 lint_payload=lint_payload,
                 recurring_incidents=recurring_incidents,
                 recommendations=recommendations,
             )
-            modified_files.append(str(BACKLOG_PATH.relative_to(REPO_ROOT)))
-            changes += 1
+            if backlog_changed:
+                modified_files.append(str(BACKLOG_PATH.relative_to(REPO_ROOT)))
+                changes += 1
 
         if "docs" in touch and lint_findings and changes < max_changes:
             normalized, contract_changed = _ensure_contract_defaults(contract)
             if contract_changed:
-                _write_json_compatible(CONTRACT_PATH, normalized)
-                modified_files.append(str(CONTRACT_PATH.relative_to(REPO_ROOT)))
-                changes += 1
+                if _write_json_compatible(CONTRACT_PATH, normalized):
+                    modified_files.append(str(CONTRACT_PATH.relative_to(REPO_ROOT)))
+                    changes += 1
 
         if "docs" in touch and recurring_incidents and changes < max_changes:
             if _append_incident_proposal(recurring_incidents):
@@ -341,9 +430,9 @@ def run(*, mode: str, max_changes: int, touch: set[str], emit_decision_log: bool
                 modified_files.append(str(BRANCH_GUARD_PATH.relative_to(REPO_ROOT)))
                 changes += 1
 
-        if emit_decision_log and modified_files and "docs" in touch and changes < max_changes:
-            _append_decision_log(modified_files=modified_files, recommendations=recommendations)
-            modified_files.append(str(DECISION_LOG_PATH.relative_to(REPO_ROOT)))
+        if emit_decision_log and governance_impact and modified_files and "docs" in touch and changes < max_changes:
+            if _append_decision_log(modified_files=modified_files, recommendations=recommendations):
+                modified_files.append(str(DECISION_LOG_PATH.relative_to(REPO_ROOT)))
 
     return ImprovementResult(recommendations=recommendations, modified_files=modified_files)
 

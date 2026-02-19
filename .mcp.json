@@ -44,17 +44,38 @@
         "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_git_server.sh\""
       ],
       "env": {}
+    },
+    "directstock-memory": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_memory_server.sh\""
+      ],
+      "env": {}
     }
   },
   "profiles": {
-    "dev-full": {
-      "description": "Local engineering profile with full DirectStock MCP topology.",
+    "dev-autonomy": {
+      "description": "Local autonomy profile with full DirectStock MCP topology and memory context.",
       "servers": [
         "directstock-filesystem",
         "directstock-postgres",
         "directstock-github",
         "directstock-playwright",
-        "directstock-git"
+        "directstock-git",
+        "directstock-memory"
+      ]
+    },
+    "dev-full": {
+      "description": "Compatibility alias for legacy docs/tools; equivalent to dev-autonomy.",
+      "servers": [
+        "directstock-filesystem",
+        "directstock-postgres",
+        "directstock-github",
+        "directstock-playwright",
+        "directstock-git",
+        "directstock-memory"
       ]
     },
     "ci-readonly": {
@@ -64,15 +85,35 @@
         "directstock-postgres",
         "directstock-github",
         "directstock-playwright",
-        "directstock-git"
+        "directstock-git",
+        "directstock-memory"
       ],
       "env": {
         "MCP_REQUIRE_POSTGRES_READONLY": "1",
         "MCP_PROBE_ALLOW_BLOCKED": "1"
       }
+    },
+    "triage-readonly": {
+      "description": "Low-blast-radius triage profile for incident analysis.",
+      "servers": [
+        "directstock-filesystem",
+        "directstock-postgres",
+        "directstock-git"
+      ],
+      "env": {
+        "MCP_REQUIRE_POSTGRES_READONLY": "1"
+      }
+    },
+    "review-governance": {
+      "description": "Policy/review profile for governance and repository state checks.",
+      "servers": [
+        "directstock-filesystem",
+        "directstock-github",
+        "directstock-git"
+      ]
     }
   },
   "defaults": {
-    "profile": "dev-full"
+    "profile": "dev-autonomy"
   }
 }
