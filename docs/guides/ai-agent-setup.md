@@ -4,6 +4,8 @@ This repository uses an AGENTS-centric multi-tool setup:
 - Canonical policy: `/AGENTS.md`
 - Scoped deltas: `/backend/AGENTS.md`, `/frontend/AGENTS.md`
 - Thin adapters: `/CLAUDE.md`, `/GEMINI.md`, `/CODEX.md`
+- Handoff protocol: `/docs/agents/handoff-protocol.md`
+- Incident process: `/docs/agents/incident-log.md`
 
 All agents should operate in production mode: relevant tests must be run and reported before task completion.
 
@@ -77,6 +79,7 @@ COLLECT_SCORECARD_METRICS=1 COLLECT_FLAKINESS=1 FLAKE_RUNS=20 ./scripts/autonomo
 RUN_PERF_SMOKE=1 ./scripts/autonomous_task_harness.sh
 RUN_SECURITY_GATES=1 RUN_GITLEAKS=0 ./scripts/autonomous_task_harness.sh
 RUN_OBSERVABILITY_SMOKE=1 ./scripts/autonomous_task_harness.sh
+RUN_AGENT_GOVERNANCE=1 ./scripts/autonomous_task_harness.sh
 ```
 
 ## E2E Hermetic Rule
@@ -122,3 +125,15 @@ Run this matrix based on change type before marking tasks complete:
    - `./scripts/observability/smoke.sh`
 10. LLM golden-task verification:
    - `./scripts/run_golden_tasks.sh`
+11. Agent governance debt scan:
+   - `./scripts/agent_governance_check.sh`
+
+## MCP Strategy
+For project-specific MCP server setup and balanced security defaults, use:
+- `docs/guides/mcp-stack-strategy.md`
+
+Quick bootstrap across Codex, Claude Code, and Gemini CLI:
+
+```bash
+./scripts/setup_mcp_multi_cli.sh
+```
