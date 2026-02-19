@@ -104,7 +104,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MCP_GITHUB_PAT || secrets.GITHUB_TOKEN }}
           commit-message: "chore(agent): autonomous governance self-improvement"
           branch: "codex/agent-self-improve"
           delete-branch: true
@@ -122,6 +122,6 @@ jobs:
       - name: Enable auto-merge (if PR created)
         if: steps.cpr.outputs.pull-request-number != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MCP_GITHUB_PAT || secrets.GITHUB_TOKEN }}
         run: |
           gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --auto --squash --delete-branch
