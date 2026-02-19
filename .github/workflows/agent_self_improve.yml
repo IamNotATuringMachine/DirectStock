@@ -45,7 +45,17 @@ jobs:
             exit 0
           fi
 
-          disallowed="$(printf '%s\n' "${changed}" | rg -v '^(AGENTS\.md|docs/|scripts/)')"
+          disallowed=""
+          while IFS= read -r file; do
+            case "${file}" in
+              AGENTS.md|docs/*|scripts/*)
+                ;;
+              *)
+                disallowed="${disallowed}${file}"$'\n'
+                ;;
+            esac
+          done <<< "${changed}"
+
           if [ -n "${disallowed}" ]; then
             echo "Disallowed files modified by self-improve run:" >&2
             printf '%s\n' "${disallowed}" >&2
