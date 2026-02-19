@@ -105,6 +105,26 @@ RUN_OBSERVABILITY_SMOKE=1 ./scripts/autonomous_task_harness.sh
 RUN_AGENT_GOVERNANCE=1 ./scripts/autonomous_task_harness.sh
 ```
 
+## Ralph Loop Contract
+`direct ralph` uses a versioned plan contract.
+
+1. Template: `docs/guides/ralph-plan-template.md`
+2. Machine-readable schema: `docs/contracts/ralph-plan.schema.json`
+3. Workflow recipe: `.agents/workflows/ralph-loop.md`
+
+Useful invocations:
+
+```bash
+direct ralph --plan-template
+direct ralph --plan ./ralph-plan.json --session-strategy reset --post-check-profile fast
+direct ralph --plan ./ralph-plan.json --session-strategy resume --post-check-profile governance
+direct ralph --plan ./ralph-plan.json --log-format jsonl
+direct ralph --plan ./ralph-plan.json --strict-provider-capabilities
+```
+
+`session-strategy=resume` writes the latest provider session handle to `metadata.resumeSessionId` in the plan, so restarts can continue the same session chain.
+`--log-format jsonl` emits machine-readable events to stdout; every run also writes a JSONL file (`.ralph/runs/<timestamp>.jsonl` by default, override with `--run-log-path`).
+
 ## E2E Hermetic Rule
 E2E specs must not use:
 1. hardcoded base URLs (for example `http://localhost:5173`)

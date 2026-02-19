@@ -18,8 +18,8 @@
 2. `agent_engine_patterns` -> package repeatable task patterns as deterministic execution contracts.
 3. `a2a_interoperability` -> handoffs must be transport-agnostic and schema-disciplined.
 4. `mcp_tooling` -> prefer MCP-backed context retrieval for repo/runtime truth.
-5. `gemini_cli_headless` -> use `gemini -p "<prompt>" --headless` for automated/CI workflows.
-6. `context_import_directives` -> use `@import` in GEMINI.md for modular context loading.
+5. `gemini_cli_headless` -> use `gemini -p "<prompt>" --output-format json --approval-mode yolo` for non-interactive automated/CI workflows.
+6. `context_import_directives` -> use `@<path>` references in `GEMINI.md` for modular context loading.
 
 ## ADK Workflow Agent Types (v2, Feb 2026)
 | Type | Use When |
@@ -61,6 +61,14 @@ For long-running tasks (30+ min), use conversation checkpointing:
 9. Reference `.agents/workflows/` for step-by-step execution patterns.
 10. Use conversation checkpointing for long-running tasks.
 
+## Ralph Runtime Parity
+`direct ralph` must stay aligned with Gemini CLI behavior:
+1. Non-interactive execution uses `gemini -p "<prompt>" --output-format json --approval-mode yolo`.
+2. Resume mode uses `--resume <session-id>` and persists `session_id` in plan metadata.
+3. Ralph model catalog includes `gemini-3.1-pro-preview` with the same thinking profile options as 3.0 Pro.
+4. Fallback order keeps higher-capability Gemini models before flash fallback.
+5. Capability probe runs before loop start; strict mode: `--strict-provider-capabilities`.
+
 ## Fallback Order
 1. `AGENTS.md`
 2. `docs/agents/providers/google.md`
@@ -77,7 +85,7 @@ For long-running tasks (30+ min), use conversation checkpointing:
    - `./scripts/check_design_token_drift.sh`
    - mobile commands must target `--project=ios-iphone-se --project=ios-ipad`
 4. If MCP or external design SaaS is unavailable, execute local visual/a11y/token gates and report fallback evidence.
-5. If headless mode is unavailable, run tasks interactively via CLI.
+5. If non-interactive `-p` mode is unavailable, run tasks interactively via CLI.
 
 ## Mandatory Verification Artifacts
 1. `python3 scripts/check_provider_capabilities.py --provider google --format json`

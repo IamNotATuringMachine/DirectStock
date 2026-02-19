@@ -1,12 +1,12 @@
 # MCP Readiness Snapshot
 
-Generated at: 2026-02-19T12:00:55Z
+Generated at: 2026-02-19T16:53:59Z
 
 ## Summary
 
 - Overall status: ready
 - Configuration source: .mcp.json
-- Active profile: ci-readonly
+- Active profile: dev-autonomy
 - Config file: /Users/tobiasmorixbauer/.codex/config.toml
 - Read-only DB enforcement: 1
 

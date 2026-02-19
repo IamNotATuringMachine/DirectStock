@@ -38,6 +38,14 @@
 5. Emit runtime evidence when falling back from an unavailable capability.
 6. Reference `.agents/workflows/` for step-by-step execution patterns.
 
+## Ralph Runtime Parity
+`direct ralph` must stay aligned with Codex CLI behavior:
+1. Non-interactive execution uses `codex exec --json --dangerously-bypass-approvals-and-sandbox -s danger-full-access`.
+2. Planner schema mode uses `--output-schema <path>` when available, otherwise explicit fallback to prompt+Zod validation.
+3. Reasoning tier is mapped via `-c model_reasoning_effort="<medium|high|xhigh>"`.
+4. Resume mode uses `codex exec resume <session-id>` and persists thread ID in `metadata.resumeSessionId`.
+5. Capability probe is executed before loop start; strict mode: `--strict-provider-capabilities`.
+
 ## Fallback Order
 1. `AGENTS.md`
 2. `docs/agents/providers/openai.md`

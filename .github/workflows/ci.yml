@@ -160,6 +160,52 @@ jobs:
       - name: Run Knip dead code detection
         run: npm run knip
 
+  ralph_cli:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts/ralph
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: scripts/ralph/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate Ralph template contract
+        run: npm run test -- tests/template-contract.test.ts
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate policy parity
+        working-directory: .
+        run: python3 scripts/agent_policy_lint.py --strict --provider all --format json
+
+      - name: Validate provider capability contracts
+        working-directory: .
+        run: python3 scripts/check_provider_capabilities.py --provider all --format json
+
+      - name: Validate MCP profile parity
+        working-directory: .
+        run: python3 scripts/check_mcp_profile_parity.py --strict --format json
+
   frontend:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest

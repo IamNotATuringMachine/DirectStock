@@ -88,7 +88,7 @@
         "max_changes_per_run": {"type": "integer", "minimum": 1, "maximum": 50},
         "touch_allowlist": {
           "type": "array",
-          "items": {"type": "string", "enum": ["AGENTS", "docs", "scripts"]},
+          "items": {"type": "string", "enum": ["AGENTS", "docs", "scripts", ".agents"]},
           "minItems": 1,
           "uniqueItems": true
         },

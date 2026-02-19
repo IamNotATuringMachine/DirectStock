@@ -4,7 +4,7 @@
   "high_risk_protocol":
     {
       "decision_log_path": "docs/agents/decision-log.md",
-      "requires_pre_and_post_entry": true,
+      "requires_pre_and_post_entry": true
     },
   "provider_matrix":
     {
@@ -20,10 +20,10 @@
               "mcp_tooling",
               "multi_agent_workflows",
               "codex_app_orchestration",
-              "reasoning_effort_tiers",
+              "reasoning_effort_tiers"
             ],
           "fallback_order":
-            ["AGENTS.md", "docs/agents/providers/openai.md", "CODEX.md"],
+            ["AGENTS.md", "docs/agents/providers/openai.md", "CODEX.md"]
         },
       "anthropic":
         {
@@ -37,10 +37,10 @@
               "mcp_connectors",
               "subagent_orchestration",
               "hooks_lifecycle",
-              "skills_directory",
+              "skills_directory"
             ],
           "fallback_order":
-            ["AGENTS.md", "docs/agents/providers/anthropic.md", "CLAUDE.md"],
+            ["AGENTS.md", "docs/agents/providers/anthropic.md", "CLAUDE.md"]
         },
       "google":
         {
@@ -53,11 +53,11 @@
               "a2a_interoperability",
               "mcp_tooling",
               "gemini_cli_headless",
-              "context_import_directives",
+              "context_import_directives"
             ],
           "fallback_order":
-            ["AGENTS.md", "docs/agents/providers/google.md", "GEMINI.md"],
-        },
+            ["AGENTS.md", "docs/agents/providers/google.md", "GEMINI.md"]
+        }
     },
   "provider_runtime_contracts":
     {
@@ -69,13 +69,13 @@
               "conversation_state_preserved",
               "background_mode_for_long_tasks",
               "remote_mcp_tooling_supported",
-              "tool_result_traceability",
+              "tool_result_traceability"
             ],
           "verification_artifacts":
             [
               "docs/agents/providers/openai.md",
-              "scripts/check_provider_capabilities.py",
-            ],
+              "scripts/check_provider_capabilities.py"
+            ]
         },
       "anthropic":
         {
@@ -85,13 +85,13 @@
               "memory_files_supported",
               "prompt_caching_supported",
               "mcp_connector_supported",
-              "tool_result_traceability",
+              "tool_result_traceability"
             ],
           "verification_artifacts":
             [
               "docs/agents/providers/anthropic.md",
-              "scripts/check_provider_capabilities.py",
-            ],
+              "scripts/check_provider_capabilities.py"
+            ]
         },
       "google":
         {
@@ -106,7 +106,7 @@
               "ui_ux_accessibility_gate_mandatory",
               "ui_ux_fallback_sequence_defined",
               "ui_ux_visual_diff_mobile_desktop_mandatory",
-              "ui_ux_accessibility_mobile_desktop_mandatory",
+              "ui_ux_accessibility_mobile_desktop_mandatory"
             ],
           "verification_artifacts":
             [
@@ -116,9 +116,9 @@
               "frontend/tests/e2e/a11y-smoke.spec.ts",
               "scripts/check_design_token_drift.sh",
               "scripts/check_mcp_profile_parity.py",
-              ".idx/airules.md",
-            ],
-        },
+              ".idx/airules.md"
+            ]
+        }
     },
   "eval_gates":
     [
@@ -135,13 +135,13 @@
       "python3 scripts/generate_repo_index.py --check",
       "python3 scripts/check_entrypoint_coverage.py",
       "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
-      "./scripts/check_branch_protection.sh",
+      "./scripts/check_branch_protection.sh"
     ],
   "self_improvement_noise_guard":
     {
       "enabled": true,
       "block_timestamp_only_churn": true,
-      "require_semantic_diff_for_pr": true,
+      "require_semantic_diff_for_pr": true
     },
   "self_improvement_policy":
     {
@@ -149,7 +149,7 @@
       "runner_script": "scripts/agent_self_improve.py",
       "max_changes_per_run": 5,
       "touch_allowlist": ["AGENTS", "docs", "scripts", ".agents"],
-      "incident_threshold": { "count": 3, "window_days": 14 },
+      "incident_threshold": { "count": 3, "window_days": 14 }
     },
   "required_gates":
     [
@@ -166,6 +166,6 @@
       "python3 scripts/generate_repo_index.py --check",
       "python3 scripts/check_entrypoint_coverage.py",
       "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
-      "./scripts/check_branch_protection.sh",
-    ],
+      "./scripts/check_branch_protection.sh"
+    ]
 }

@@ -154,6 +154,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `GEMINI.md`
    - `backend/AGENTS.md`
    - `frontend/AGENTS.md`
+   - `.agents/workflows/ralph-loop.md`
 5. E2E-Hardening + Agent Harness:
    - `frontend/package.json`
    - `frontend/src/types.ts`
@@ -175,6 +176,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `scripts/check_branch_protection.sh`
    - `scripts/check_mcp_readiness.sh`
    - `scripts/setup_mcp_multi_cli.sh`
+   - `scripts/ralph/**`
    - `scripts/mcp/**`
    - `scripts/observability/**`
    - `scripts/collect_complexity_metrics.sh`

@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SETTINGS_FILE="${ROOT_DIR}/.gemini/settings.json"
 MODE="runtime"
 ENFORCE_ALLOWLIST="${GEMINI_READINESS_ENFORCE_ALLOWLIST:-0}"
+RUN_DISCOVERY_PROBE="${GEMINI_READINESS_DISCOVERY_PROBE:-1}"
+STRICT_DISCOVERY_PROBE="${GEMINI_READINESS_DISCOVERY_PROBE_STRICT:-0}"
 
 required_servers=(
   "directstock-filesystem"
@@ -17,7 +19,7 @@ required_servers=(
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/check_gemini_readiness.sh [--mode runtime|static] [--enforce-allowlist]
+Usage: ./scripts/check_gemini_readiness.sh [--mode runtime|static] [--enforce-allowlist] [--skip-discovery-probe]
 
 Modes:
   runtime (default): validates settings plus gemini mcp connectivity
@@ -25,6 +27,7 @@ Modes:
 
 Options:
   --enforce-allowlist  In runtime mode, fail if connected Gemini MCP servers are not exactly the DirectStock allowlist.
+  --skip-discovery-probe  Skip non-interactive Gemini resource-discovery probe (runtime mode only).
 EOF
 }
 
@@ -51,6 +54,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --enforce-allowlist)
       ENFORCE_ALLOWLIST="1"
+      shift
+      ;;
+    --skip-discovery-probe)
+      RUN_DISCOVERY_PROBE="0"
       shift
       ;;
     -h|--help)
@@ -244,6 +251,30 @@ PY
 
   if [ "${allowlist_report%%$'\n'*}" != "valid" ]; then
     not_ready "gemini runtime allowlist mismatch (${allowlist_report//$'\n'/; })"
+  fi
+fi
+
+if [ "${RUN_DISCOVERY_PROBE}" = "1" ]; then
+  set +e
+  discovery_probe_output="$(gemini -p "Return exactly: readiness-ok" 2>&1)"
+  discovery_probe_rc=$?
+  set -e
+
+  discovery_probe_output_clean="$(printf '%s\n' "${discovery_probe_output}" | sed -E $'s/\x1B\\[[0-9;]*[A-Za-z]//g')"
+
+  if printf '%s\n' "${discovery_probe_output_clean}" | grep -Fq "Error discovering resources from directstock-postgres"; then
+    not_ready "directstock-postgres resource discovery failed during gemini runtime probe"
+  fi
+
+  if printf '%s\n' "${discovery_probe_output_clean}" | grep -Fq "Error during discovery for MCP server 'directstock-postgres'"; then
+    not_ready "directstock-postgres resource discovery failed during gemini runtime probe"
+  fi
+
+  if [ "${discovery_probe_rc}" -ne 0 ]; then
+    if [ "${STRICT_DISCOVERY_PROBE}" = "1" ]; then
+      fatal "gemini runtime discovery probe failed (enable non-strict mode with GEMINI_READINESS_DISCOVERY_PROBE_STRICT=0)"
+    fi
+    echo "warning: gemini runtime discovery probe failed for a non-MCP reason; skipping strict probe enforcement." >&2
   fi
 fi
 

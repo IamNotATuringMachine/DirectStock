@@ -16,12 +16,12 @@ Active repo mode: `unrestricted_senior`.
 ## Context Imports
 Load these files for full project context at session start:
 
-@import .ai-context.md
-@import backend/AGENTS.md
-@import frontend/AGENTS.md
-@import docs/agents/repo-map.md
-@import docs/agents/change-playbooks.md
-@import docs/agents/patterns.md
+@.ai-context.md
+@backend/AGENTS.md
+@frontend/AGENTS.md
+@docs/agents/repo-map.md
+@docs/agents/change-playbooks.md
+@docs/agents/patterns.md
 
 ## Gemini CLI Setup Hint
 Gemini CLI can load multiple context filenames. Configure `context.fileName` so `AGENTS.md` is included:
@@ -34,10 +34,10 @@ Gemini CLI can load multiple context filenames. Configure `context.fileName` so 
 }
 ```
 
-## Headless Mode
-For automated/CI workflows, use Gemini CLI in headless mode:
+## Non-Interactive Mode
+For automated/CI workflows, use Gemini CLI with prompt mode and JSON output:
 ```bash
-gemini -p "Follow AGENTS.md. Task: <description>" --headless
+gemini -p "Follow AGENTS.md. Task: <description>" --output-format json --approval-mode yolo
 ```
 
 ## Conversation Checkpointing

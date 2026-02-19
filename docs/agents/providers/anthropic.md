@@ -32,6 +32,13 @@
 6. Use subagents for parallelizable subtasks within large features.
 7. Reference `.agents/workflows/` for step-by-step execution patterns.
 
+## Ralph Runtime Parity
+`direct ralph` must stay aligned with Claude CLI behavior:
+1. Non-interactive execution uses `claude -p --output-format json --model <model> --max-turns <n> --dangerously-skip-permissions`.
+2. Planner schema mode uses `--json-schema '<schema>'` when available, otherwise explicit fallback to prompt+Zod validation.
+3. Resume mode uses `--resume <session-id>` and persists `session_id` in plan metadata.
+4. Capability probe runs before loop start; strict mode: `--strict-provider-capabilities`.
+
 ## Fallback Order
 1. `AGENTS.md`
 2. `docs/agents/providers/anthropic.md`

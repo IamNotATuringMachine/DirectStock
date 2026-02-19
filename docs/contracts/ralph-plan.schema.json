@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://directstock.local/docs/contracts/ralph-plan.schema.json",
+  "title": "DirectStock Ralph Plan Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "goal",
+    "createdAt",
+    "steps",
+    "metadata"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.1.0"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "description",
+          "successCriteria",
+          "status",
+          "attempts",
+          "maxAttempts",
+          "type",
+          "files",
+          "riskLevel",
+          "owner",
+          "postChecks",
+          "rollbackHint"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "successCriteria": { "type": "string", "minLength": 1 },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in_progress", "done", "failed"]
+          },
+          "attempts": { "type": "integer", "minimum": 0 },
+          "maxAttempts": { "type": "integer", "minimum": 1 },
+          "lastError": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["code", "docs", "test", "governance", "ops", "mixed"]
+          },
+          "files": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "riskLevel": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          },
+          "owner": { "type": "string", "minLength": 1 },
+          "postChecks": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "rollbackHint": { "type": "string" }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "totalIterations", "completedIterations"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "totalIterations": { "type": "integer", "minimum": 1 },
+        "completedIterations": { "type": "integer", "minimum": 0 },
+        "resumeSessionId": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -251,7 +251,7 @@ def validate_contract(contract: dict[str, Any], *, strict: bool, provider: str) 
             findings.append("self_improvement_policy.max_changes_per_run must be > 0")
 
         allowlist = self_improvement.get("touch_allowlist")
-        expected_allowlist = {"AGENTS", "docs", "scripts"}
+        expected_allowlist = {"AGENTS", "docs", "scripts", ".agents"}
         if not isinstance(allowlist, list) or not allowlist:
             findings.append("self_improvement_policy.touch_allowlist must be a non-empty list")
         elif strict and not set(allowlist).issubset(expected_allowlist):

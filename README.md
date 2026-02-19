@@ -31,6 +31,73 @@ Aktuelle Plattform-Bausteine:
 
 Arbeitsmodus: production-only. Relevante Tests muessen vor Abschluss ausgefuehrt und berichtet werden.
 
+## Ralph Loop CLI (`direct ralph`)
+
+Ralph ist ein iterativer Agent-Loop mit hartem Context-Reset pro Iteration. Das Tool lebt in `scripts/ralph/`.
+
+Installation:
+
+```bash
+cd scripts/ralph
+npm ci
+npm run build
+npm link
+```
+
+Beispiele:
+
+```bash
+# interaktiv
+direct ralph
+
+# vorhandenen Plan verwenden
+direct ralph --plan ./ralph-plan.json --max-iterations 10 --no-preset
+
+# Preview ohne Mutationen (kein Commit, kein Plan-Status-Write)
+direct ralph --plan ./ralph-plan.json --dry-run
+
+# Session-Continuation für lange Läufe
+direct ralph --plan ./ralph-plan.json --session-strategy resume
+
+# Post-Checks am Ende steuern
+direct ralph --plan ./ralph-plan.json --post-check-profile governance
+
+# JSONL Event-Output in Konsole + Datei
+direct ralph --plan ./ralph-plan.json --log-format jsonl
+
+# Provider-Capability-Mismatch als hard fail
+direct ralph --plan ./ralph-plan.json --strict-provider-capabilities
+
+# Template ausgeben
+direct ralph --plan-template
+```
+
+Hinweise:
+- Bei mehreren Plan-Dateien im Repo-Root fragt der interaktive Flow nach der gewünschten Datei (z. B. `frontend_plan.json` oder `backend_plan.json`).
+- `--session-strategy resume` persistiert die letzte Provider-Session-ID im Plan (`metadata.resumeSessionId`) und setzt sie nach Neustart fort.
+
+Wichtige Flags:
+- `--no-preset`
+- `--dry-run`
+- `--no-auto-commit`
+- `--allow-dirty`
+- `--max-iterations <n>`
+- `--plan <path>`
+- `--session-strategy <reset|resume>`
+- `--post-check-profile <none|fast|governance|full>`
+- `--log-format <text|jsonl>`
+- `--run-log-path <path>`
+- `--strict-provider-capabilities`
+- `--plan-template`
+
+Run-Log:
+- Standardpfad: `.ralph/runs/<timestamp>.jsonl`
+- Enthält strukturierte Events (`run_started`, `iteration_started`, `provider_retry`, `step_done`, `post_check_failed`, `run_finished`)
+
+Plan-Referenzen:
+- Template: `docs/guides/ralph-plan-template.md`
+- JSON-Schema: `docs/contracts/ralph-plan.schema.json`
+
 ## Phase-2 Snapshot (aktueller Umsetzungsstand)
 
 Bereits umgesetzt im Backend:
