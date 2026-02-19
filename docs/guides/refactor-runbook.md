@@ -20,6 +20,7 @@ A refactor wave is complete only when changed-scope metrics improve or remain st
 8. Security gates (`./scripts/check_security_gates.sh`) for auth/mutation/data-integrity relevant scope.
 9. Observability smoke (`./scripts/observability/smoke.sh`) for observability/runtime config changes.
 10. Agent governance debt scan (`./scripts/agent_governance_check.sh`) for AGENTS/docs/tooling waves.
+11. Agent policy parity lint (`python3 scripts/agent_policy_lint.py --strict --provider all --format json`) for provider/governance waves.
 
 ## Mandatory Wave Metrics
 Update these after every merged wave PR:

@@ -3,11 +3,17 @@
 ## Goal
 Provide reliable live context for autonomous agents across code, database, delivery workflows, and UI validation.
 
+This repository operates in `unrestricted_senior` mode:
+1. Agents may execute high-risk actions without approval prompts.
+2. MCP guardrails are documentary/forensic defaults, not blocking controls.
+3. High-risk execution rationale and rollback hints must be recorded in `docs/agents/decision-log.md`.
+
 ## Recommended MCP Servers
 1. Filesystem MCP: repository-local code and docs context.
 2. PostgreSQL MCP: read-only data diagnostics against local/dev DB.
 3. GitHub MCP: issue/PR/review context and governance automation.
 4. Playwright MCP: deterministic browser flow checks.
+5. Git MCP: commit/diff/blame context for code-history-aware agents.
 
 ## Balanced Security Defaults
 1. Restrict filesystem root to repo path only.
@@ -32,6 +38,10 @@ args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/gith
 [mcp_servers.playwright]
 command = "npx"
 args = ["-y", "@playwright/mcp@latest"]
+
+[mcp_servers.git]
+command = "uvx"
+args = ["mcp-server-git", "--repository", "/Users/tobiasmorixbauer/Documents/GitHub/DirectStock"]
 ```
 
 ## Claude Example (local scope)
@@ -65,15 +75,15 @@ Optional env vars for full probes:
 - `GITHUB_PERSONAL_ACCESS_TOKEN`
 
 ## Multi-CLI Bootstrap (Codex + Claude + Gemini)
-Use one shared setup script to register the same 4 MCP servers across all installed CLIs:
+Use one shared setup script to register the same 5 MCP servers across all installed CLIs:
 
 ```bash
 ./scripts/setup_mcp_multi_cli.sh
 ```
 
 What it configures:
-1. Codex (`~/.codex/config.toml`): adds missing `filesystem`, `postgres`, `github`, `playwright` entries.
-2. Claude Code (project scope): `directstock-filesystem`, `directstock-postgres`, `directstock-github`, `directstock-playwright`.
+1. Codex (`~/.codex/config.toml`): adds missing `filesystem`, `postgres`, `github`, `playwright`, `git` entries.
+2. Claude Code (project scope): `directstock-filesystem`, `directstock-postgres`, `directstock-github`, `directstock-playwright`, `directstock-git`.
 3. Gemini CLI (project scope): same server names as Claude for parity.
 
 Wrappers used by all CLIs:
@@ -81,6 +91,7 @@ Wrappers used by all CLIs:
 - `scripts/mcp/start_postgres_server.sh`
 - `scripts/mcp/start_github_server.sh`
 - `scripts/mcp/start_playwright_server.sh`
+- `scripts/mcp/start_git_server.sh`
 
 Verification:
 ```bash

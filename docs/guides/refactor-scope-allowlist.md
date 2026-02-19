@@ -10,6 +10,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `.pre-commit-config.yaml`
    - `.gitleaks.toml`
    - `.github/workflows/ci.yml`
+   - `.github/workflows/agent_self_improve.yml`
    - `backend/ruff.toml`
    - `backend/pyproject.toml`
    - `frontend/eslint.config.js`
@@ -20,6 +21,9 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `frontend/src/App.tsx`
    - `frontend/src/components/AppLayout.tsx`
    - `frontend/src/components/users/UserFormModal.tsx`
+   - `frontend/src/services/offlineQueue.ts`
+   - `frontend/src/services/offlineQueueStore.ts`
+   - `frontend/src/services/offlineQueueTypes.ts`
    - `frontend/src/services/operationsApi.ts`
    - `frontend/src/services/operations-api/**`
    - `frontend/src/routing/*`
@@ -110,9 +114,12 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `backend/app/services/carriers/**`
    - `backend/app/services/returns/**`
    - `backend/app/services/reports/**`
+   - `backend/app/services/einvoice/**`
    - `backend/app/bootstrap.py`
    - `backend/app/bootstrap_seed.py`
    - `backend/app/bootstrap_permissions.py`
+   - `backend/app/bootstrap_permissions_data.py`
+   - `backend/app/bootstrap_permissions_seed.py`
    - `backend/app/bootstrap_roles.py`
    - `backend/app/config.py`
    - `backend/app/main.py`
@@ -141,6 +148,11 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `docs/validation/metrics/**`
    - `README.md`
    - `AGENTS.md`
+   - `CLAUDE.md`
+   - `CODEX.md`
+   - `GEMINI.md`
+   - `backend/AGENTS.md`
+   - `frontend/AGENTS.md`
 5. E2E-Hardening + Agent Harness:
    - `frontend/package.json`
    - `frontend/src/types.ts`
@@ -157,6 +169,8 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `scripts/check_mutation_integrity.py`
    - `scripts/run_golden_tasks.sh`
    - `scripts/agent_governance_check.sh`
+   - `scripts/agent_policy_lint.py`
+   - `scripts/agent_self_improve.py`
    - `scripts/check_mcp_readiness.sh`
    - `scripts/setup_mcp_multi_cli.sh`
    - `scripts/mcp/**`

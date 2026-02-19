@@ -6,6 +6,7 @@
    - `./scripts/check_refactor_scope_allowlist.sh`
    - `./scripts/check_file_size_limits.sh`
    - `./scripts/agent_governance_check.sh`
+   - `python3 scripts/agent_policy_lint.py --strict --provider all --format json`
 3. Report policy deltas and residual risk.
 
 ## 2) Frontend Domain Change

@@ -1,6 +1,6 @@
 # MCP Readiness Snapshot
 
-Generated at: 2026-02-19T07:34:59Z
+Generated at: 2026-02-19T09:12:29Z
 
 ## Summary
 
@@ -15,6 +15,7 @@ Generated at: 2026-02-19T07:34:59Z
 | postgres | yes | pass | startup probe ok |
 | github | yes | pass | startup probe ok |
 | playwright | yes | pass | startup probe ok |
+| git | yes | pass | startup probe ok |
 
 ## Probe Semantics
 

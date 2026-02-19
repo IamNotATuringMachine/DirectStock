@@ -10,6 +10,7 @@ declare -a ALLOWLIST_REGEX=(
   '^\.gitleaks\.toml$'
   '^\.env\.example$'
   '^\.github/workflows/ci\.yml$'
+  '^\.github/workflows/agent_self_improve\.yml$'
   '^backend/ruff\.toml$'
   '^backend/pyproject\.toml$'
   '^frontend/eslint\.config\.js$'
@@ -167,6 +168,19 @@ declare -a ALLOWLIST_REGEX=(
   '^docs/validation/metrics/.*'
   '^README\.md$'
   '^AGENTS\.md$'
+  '^CLAUDE\.md$'
+  '^CODEX\.md$'
+  '^GEMINI\.md$'
+  '^backend/AGENTS\.md$'
+  '^frontend/AGENTS\.md$'
+  '^backend/app/bootstrap_permissions_data\.py$'
+  '^backend/app/bootstrap_permissions_seed\.py$'
+  '^backend/app/services/einvoice/.*'
+  '^frontend/src/services/offlineQueue\.ts$'
+  '^frontend/src/services/offlineQueueStore\.ts$'
+  '^frontend/src/services/offlineQueueTypes\.ts$'
+  '^scripts/agent_policy_lint\.py$'
+  '^scripts/agent_self_improve\.py$'
 )
 
 resolve_base_ref() {

@@ -5,6 +5,7 @@
 - `/frontend`: React/Vite app, page containers, services, E2E tests.
 - `/scripts`: deterministic quality gates, metrics, smoke checks, harness.
 - `/docs`: guides, contracts, validation artifacts.
+- `/DirectStock`: Obsidian workspace (non-production context, exclude from product code decisions unless explicitly requested).
 
 ## Backend Topology
 - App entrypoint: `backend/app/main.py`
@@ -27,6 +28,13 @@
 - Returns: `docs/agents/entrypoints/returns.md`
 - Shipping: `docs/agents/entrypoints/shipping.md`
 - Product Form: `docs/agents/entrypoints/product-form.md`
+
+## Context Packs
+- Backend: `docs/agents/context-packs/backend.md`
+- Frontend: `docs/agents/context-packs/frontend.md`
+- Operations: `docs/agents/context-packs/ops.md`
+- Reports: `docs/agents/context-packs/reports.md`
+- Auth/RBAC: `docs/agents/context-packs/auth.md`
 
 ## Fast Scope Checks
 1. API compatibility: `./scripts/check_api_contract_drift.sh`

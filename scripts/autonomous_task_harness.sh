@@ -105,6 +105,8 @@ fi
 if [ "${RUN_AGENT_GOVERNANCE:-0}" = "1" ]; then
   echo "==> Running agent governance check"
   ./scripts/agent_governance_check.sh
+  echo "==> Running agent policy parity lint"
+  python3 scripts/agent_policy_lint.py --strict --provider all --format json
 fi
 
 if [ "${RUN_MCP_READINESS:-0}" = "1" ]; then

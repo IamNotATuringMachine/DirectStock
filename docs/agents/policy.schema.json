@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://directstock.local/docs/agents/policy.schema.json",
+  "title": "DirectStock Agent Policy Contract",
+  "type": "object",
+  "required": [
+    "autonomy_mode",
+    "decision_classes",
+    "high_risk_protocol",
+    "provider_matrix",
+    "self_improvement_policy",
+    "required_gates"
+  ],
+  "properties": {
+    "autonomy_mode": {
+      "type": "string",
+      "enum": ["unrestricted_senior"]
+    },
+    "decision_classes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["auto_execute", "ask_once"]
+      },
+      "minItems": 2,
+      "uniqueItems": true
+    },
+    "high_risk_protocol": {
+      "type": "object",
+      "required": ["decision_log_path", "requires_pre_and_post_entry"],
+      "properties": {
+        "decision_log_path": {"type": "string", "minLength": 1},
+        "requires_pre_and_post_entry": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "provider_matrix": {
+      "type": "object",
+      "required": ["openai", "anthropic", "google"],
+      "properties": {
+        "openai": {"$ref": "#/$defs/provider"},
+        "anthropic": {"$ref": "#/$defs/provider"},
+        "google": {"$ref": "#/$defs/provider"}
+      },
+      "additionalProperties": false
+    },
+    "self_improvement_policy": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "runner_script",
+        "max_changes_per_run",
+        "touch_allowlist",
+        "incident_threshold"
+      ],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "runner_script": {"type": "string", "minLength": 1},
+        "max_changes_per_run": {"type": "integer", "minimum": 1, "maximum": 50},
+        "touch_allowlist": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["AGENTS", "docs", "scripts"]},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "incident_threshold": {
+          "type": "object",
+          "required": ["count", "window_days"],
+          "properties": {
+            "count": {"type": "integer", "minimum": 1},
+            "window_days": {"type": "integer", "minimum": 1, "maximum": 365}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "required_gates": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "provider": {
+      "type": "object",
+      "required": ["adapter_file", "policy_doc", "required_capabilities", "fallback_order"],
+      "properties": {
+        "adapter_file": {"type": "string", "minLength": 1},
+        "policy_doc": {"type": "string", "minLength": 1},
+        "required_capabilities": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "fallback_order": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

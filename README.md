@@ -17,6 +17,8 @@ Dieses Repository enthält die Sprint-1-Implementierung für DirectStock inkl. P
 - Canonical policy: `AGENTS.md`
 - Scoped deltas: `backend/AGENTS.md`, `frontend/AGENTS.md`
 - Tool adapters: `CLAUDE.md`, `GEMINI.md`, `CODEX.md`
+- Provider profiles: `docs/agents/providers/*`
+- Policy contract: `docs/agents/policy.contract.yaml`
 - Setup guide: `docs/guides/ai-agent-setup.md`
 - MCP strategy: `docs/guides/mcp-stack-strategy.md`
 - Handoff protocol: `docs/agents/handoff-protocol.md`

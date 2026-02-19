@@ -1,6 +1,6 @@
 # Performance Budget Snapshot
 
-Generated at: 2026-02-18T20:32:29.160018Z
+Generated at: 2026-02-19T09:20:39.286564Z
 
 ## Budget Targets
 
@@ -12,10 +12,10 @@ Generated at: 2026-02-18T20:32:29.160018Z
 
 | Scenario | Requests | p95 (ms) | p99 (ms) | Error rate | Budget (ms) | Status |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| goods_receipt | 169 | 44.76 | 249.84 | 0.00% | 400.00 | PASS |
-| picking | 177 | 32.78 | 243.90 | 0.00% | 400.00 | PASS |
-| reports | 88 | 36.68 | 265.00 | 0.00% | 900.00 | PASS |
-| returns | 167 | 50.38 | 247.18 | 0.00% | 400.00 | PASS |
+| goods_receipt | 171 | 40.56 | 260.59 | 0.00% | 400.00 | PASS |
+| picking | 179 | 28.59 | 281.84 | 0.00% | 400.00 | PASS |
+| reports | 91 | 26.54 | 273.28 | 0.00% | 900.00 | PASS |
+| returns | 173 | 38.38 | 285.51 | 0.58% | 400.00 | PASS |
 
 ## Raw Result Files
 

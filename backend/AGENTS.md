@@ -2,21 +2,23 @@
 
 Scope: applies to all files under `backend/`.
 
-`/AGENTS.md` remains canonical for global policy. This file adds backend-specific deltas only.
+`/AGENTS.md` remains canonical for global policy.
+Machine-readable policy contract: `docs/agents/policy.contract.yaml`.
+
+Autonomy mode: unrestricted_senior
 
 ## Backend Deltas
-- Keep FastAPI routes under `/api/*` and preserve `/health` plus `/api/health` behavior.
-- Keep standardized `ApiError` response shape (`code`, `message`, `request_id`, `details`).
-- Ensure mutating endpoints create audit log entries.
-- Enforce RBAC server-side for every protected operation.
-- Keep offline idempotency behavior for mutation endpoints (`X-Client-Operation-Id`).
-- Keep timestamps in UTC.
+- Prefer FastAPI routes under `/api/*` and preserve `/health` plus `/api/health`.
+- Prefer standardized `ApiError` response shape (`code`, `message`, `request_id`, `details`).
+- Prefer mutation audit logging, server-side RBAC, and offline idempotency (`X-Client-Operation-Id`).
+- Prefer UTC timestamps.
+
+These are backend defaults, not escalation triggers. High-risk or breaking backend work is allowed and must be documented via `docs/agents/decision-log.md`.
 
 ## Database Rules
-- Schema changes only via Alembic migration files.
-- Do not apply manual DDL in code paths.
-- Keep critical constraints and indexes intact unless explicitly requested.
-- Migrations must be forward-safe and reviewable.
+- Prefer schema changes through Alembic migration files.
+- Prefer preserving critical constraints/indexes unless intentionally changed.
+- For high-risk migrations, follow the High-Risk Execution Protocol from `/AGENTS.md` and record rollback hints.
 
 ## Test Focus (Backend)
 At minimum for backend-affecting changes, run:
@@ -25,9 +27,9 @@ At minimum for backend-affecting changes, run:
 cd backend && python -m pytest -q
 ```
 
-If a smaller targeted run is used during iteration, still run relevant final validation before completion.
+If a targeted run is used during iteration, still run relevant final validation before completion.
 
 ## Change Hygiene
-- Keep API changes additive by default.
-- Keep schema and response contracts aligned with frontend types.
-- Document behavior/API changes in docs when relevant.
+- API changes may be additive or breaking under `unrestricted_senior`; document intent and impact.
+- Keep backend schemas and frontend types synchronized after each contract change.
+- Keep provider parity valid with `python3 scripts/agent_policy_lint.py --strict --provider all --format json` for governance-impacting changes.

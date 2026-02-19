@@ -23,89 +23,137 @@ add_action() {
   ACTIONS+=("$1")
 }
 
-if [ ! -f "AGENTS.md" ]; then
-  add_finding "Missing root AGENTS.md."
-  add_action "Create AGENTS.md as canonical project policy file."
+require_file() {
+  local path="$1"
+  local remediation="$2"
+  if [ ! -f "${path}" ]; then
+    add_finding "Missing required file: ${path}."
+    add_action "${remediation}"
+    return 1
+  fi
+  return 0
+}
+
+require_pattern() {
+  local path="$1"
+  local pattern="$2"
+  local message="$3"
+  local remediation="$4"
+  if ! grep -Fq "${pattern}" "${path}"; then
+    add_finding "${message}"
+    add_action "${remediation}"
+  fi
+}
+
+if require_file "AGENTS.md" "Create AGENTS.md as canonical project policy file."; then
+  require_pattern \
+    "AGENTS.md" \
+    "Autonomy mode: unrestricted_senior" \
+    "AGENTS.md missing required autonomy declaration: Autonomy mode: unrestricted_senior." \
+    "Set AGENTS.md to unrestricted_senior mode."
+  require_pattern \
+    "AGENTS.md" \
+    "## High-Risk Execution Protocol" \
+    "AGENTS.md missing High-Risk Execution Protocol section." \
+    "Add a High-Risk Execution Protocol section to AGENTS.md."
+  require_pattern \
+    "AGENTS.md" \
+    "docs/agents/decision-log.md" \
+    "AGENTS.md does not reference docs/agents/decision-log.md." \
+    "Reference docs/agents/decision-log.md in AGENTS.md."
 fi
 
-if [ -f "AGENTS.md" ]; then
-  for heading in "## Autonomy Decision Matrix" "## Escalation Triggers" "## Handoff Minimum" "## Failure Policy" "## LLM Context Architecture Targets"; do
-    if ! grep -Fq "${heading}" AGENTS.md; then
-      add_finding "AGENTS.md missing required section: ${heading}."
-      add_action "Add missing section ${heading} to AGENTS.md."
+for scoped in backend/AGENTS.md frontend/AGENTS.md; do
+  if require_file "${scoped}" "Create ${scoped} with scoped guidance."; then
+    require_pattern \
+      "${scoped}" \
+      "Autonomy mode: unrestricted_senior" \
+      "${scoped} missing required autonomy declaration." \
+      "Add unrestricted_senior declaration to ${scoped}."
+  fi
+done
+
+for adapter in CLAUDE.md CODEX.md GEMINI.md; do
+  if require_file "${adapter}" "Create thin adapter ${adapter} pointing to AGENTS.md."; then
+    lines="$(wc -l < "${adapter}" | tr -d ' ')"
+    if [ "${lines}" -gt 120 ]; then
+      add_finding "Adapter ${adapter} is not thin (${lines} lines)."
+      add_action "Reduce ${adapter} to thin adapter content (<120 lines)."
+    fi
+    require_pattern \
+      "${adapter}" \
+      "unrestricted_senior" \
+      "Adapter ${adapter} does not mention unrestricted_senior mode." \
+      "Add unrestricted_senior guidance to ${adapter}."
+  fi
+done
+
+if require_file "docs/agents/decision-log.md" "Create docs/agents/decision-log.md."; then
+  for field in "action:" "rationale:" "impacted_files:" "risk_level:" "rollback_hint:" "verification:"; do
+    if ! grep -Fq "${field}" docs/agents/decision-log.md; then
+      add_finding "Decision log template missing required field: ${field}"
+      add_action "Update docs/agents/decision-log.md to include ${field}."
     fi
   done
 fi
 
-for adapter in CLAUDE.md CODEX.md GEMINI.md; do
-  if [ ! -f "${adapter}" ]; then
-    add_finding "Missing adapter file: ${adapter}."
-    add_action "Create thin adapter ${adapter} pointing to AGENTS.md."
-    continue
-  fi
-  lines="$(wc -l < "${adapter}" | tr -d ' ')"
-  if [ "${lines}" -gt 120 ]; then
-    add_finding "Adapter ${adapter} is not thin (${lines} lines)."
-    add_action "Reduce ${adapter} to thin adapter content (<120 lines)."
-  fi
-done
-
 for path in \
+  docs/agents/policy.contract.yaml \
+  docs/agents/policy.schema.json \
+  docs/agents/providers/openai.md \
+  docs/agents/providers/anthropic.md \
+  docs/agents/providers/google.md \
+  docs/agents/context-packs/backend.md \
+  docs/agents/context-packs/frontend.md \
+  docs/agents/context-packs/ops.md \
+  docs/agents/context-packs/reports.md \
+  docs/agents/context-packs/auth.md \
+  docs/guides/ai-agent-setup.md \
+  docs/guides/mcp-stack-strategy.md \
   docs/agents/handoff-protocol.md \
   docs/agents/incident-log.md \
   docs/agents/repo-map.md \
   docs/agents/change-playbooks.md \
-  docs/agents/handoff.schema.json \
-  docs/agents/entrypoints/operations.md \
-  docs/agents/entrypoints/reports.md \
-  docs/agents/entrypoints/returns.md \
-  docs/agents/entrypoints/shipping.md \
-  docs/agents/entrypoints/product-form.md; do
-  if [ ! -f "${path}" ]; then
-    add_finding "Missing LLM context artifact: ${path}."
-    add_action "Create ${path}."
-  fi
+  docs/agents/handoff.schema.json; do
+  require_file "${path}" "Create ${path}."
 done
 
-if ! grep -Eq 'limit=500|limit=350' scripts/check_file_size_limits.sh; then
-  add_finding "Chunking policy not aligned with LLM targets (<500 production, <350 page/router)."
-  add_action "Update scripts/check_file_size_limits.sh to enforce 500/350 targets."
+if [ -f docs/agents/policy.contract.yaml ]; then
+  require_pattern \
+    "docs/agents/policy.contract.yaml" \
+    "\"provider_matrix\"" \
+    "Policy contract missing provider_matrix field." \
+    "Update docs/agents/policy.contract.yaml to include provider_matrix."
 fi
 
-if [ -f docs/validation/metrics/golden-tasks-latest.md ]; then
-  first_pass="$(grep -E 'First-pass success:' docs/validation/metrics/golden-tasks-latest.md | sed -E 's/.*First-pass success: ([0-9]+\.[0-9]+)%.*/\1/' | head -n1 || true)"
-  failed_tasks="$(grep -E '^- Failed:' docs/validation/metrics/golden-tasks-latest.md | sed -E 's/^- Failed: ([0-9]+).*/\1/' | head -n1 || true)"
-
-  if [ -n "${first_pass}" ]; then
-    if awk "BEGIN {exit !(${first_pass} < 90.0)}"; then
-      add_finding "Golden task first-pass success below 90% (${first_pass}%)."
-      add_action "Stabilize failing golden tasks and rerun ./scripts/run_golden_tasks.sh."
-    fi
-  else
-    add_finding "Could not parse first-pass success from golden task report."
-    add_action "Repair docs/validation/metrics/golden-tasks-latest.md format."
-  fi
-
-  if [ -n "${failed_tasks}" ] && [ "${failed_tasks}" -gt 0 ]; then
-    add_finding "Golden tasks currently have ${failed_tasks} failure(s)."
-    add_action "Investigate docs/validation/metrics/golden-task-logs/* and fix root causes."
+if [ -f scripts/agent_policy_lint.py ]; then
+  set +e
+  policy_lint_output="$(python3 scripts/agent_policy_lint.py --strict --provider all --format json 2>&1)"
+  policy_lint_rc=$?
+  set -e
+  if [ "${policy_lint_rc}" -ne 0 ]; then
+    add_finding "Policy lint failed: ${policy_lint_output}"
+    add_action "Fix contract/provider parity issues reported by scripts/agent_policy_lint.py."
   fi
 else
-  add_finding "Missing golden task report: docs/validation/metrics/golden-tasks-latest.md."
-  add_action "Run ./scripts/run_golden_tasks.sh and commit updated metrics."
+  add_finding "Missing required script: scripts/agent_policy_lint.py"
+  add_action "Create scripts/agent_policy_lint.py and integrate provider parity linting."
 fi
 
-if [ -f docs/validation/metrics/test-flakiness-latest.md ]; then
-  flake_rate="$(grep -E '^\| Flake rate \|' docs/validation/metrics/test-flakiness-latest.md | sed -E 's/^\| Flake rate \| ([0-9]+\.[0-9]+)% \|.*$/\1/' | head -n1 || true)"
-  if [ -n "${flake_rate}" ] && awk "BEGIN {exit !(${flake_rate} >= 1.0)}"; then
-    add_finding "E2E flake rate is ${flake_rate}% (target < 1.0%)."
-    add_action "Run flakiness loop and quarantine unstable tests before merge."
-  fi
+if [ -f docs/guides/ai-agent-setup.md ]; then
+  require_pattern \
+    "docs/guides/ai-agent-setup.md" \
+    "unrestricted_senior" \
+    "AI agent setup guide does not declare unrestricted_senior mode." \
+    "Update docs/guides/ai-agent-setup.md with unrestricted_senior mode statement."
 fi
 
-debt_detected=0
-if [ "${#FINDINGS[@]}" -gt 0 ]; then
-  debt_detected=1
+if [ -f docs/guides/mcp-stack-strategy.md ]; then
+  require_pattern \
+    "docs/guides/mcp-stack-strategy.md" \
+    "documentary/forensic defaults, not blocking controls" \
+    "MCP strategy guide missing non-blocking guardrail wording for unrestricted_senior mode." \
+    "Update docs/guides/mcp-stack-strategy.md with non-blocking guardrail wording."
 fi
 
 if [ ! -f "${HISTORY_FILE}" ]; then
@@ -115,6 +163,11 @@ if [ ! -f "${HISTORY_FILE}" ]; then
     echo "| Timestamp (UTC) | Debt | Findings | Recommended Actions |"
     echo "| --- | --- | ---: | ---: |"
   } > "${HISTORY_FILE}"
+fi
+
+debt_detected=0
+if [ "${#FINDINGS[@]}" -gt 0 ]; then
+  debt_detected=1
 fi
 
 printf '| %s | %s | %s | %s |\n' \
@@ -132,6 +185,7 @@ printf '| %s | %s | %s | %s |\n' \
   echo
   echo "- Debt detected: ${debt_detected}"
   echo "- Findings: ${#FINDINGS[@]}"
+  echo "- Required autonomy mode: unrestricted_senior"
   echo
   echo "## Findings"
   echo

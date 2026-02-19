@@ -1,0 +1,78 @@
+{
+  "autonomy_mode": "unrestricted_senior",
+  "decision_classes": [
+    "auto_execute",
+    "ask_once"
+  ],
+  "high_risk_protocol": {
+    "decision_log_path": "docs/agents/decision-log.md",
+    "requires_pre_and_post_entry": true
+  },
+  "provider_matrix": {
+    "openai": {
+      "adapter_file": "CODEX.md",
+      "policy_doc": "docs/agents/providers/openai.md",
+      "required_capabilities": [
+        "responses_api",
+        "conversation_state",
+        "background_mode",
+        "mcp_tooling",
+        "multi_agent_workflows"
+      ],
+      "fallback_order": [
+        "AGENTS.md",
+        "docs/agents/providers/openai.md",
+        "CODEX.md"
+      ]
+    },
+    "anthropic": {
+      "adapter_file": "CLAUDE.md",
+      "policy_doc": "docs/agents/providers/anthropic.md",
+      "required_capabilities": [
+        "claude_code_hooks",
+        "memory_files",
+        "prompt_caching",
+        "mcp_connectors"
+      ],
+      "fallback_order": [
+        "AGENTS.md",
+        "docs/agents/providers/anthropic.md",
+        "CLAUDE.md"
+      ]
+    },
+    "google": {
+      "adapter_file": "GEMINI.md",
+      "policy_doc": "docs/agents/providers/google.md",
+      "required_capabilities": [
+        "adk_workflows",
+        "agent_engine_patterns",
+        "a2a_interoperability",
+        "mcp_tooling"
+      ],
+      "fallback_order": [
+        "AGENTS.md",
+        "docs/agents/providers/google.md",
+        "GEMINI.md"
+      ]
+    }
+  },
+  "self_improvement_policy": {
+    "enabled": true,
+    "runner_script": "scripts/agent_self_improve.py",
+    "max_changes_per_run": 5,
+    "touch_allowlist": [
+      "AGENTS",
+      "docs",
+      "scripts"
+    ],
+    "incident_threshold": {
+      "count": 3,
+      "window_days": 14
+    }
+  },
+  "required_gates": [
+    "./scripts/agent_governance_check.sh",
+    "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
+    "./scripts/check_mcp_readiness.sh"
+  ]
+}

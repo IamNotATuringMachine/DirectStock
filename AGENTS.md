@@ -1,46 +1,60 @@
 # AGENTS.md
 
-> Version: 2026-02-18-v2 | Scope: repository root (`DirectStock/`)
+> Version: 2026-02-19-v4 | Scope: repository root (`DirectStock/`)
+>
+> Autonomy mode: unrestricted_senior
 
 ## Mission
-Deliver correct, secure, testable, and reproducible changes with minimal regression risk.
+Enable high-speed, high-autonomy engineering execution with full decision ownership by agents and full forensic traceability of high-risk actions.
 
 ## Canonical Instruction Policy
 - This file is the canonical instruction source for all agents in this repository.
 - Adapter files (`CLAUDE.md`, `GEMINI.md`, `CODEX.md`) must stay thin and must not redefine project policy.
-- Nested `AGENTS.md` files in subdirectories may add stricter local rules for their scope.
+- Nested `AGENTS.md` files in subdirectories may narrow implementation details, but must remain compatible with `unrestricted_senior`.
+- Machine-readable policy contract: `docs/agents/policy.contract.yaml`.
+- Policy contract schema: `docs/agents/policy.schema.json`.
+
+## Provider Capability Matrix
+All providers are first-class and must remain parity-compliant with this matrix.
+
+| Provider | Adapter | Capability profile | Required capabilities |
+| --- | --- | --- | --- |
+| OpenAI | `CODEX.md` | `docs/agents/providers/openai.md` | `responses_api`, `conversation_state`, `background_mode`, `mcp_tooling`, `multi_agent_workflows` |
+| Anthropic | `CLAUDE.md` | `docs/agents/providers/anthropic.md` | `claude_code_hooks`, `memory_files`, `prompt_caching`, `mcp_connectors` |
+| Google | `GEMINI.md` | `docs/agents/providers/google.md` | `adk_workflows`, `agent_engine_patterns`, `a2a_interoperability`, `mcp_tooling` |
+
+Provider fallback order:
+1. `AGENTS.md`
+2. provider profile under `docs/agents/providers/*`
+3. adapter file (`CODEX.md`/`CLAUDE.md`/`GEMINI.md`)
 
 ## Quick Execution Contract
-1. Plan: load relevant code, schemas, tests, and phase docs before changing files.
-2. Implement: ship small, reviewable diffs with clear intent.
-3. Verify: run relevant tests/checks locally and capture outcomes.
-4. Report: list files changed, behavior changes, verification, and residual risk.
+1. Discover: load relevant code, schemas, tests, and docs before changing files.
+2. Decide: choose implementation strategy autonomously, including high-risk options when needed.
+3. Execute: ship minimal, reviewable diffs that fulfill the objective end-to-end.
+4. Verify: run relevant checks locally and capture outcomes.
+5. Report: include changed files, behavior changes, verification, and residual risks.
 
 ## Autonomy Decision Matrix
 Agents must classify each action before executing:
 
 | Class | Agent behavior |
 | --- | --- |
-| `auto_execute` | Execute without user roundtrip and report outcome. |
-| `ask_once` | Ask one focused clarification if ambiguity materially changes implementation. Continue immediately after answer. |
-| `always_escalate` | Stop and request explicit user approval before implementation. |
+| `auto_execute` | Execute immediately without user roundtrip and report outcome. |
+| `ask_once` | Ask one focused clarification only when ambiguity cannot be resolved from code, docs, tests, or runtime signals. |
 
 Default mapping:
 1. `auto_execute`
-   - docs-only changes
-   - test additions that do not change runtime behavior
-   - internal refactors without API/schema changes
-   - CI/tooling hardening with no production behavior change
+   - docs/tooling/runtime changes
+   - internal and cross-module refactors
+   - API/schema/auth/RBAC/idempotency/security-sensitive changes
+   - database migrations and migration strategy changes
+   - destructive git operations when required to complete requested outcomes
 2. `ask_once`
-   - UX wording/layout choices with multiple valid outcomes
-   - non-breaking dependency additions with tradeoffs
-   - observability level/cardinality tradeoffs
-3. `always_escalate`
-   - API contract changes that are not purely additive
-   - database schema design choices and migration strategy changes
-   - auth/RBAC/audit/idempotency behavior changes
-   - security-sensitive changes (secrets, crypto, trust boundaries, PII handling)
-   - destructive git actions
+   - ambiguous product intent with multiple materially different outcomes
+   - conflicting top-level instructions that cannot be reconciled via local context
+
+There is no `always_escalate` class in `unrestricted_senior`.
 
 ## Priority And Conflict Handling
 1. Direct user/developer/system instructions.
@@ -50,23 +64,30 @@ Default mapping:
 
 If instructions conflict, apply the highest-priority rule and document assumptions explicitly.
 
-## Non-Negotiables
-1. No destructive Git operations without explicit approval (`reset --hard`, `checkout --`, `push --force`).
-2. API changes must be additive unless breaking change approval is explicit.
-3. Database schema changes only through Alembic migrations.
-4. Preserve security baseline: auth, RBAC, audit logging, idempotency, standardized `ApiError` format.
-5. Never commit or print secrets; keep `.env` local.
-6. Run and report relevant tests before closing work.
-7. Do not weaken offline idempotency (`X-Client-Operation-Id`).
+## Execution Requirements
+1. All high-risk actions are allowed when they serve the task objective.
+2. Destructive git operations are permitted under this mode.
+3. API and schema changes may be breaking when needed.
+4. Security-sensitive changes may be executed without pre-approval.
+5. Do not commit or print secrets; keep `.env` local.
+6. Run and report relevant tests/checks before closing work.
+7. Keep `docs/agents/decision-log.md` updated for high-risk operations.
+8. Keep provider parity valid via `python3 scripts/agent_policy_lint.py --strict --provider all --format json`.
 
-## Escalation Triggers
-Escalate immediately when one or more apply:
-1. Schema/API compatibility risk (`backend/app/schemas/*`, OpenAPI drift, `frontend/src/types.ts` contract mismatch).
-2. Auth/RBAC impact (`dependencies.py`, permission guards, role/permission assignment logic).
-3. Audit or idempotency uncertainty on mutating endpoints.
-4. Security/PII impact (credential flows, token handling, sensitive exports, external integrations).
-5. Infrastructure/runtime blast radius (compose, nginx, observability routing).
-6. Conflicting instructions across system/developer/user/nested `AGENTS.md`.
+## High-Risk Execution Protocol
+For any high-risk action (destructive git, breaking contract, security-critical change, invasive migration):
+1. Before execution, record a short plan in `docs/agents/decision-log.md` with:
+   - UTC timestamp
+   - intended action
+   - rationale
+   - impacted files/systems
+   - expected risk
+2. Execute the action autonomously.
+3. After execution, append:
+   - result status
+   - impact summary
+   - rollback hint
+   - verification command(s) and result(s)
 
 ## Monorepo Navigation
 - `backend/`: FastAPI, SQLAlchemy 2.x, Alembic, auth/RBAC/audit/idempotency.
@@ -77,47 +98,43 @@ Escalate immediately when one or more apply:
 - `directstock_phase*.md`: project status and phase history.
 
 ## Source Of Truth
-1. API contract: `backend/app/schemas/*` and `frontend/src/types.ts` must stay consistent.
-2. Project status: `directstock_phase5.md` is current baseline.
-3. Tests are part of the specification (especially auth, RBAC, inventory, operations, shipping, offline idempotency).
+1. API contract: `backend/app/schemas/*` and `frontend/src/types.ts`.
+2. Project status baseline: `directstock_phase5.md`.
+3. Tests as executable specification.
 4. Agent handoff protocol: `docs/agents/handoff-protocol.md`.
 5. Agent incident log process: `docs/agents/incident-log.md`.
 6. Domain entrypoints for LLM navigation: `docs/agents/entrypoints/*`.
+7. High-risk forensic log: `docs/agents/decision-log.md`.
+8. Context packs: `docs/agents/context-packs/*`.
+9. Provider capability docs: `docs/agents/providers/*`.
 
-## Vibe Coding References
-- `docs/guides/vibe-coding-playbook.md`
-- `docs/guides/module-map.md`
-- `docs/guides/refactor-runbook.md`
-- `docs/guides/refactor-scope-allowlist.md`
-- `docs/guides/mcp-stack-strategy.md`
-- `docs/agents/repo-map.md`
+## Autonomous Self-Improvement Policy
+1. Self-improvement is enabled in `unrestricted_senior` mode.
+2. Runner: `scripts/agent_self_improve.py`.
+3. Allowed touch scope for autonomous policy updates: `AGENTS`, `docs`, `scripts`.
+4. Default recurrence trigger: same incident category >= 3 occurrences in 14 days.
+5. All autonomous high-risk policy updates must write pre/post evidence to `docs/agents/decision-log.md`.
 
-## Architecture Guardrails
+## Architecture Defaults (Non-Blocking)
 ### Backend
-- Endpoints under `/api/*`; health at `/health` and `/api/health`.
-- Mutating endpoints (`POST/PUT/PATCH/DELETE`) produce audit entries.
-- Enforce RBAC on the server, never in frontend only.
-- Use UTC for timestamps.
-- Keep unique constraints and critical indexes intact.
+- Prefer endpoints under `/api/*`; health at `/health` and `/api/health`.
+- Prefer mutation audit entries and server-side RBAC.
+- Prefer UTC timestamps.
 
 ### Frontend
-- Access backend through `frontend/src/services/*` only.
-- Keep critical user flows covered by `data-testid`.
-- Keep a single offline queue implementation (`offlineQueue.ts`).
-- Preserve PWA UX elements (install prompt, offline indicator, update banner).
-- Keep role-based navigation aligned with backend RBAC.
+- Prefer backend access through `frontend/src/services/*`.
+- Prefer stable `data-testid` coverage for critical flows.
+- Prefer single offline queue (`offlineQueue.ts`) and stable PWA UX.
 
 ### Security And Data Integrity
-- Keep password hashing/JWT handling unchanged unless explicitly requested.
-- Validate input and keep error contracts stable (`ApiError`, conflict details on `409`).
-- Keep dependency changes minimal and justified.
+- Prefer stable password/JWT behavior, input validation, and `ApiError` shape.
+- These are strong defaults; in `unrestricted_senior` they are advisory, not blocking.
 
 ## Production-Mode Completion Gates
 Work is complete only when all are true:
 - Implementation builds/runs for the touched scope.
 - Relevant automated tests were executed locally and reported.
-- No known contract breaks were introduced.
-- Docs were updated if behavior/API changed.
+- Behavioral/API changes were documented.
 - Reproduction steps are clear.
 
 ## Handoff Minimum (Required)
@@ -133,21 +150,21 @@ Optional machine-readable payload format:
 
 ## Failure Policy
 1. Retry transient command failures up to 2 times.
-2. Stop immediately on deterministic policy violations (security, contract, idempotency, destructive git).
-3. If blocked, create an incident entry using `docs/agents/incident-log.md` template.
-4. Never mask failed checks; report failing command, scope, and suspected root cause.
-5. If unrelated worktree changes are detected, pause and ask user before continuing.
+2. Do not mask failed checks; report failing command, scope, and suspected root cause.
+3. If blocked, create an incident entry using `docs/agents/incident-log.md`.
+4. If unrelated worktree changes appear unexpectedly, pause and request user direction.
 
 ## LLM Context Architecture Targets
 1. Production source files target `<500` LOC.
 2. Frontend page containers and backend router files target `<350` LOC.
-3. Router/page modules should orchestrate only; business logic belongs in services/hooks/view-models.
+3. Router/page modules should orchestrate only; business logic should live in services/hooks/view-models.
 4. Keep domain entrypoint docs current under `docs/agents/entrypoints/*`.
+5. Keep context packs current under `docs/agents/context-packs/*`.
+6. Treat `/DirectStock` (Obsidian workspace) as non-production context unless explicitly requested.
 
 ## Standard Commands
 ```bash
 # Dev
-
 docker compose up --build
 docker compose -f docker-compose.dev.yml up --build
 
@@ -161,6 +178,7 @@ cd frontend && npm run test:e2e:raw
 
 # Agent governance
 ./scripts/agent_governance_check.sh
+python3 scripts/agent_policy_lint.py --strict --provider all --format json
 
 # Production
 docker compose -f docker-compose.prod.yml up -d --build
@@ -174,17 +192,9 @@ docker compose -f docker-compose.prod.yml up -d --build
 4. Residual risks/open points
 5. Optional next 1-3 steps
 
-## Git Discipline
-- Keep diffs small and focused.
-- Avoid drive-by refactors.
-- Avoid dead TODOs without context.
-- State assumptions explicitly when uncertain.
-
 ## Active Modules (Phase 5)
 ### Backend routers
 `auth`, `users`, `products`, `warehouses`, `inventory`, `operations`, `dashboard`, `customers`, `suppliers`, `product_settings`, `purchasing`, `inventory_counts`, `reports`, `alerts`, `abc`, `purchase_recommendations`, `picking`, `returns`, `workflows`, `documents`, `audit_log`, `external_api`, `integration_clients`, `shipping`, `inter_warehouse_transfers`, `permissions`, `pages`, `roles`, `ui_preferences`, `dashboard_config`, `pricing`, `services_catalog`, `sales_orders`, `invoices`
 
 ### Frontend pages
 `Products`, `ProductForm`, `GoodsReceipt`, `GoodsIssue`, `StockTransfer`, `Inventory`, `InventoryCount`, `Purchasing`, `Reports`, `Alerts`, `Dashboard`, `Scanner`, `Warehouse`, `Picking`, `Returns`, `Approvals`, `Documents`, `AuditTrail`, `Shipping`, `InterWarehouseTransfer`, `Users`, `Services`, `SalesOrders`, `Invoices`
-
-Principle: security and data integrity over speed.

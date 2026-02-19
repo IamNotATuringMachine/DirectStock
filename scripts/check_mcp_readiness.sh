@@ -19,6 +19,15 @@ has_heading() {
   grep -Fq "${heading}" "${config_file}"
 }
 
+has_any_heading() {
+  for heading in "$@"; do
+    if has_heading "${heading}"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 run_probe() {
   local cmd="$1"
   local output
@@ -70,11 +79,13 @@ cfg_filesystem="no"
 cfg_postgres="no"
 cfg_github="no"
 cfg_playwright="no"
+cfg_git="no"
 
-if has_heading "[mcp_servers.filesystem]"; then cfg_filesystem="yes"; fi
-if has_heading "[mcp_servers.postgres]"; then cfg_postgres="yes"; fi
-if has_heading "[mcp_servers.github]"; then cfg_github="yes"; fi
-if has_heading "[mcp_servers.playwright]"; then cfg_playwright="yes"; fi
+if has_any_heading "[mcp_servers.filesystem]" "[mcp_servers.directstock_filesystem]"; then cfg_filesystem="yes"; fi
+if has_any_heading "[mcp_servers.postgres]" "[mcp_servers.directstock_postgres]"; then cfg_postgres="yes"; fi
+if has_any_heading "[mcp_servers.github]" "[mcp_servers.directstock_github]"; then cfg_github="yes"; fi
+if has_any_heading "[mcp_servers.playwright]" "[mcp_servers.directstock_playwright]"; then cfg_playwright="yes"; fi
+if has_any_heading "[mcp_servers.git]" "[mcp_servers.directstock_git]"; then cfg_git="yes"; fi
 
 status_filesystem="blocked"
 note_filesystem="server not configured"
@@ -84,6 +95,8 @@ status_github="blocked"
 note_github="server not configured"
 status_playwright="blocked"
 note_playwright="server not configured"
+status_git="blocked"
+note_git="server not configured"
 
 if [ "${cfg_filesystem}" = "yes" ]; then
   if command -v npx >/dev/null 2>&1; then
@@ -149,6 +162,16 @@ if [ "${cfg_playwright}" = "yes" ]; then
   fi
 fi
 
+if [ "${cfg_git}" = "yes" ]; then
+  if command -v uvx >/dev/null 2>&1; then
+    result="$(run_start_probe "uvx mcp-server-git --repository \"${ROOT_DIR}\"")"
+    status_git="${result%%|*}"
+    note_git="${result#*|}"
+  else
+    note_git="uvx not found"
+  fi
+fi
+
 overall="ready"
 evaluate_server() {
   local configured="$1"
@@ -179,6 +202,9 @@ fi
 if [ "${overall}" != "failing" ]; then
   evaluate_server "${cfg_playwright}" "${status_playwright}"
 fi
+if [ "${overall}" != "failing" ]; then
+  evaluate_server "${cfg_git}" "${status_git}"
+fi
 
 {
   echo "# MCP Readiness Snapshot"
@@ -198,6 +224,7 @@ fi
   echo "| postgres | ${cfg_postgres} | ${status_postgres} | ${note_postgres} |"
   echo "| github | ${cfg_github} | ${status_github} | ${note_github} |"
   echo "| playwright | ${cfg_playwright} | ${status_playwright} | ${note_playwright} |"
+  echo "| git | ${cfg_git} | ${status_git} | ${note_git} |"
   echo
   echo "## Probe Semantics"
   echo

@@ -8,7 +8,16 @@ Codex natively uses `AGENTS.md` as the primary project instruction file. This fi
 ## Canonical Rule
 - `AGENTS.md` is the source of truth.
 - Nested `AGENTS.md` files apply to their directory scope.
+- Active repo mode: `unrestricted_senior`.
+- OpenAI provider profile: `docs/agents/providers/openai.md`.
+- Machine-readable contract: `docs/agents/policy.contract.yaml`.
 - This file should stay short and tool-specific.
+
+## Runtime Behavior
+- Follow `AGENTS.md` in mode `unrestricted_senior`.
+- Execute autonomously, including high-risk actions when needed.
+- Record high-risk decisions in `docs/agents/decision-log.md`.
+- Keep provider parity valid with `python3 scripts/agent_policy_lint.py --strict --provider openai --format json`.
 
 ## Optional Codex Config Pattern
 If your team uses fallback filenames, keep `AGENTS.md` first and add fallbacks in `~/.codex/config.toml`:
