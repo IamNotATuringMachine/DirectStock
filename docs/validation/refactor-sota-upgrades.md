@@ -900,9 +900,9 @@
   - MCP profile contract includes `dev-full` + `ci-readonly` in `.mcp.json`.
   - MCP readiness enforces read-only PostgreSQL role policy in CI posture.
   - Autonomous governance loop includes branch-protection baseline checks for auto-merge safety.
-  - Where GitHub branch-protection is plan-gated/unavailable, guard degrades to explicit warning with CI/governance fallback (documented non-silent risk).
+  - Strict support mode is now active via repository variable `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1`; `agent_self_improve` fails closed when GitHub branch-protection API is unavailable.
   - Self-improvement runner can now patch `AGENTS.md` and governance scripts, not only docs.
   - Scorecard/metrics artifacts refreshed in the latest wave closeout.
 - Residual metric risk after refresh:
   - `ci-duration` now defaults to `main` filter to avoid feature-branch distortion; p90 is within target.
-  - Remaining gap is sample depth on `main` (`16/20` in current snapshot), not latency regression.
+  - `main` sample depth is closed (`20/20` in current snapshot).

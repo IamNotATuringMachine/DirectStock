@@ -1,6 +1,6 @@
 # CI Duration Snapshot
 
-Generated at: 2026-02-19T10:30:14.973997Z
+Generated at: 2026-02-19T10:44:10.430906Z
 
 ## Scope
 
@@ -8,25 +8,25 @@ Generated at: 2026-02-19T10:30:14.973997Z
 
 - Raw run fetch limit: 100
 
-## Status
-
-Insufficient sample: only 16 completed runs available (target >= 20).
-
 ## Scorecard Signals
 
 | Metric | Value | Target |
 | --- | --- | --- |
-| Completed sample size (filtered) | 16 (requested 20) | >= 20 |
-| Completed sample size (all branches) | 32 | track separately |
+| Completed sample size (filtered) | 20 (requested 20) | >= 20 |
+| Completed sample size (all branches) | 36 | track separately |
 | Non-completed runs (cancelled/in_progress/queued) | 0 | track separately |
-| Mean duration | 6.73 min | < 15.00 min |
-| Median duration (p50) | 7.52 min | < 15.00 min |
-| p90 duration | 7.78 min | < 20.00 min |
+| Mean duration | 6.90 min | < 15.00 min |
+| Median duration (p50) | 7.48 min | < 15.00 min |
+| p90 duration | 7.80 min | < 20.00 min |
 
 ## Completed Runs
 
 | Run | Branch | Status | Conclusion | Duration | Link |
 | --- | --- | --- | --- | ---: | --- |
+| 22178269411 | main | completed | success | 7.38 min | [open](https://github.com/IamNotATuringMachine/DirectStock/actions/runs/22178269411) |
+| 22178267260 | main | completed | success | 7.43 min | [open](https://github.com/IamNotATuringMachine/DirectStock/actions/runs/22178267260) |
+| 22178264999 | main | completed | success | 7.80 min | [open](https://github.com/IamNotATuringMachine/DirectStock/actions/runs/22178264999) |
+| 22178119064 | main | completed | success | 7.50 min | [open](https://github.com/IamNotATuringMachine/DirectStock/actions/runs/22178119064) |
 | 22177604408 | main | completed | success | 7.48 min | [open](https://github.com/IamNotATuringMachine/DirectStock/actions/runs/22177604408) |
 | 22176857978 | main | completed | success | 6.72 min | [open](https://github.com/IamNotATuringMachine/DirectStock/actions/runs/22176857978) |
 | 22176550076 | main | completed | success | 7.70 min | [open](https://github.com/IamNotATuringMachine/DirectStock/actions/runs/22176550076) |
