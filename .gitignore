@@ -32,6 +32,8 @@ backend/app/**/__pycache__/
 
 # Env
 .env
+.mcp.json
+.gemini/
 
 # Editors
 .DS_Store

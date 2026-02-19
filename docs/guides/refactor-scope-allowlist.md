@@ -20,6 +20,8 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `frontend/src/App.tsx`
    - `frontend/src/components/AppLayout.tsx`
    - `frontend/src/components/users/UserFormModal.tsx`
+   - `frontend/src/services/operationsApi.ts`
+   - `frontend/src/services/operations-api/**`
    - `frontend/src/routing/*`
    - `frontend/src/stores/authStore.test.ts`
    - `frontend/src/pages/ProductFormPage.tsx`
@@ -30,7 +32,16 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `frontend/src/pages/PurchasingPage.tsx`
    - `frontend/src/pages/InterWarehouseTransferPage.tsx`
    - `frontend/src/pages/ReturnsPage.tsx`
+   - `frontend/src/pages/PickingPage.tsx`
+   - `frontend/src/pages/InventoryPage.tsx`
+   - `frontend/src/pages/InventoryCountPage.tsx`
+   - `frontend/src/pages/WarehousePage.tsx`
    - `frontend/src/pages/UsersPage.tsx`
+   - `frontend/src/pages/SalesOrdersPage.tsx`
+   - `frontend/src/pages/ProductsPage.tsx`
+   - `frontend/src/pages/ScannerPage.tsx`
+   - `frontend/src/pages/AlertsPage.tsx`
+   - `frontend/src/pages/CustomersPage.tsx`
    - `frontend/src/pages/ReportsPage.tsx`
    - `frontend/src/pages/goods-issue/**`
    - `frontend/src/pages/stock-transfer/**`
@@ -38,6 +49,16 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `frontend/src/pages/purchasing/**`
    - `frontend/src/pages/inter-warehouse-transfer/**`
    - `frontend/src/pages/returns/**`
+   - `frontend/src/pages/inventory/**`
+   - `frontend/src/pages/inventory-count/**`
+   - `frontend/src/pages/warehouse/**`
+   - `frontend/src/pages/users/**`
+   - `frontend/src/pages/sales-orders/**`
+   - `frontend/src/pages/products/**`
+   - `frontend/src/pages/scanner/**`
+   - `frontend/src/pages/alerts/**`
+   - `frontend/src/pages/customers/**`
+   - `frontend/src/pages/picking/**`
    - `frontend/src/pages/reports/**`
    - `frontend/src/pages/product-form/**`
    - `frontend/src/pages/goods-receipt/**`
@@ -46,19 +67,38 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `backend/app/routers/reports/**`
    - `backend/app/routers/documents.py`
    - `backend/app/routers/customers.py`
+   - `backend/app/routers/customers_helpers.py`
    - `backend/app/routers/suppliers.py`
    - `backend/app/routers/shipping.py`
+   - `backend/app/routers/shipping_helpers.py`
+   - `backend/app/routers/shipping_workflow.py`
    - `backend/app/routers/returns.py`
    - `backend/app/routers/returns_common.py`
    - `backend/app/routers/returns_orders.py`
    - `backend/app/routers/returns_items.py`
    - `backend/app/routers/purchasing.py`
+   - `backend/app/routers/purchasing_helpers.py`
+   - `backend/app/routers/purchasing_workflow.py`
    - `backend/app/routers/warehouses.py`
+   - `backend/app/routers/warehouses_helpers.py`
+   - `backend/app/routers/warehouses_workflow.py`
    - `backend/app/routers/inventory_counts.py`
+   - `backend/app/routers/inventory_counts_workflow.py`
    - `backend/app/routers/alerts.py`
    - `backend/app/routers/picking.py`
    - `backend/app/routers/workflows.py`
    - `backend/app/routers/inter_warehouse_transfers.py`
+   - `backend/app/routers/inter_warehouse_transfers_workflow.py`
+   - `backend/app/routers/invoices.py`
+   - `backend/app/routers/invoices_helpers.py`
+   - `backend/app/routers/external_api.py`
+   - `backend/app/routers/external_api_helpers.py`
+   - `backend/app/routers/external_api_workflow.py`
+   - `backend/app/routers/sales_orders.py`
+   - `backend/app/routers/sales_orders_helpers.py`
+   - `backend/app/routers/inventory.py`
+   - `backend/app/routers/inventory_batch_queries.py`
+   - `backend/app/routers/inventory_queries.py`
    - `backend/app/middleware/idempotency.py`
    - `backend/app/routers/purchase_recommendations.py`
    - `backend/app/routers/product_settings.py`
@@ -91,6 +131,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
 4. Doku/Validierung:
    - `docs/contracts/**`
    - `docs/guides/**`
+   - `docs/agents/**`
    - `docs/operations/**`
    - `docs/validation/refactor-sota-upgrades.md`
    - `docs/validation/engineering-scorecard.md`
@@ -115,6 +156,10 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `scripts/install_gitleaks.sh`
    - `scripts/check_mutation_integrity.py`
    - `scripts/run_golden_tasks.sh`
+   - `scripts/agent_governance_check.sh`
+   - `scripts/check_mcp_readiness.sh`
+   - `scripts/setup_mcp_multi_cli.sh`
+   - `scripts/mcp/**`
    - `scripts/observability/**`
    - `scripts/collect_complexity_metrics.sh`
    - `scripts/collect_test_flakiness.sh`
