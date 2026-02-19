@@ -242,11 +242,17 @@
 - Perf artifact hardening:
   - `scripts/perf/run_perf_smoke.sh` now redacts token-like fields from summary JSON outputs.
 
-## Remaining Program Item (Step 5 as Separate Wave)
-- Still open by design:
-  - Frontend hotspot decomposition (`ReportsPage`, `ProductFormWorkspaceView`, `GoodsReceiptWorkspaceView`).
-  - Backend hotspot decomposition (`bootstrap_seed.py` split continuation).
-- This remains a dedicated follow-up wave after Steps 0-4 merge and CI acceptance.
+## Remaining Program Item (Step 5 as Separate Wave) - Closed (2026-02-19)
+- Dedicated hotspot follow-up wave completed:
+  - frontend hotspots reduced and stabilized (`ReportsPage`, `ProductFormWorkspaceView`, `GoodsReceiptWorkspaceView`).
+  - backend hotspot continuation completed (`bootstrap_seed.py`).
+- Current hotspot LOC snapshot:
+  - `frontend/src/pages/ReportsPage.tsx`: 170
+  - `frontend/src/pages/product-form/ProductFormWorkspaceView.tsx`: 84
+  - `frontend/src/pages/goods-receipt/GoodsReceiptWorkspaceView.tsx`: 107
+  - `backend/app/bootstrap_seed.py`: 333
+- Full-repo size debt cleanup completed by decomposing `frontend/src/styles.css` into focused modules under `frontend/src/styles/*.css`.
+- Verification: `SIZE_GUARD_MODE=all ./scripts/check_file_size_limits.sh` passes.
 
 ## Top-5 Measures (Wave 5+ hardening, in progress)
 - Added maintainability guardrails:
