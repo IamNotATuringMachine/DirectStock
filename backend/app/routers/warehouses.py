@@ -8,6 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_current_user, get_db, require_permissions
 from app.models.inventory import Inventory
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
+from app.routers.warehouses_helpers import (
+    _get_bin_occupied_quantity,
+    _to_bin_response,
+    _to_warehouse_response,
+    _to_zone_response,
+)
+from app.routers.warehouses_workflow import create_bins_batch_workflow, get_bin_labels_pdf_bytes
 from app.schemas.warehouse import (
     BinBatchCreateRequest,
     BinBatchCreateResponse,
@@ -22,69 +29,11 @@ from app.schemas.warehouse import (
     ZoneResponse,
     ZoneUpdate,
 )
-from app.utils.http_status import HTTP_422_UNPROCESSABLE
-from app.utils.qr_generator import generate_bin_label_png_bytes, generate_bin_labels_pdf
+from app.utils.qr_generator import generate_bin_label_png_bytes
 
 router = APIRouter(prefix="/api", tags=["warehouses"])
 
 WAREHOUSE_WRITE_PERMISSION = "module.warehouses.write"
-
-
-def _to_warehouse_response(warehouse: Warehouse) -> WarehouseResponse:
-    return WarehouseResponse(
-        id=warehouse.id,
-        code=warehouse.code,
-        name=warehouse.name,
-        address=warehouse.address,
-        is_active=warehouse.is_active,
-        created_at=warehouse.created_at,
-        updated_at=warehouse.updated_at,
-    )
-
-
-def _to_zone_response(zone: WarehouseZone) -> ZoneResponse:
-    return ZoneResponse(
-        id=zone.id,
-        warehouse_id=zone.warehouse_id,
-        code=zone.code,
-        name=zone.name,
-        zone_type=zone.zone_type,
-        is_active=zone.is_active,
-        created_at=zone.created_at,
-        updated_at=zone.updated_at,
-    )
-
-
-def _to_bin_response(
-    bin_location: BinLocation,
-    *,
-    occupied_quantity: Decimal = Decimal("0"),
-) -> BinResponse:
-    return BinResponse(
-        id=bin_location.id,
-        zone_id=bin_location.zone_id,
-        code=bin_location.code,
-        bin_type=bin_location.bin_type,
-        max_weight=bin_location.max_weight,
-        max_volume=bin_location.max_volume,
-        qr_code_data=bin_location.qr_code_data,
-        is_active=bin_location.is_active,
-        is_occupied=occupied_quantity > 0,
-        occupied_quantity=occupied_quantity,
-        created_at=bin_location.created_at,
-        updated_at=bin_location.updated_at,
-    )
-
-
-async def _get_bin_occupied_quantity(db: AsyncSession, bin_id: int) -> Decimal:
-    quantity = (
-        await db.execute(
-            select(func.coalesce(func.sum(Inventory.quantity), 0)).where(
-                Inventory.bin_location_id == bin_id
-            )
-        )
-    ).scalar_one()
-    return Decimal(quantity)
 
 
 @router.get("/warehouses", response_model=list[WarehouseResponse])
@@ -289,38 +238,11 @@ async def create_bins_batch(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> BinBatchCreateResponse:
-    zone = (await db.execute(select(WarehouseZone).where(WarehouseZone.id == zone_id))).scalar_one_or_none()
-    if zone is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")
-
-    if payload.aisle_from > payload.aisle_to or payload.shelf_from > payload.shelf_to or payload.level_from > payload.level_to:
-        raise HTTPException(status_code=HTTP_422_UNPROCESSABLE, detail="Invalid batch range")
-
-    created_items: list[BinLocation] = []
-    for aisle in range(payload.aisle_from, payload.aisle_to + 1):
-        for shelf in range(payload.shelf_from, payload.shelf_to + 1):
-            for level in range(payload.level_from, payload.level_to + 1):
-                code = f"{payload.prefix}-{aisle:02d}-{shelf:02d}-{level:02d}"
-                created_items.append(
-                    BinLocation(
-                        zone_id=zone_id,
-                        code=code,
-                        bin_type=payload.bin_type,
-                        qr_code_data=f"DS:BIN:{code}",
-                        is_active=True,
-                    )
-                )
-
-    db.add_all(created_items)
-    try:
-        await db.commit()
-    except IntegrityError as exc:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Batch contains duplicate bins") from exc
-
-    for item in created_items:
-        await db.refresh(item)
-
+    created_items = await create_bins_batch_workflow(
+        db=db,
+        zone_id=zone_id,
+        payload=payload,
+    )
     responses = [_to_bin_response(item) for item in created_items]
     return BinBatchCreateResponse(created_count=len(responses), items=responses)
 
@@ -404,27 +326,10 @@ async def get_bin_qr_codes_pdf(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_permissions(WAREHOUSE_WRITE_PERMISSION)),
 ) -> Response:
-    requested_ids = payload.bin_ids
-    bins = list(
-        (
-            await db.execute(select(BinLocation).where(BinLocation.id.in_(requested_ids)))
-        ).scalars()
+    pdf_bytes = await get_bin_labels_pdf_bytes(
+        db=db,
+        bin_ids=payload.bin_ids,
     )
-    by_id = {item.id: item for item in bins}
-
-    missing_ids = [bin_id for bin_id in requested_ids if bin_id not in by_id]
-    if missing_ids:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Bins not found: {missing_ids}",
-        )
-
-    ordered_bins = [by_id[bin_id] for bin_id in requested_ids]
-    labels = [
-        (item.code, item.qr_code_data or f"DS:BIN:{item.code}")
-        for item in ordered_bins
-    ]
-    pdf_bytes = generate_bin_labels_pdf(labels)
 
     return Response(
         content=pdf_bytes,

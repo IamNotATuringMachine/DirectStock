@@ -1,6 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, MapPin, PhoneCall, Plus, Trash2, UserRound } from "lucide-react";
 import { AxiosError } from "axios";
 
 import {
@@ -14,6 +13,7 @@ import {
   fetchCustomerLocations,
   fetchCustomers,
 } from "../services/customersApi";
+import { CustomersView } from "./customers/CustomersView";
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
@@ -194,7 +194,7 @@ export default function CustomersPage() {
     [customerItems, selectedCustomerId]
   );
 
-  const onCreateCustomer = async (event: FormEvent) => {
+  const onCreateCustomer = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!customerNumber.trim() || !customerCompanyName.trim()) {
       return;
@@ -206,7 +206,7 @@ export default function CustomersPage() {
     });
   };
 
-  const onCreateLocation = async (event: FormEvent) => {
+  const onCreateLocation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedCustomerId || !locationCode.trim() || !locationName.trim()) {
       return;
@@ -214,7 +214,7 @@ export default function CustomersPage() {
     await createLocationMutation.mutateAsync({ customerId: selectedCustomerId });
   };
 
-  const onCreateContact = async (event: FormEvent) => {
+  const onCreateContact = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedCustomerId || !contactFirstName.trim() || !contactLastName.trim()) {
       return;
@@ -223,251 +223,67 @@ export default function CustomersPage() {
   };
 
   return (
-    <section className="page flex flex-col gap-6" data-testid="customers-page">
-      <header className="flex flex-col gap-2">
-        <h2 className="page-title">Kunden</h2>
-        <p className="section-subtitle">Kundenstamm mit Standorten und Ansprechpartnern verwalten.</p>
-        {errorMessage ? (
-          <p className="text-sm text-red-600" data-testid="customers-page-error">
-            {errorMessage}
-          </p>
-        ) : null}
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <article className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] p-5 shadow-sm space-y-4">
-          <h3 className="section-title flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            Kunden
-          </h3>
-          <form className="space-y-2" onSubmit={(event) => void onCreateCustomer(event)}>
-            <input
-              className="input w-full"
-              placeholder="Kundennummer (z. B. CUS-1000)"
-              value={customerNumber}
-              onChange={(event) => setCustomerNumber(event.target.value)}
-            />
-            <input
-              className="input w-full"
-              placeholder="Firmenname"
-              value={customerCompanyName}
-              onChange={(event) => setCustomerCompanyName(event.target.value)}
-            />
-            <button className="btn btn-primary w-full justify-center" type="submit">
-              <Plus className="w-4 h-4" />
-              Kunde anlegen
-            </button>
-          </form>
-
-          <div className="border border-[var(--line)] rounded-[var(--radius-sm)] divide-y divide-[var(--line)] max-h-[420px] overflow-auto">
-            {customerItems.map((customer) => (
-              <button
-                key={customer.id}
-                className={`w-full px-3 py-2 text-left hover:bg-[var(--panel-soft)] ${selectedCustomerId === customer.id ? "bg-[var(--panel-strong)]" : ""}`}
-                onClick={() => setSelectedCustomerId(customer.id)}
-              >
-                <p className="font-medium text-sm">{customer.company_name}</p>
-                <p className="text-xs text-[var(--muted)]">{customer.customer_number}</p>
-              </button>
-            ))}
-          </div>
-
-          {selectedCustomerId ? (
-            <button
-              className="btn w-full justify-center text-red-600 border-red-300 hover:bg-red-50"
-              type="button"
-              onClick={() => void deleteCustomerMutation.mutateAsync(selectedCustomerId)}
-            >
-              <Trash2 className="w-4 h-4" />
-              Kunde löschen
-            </button>
-          ) : null}
-        </article>
-
-        <article className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] p-5 shadow-sm space-y-4">
-          <h3 className="section-title flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Standorte
-          </h3>
-          <p className="text-sm text-[var(--muted)]">
-            {selectedCustomer ? `Ausgewählter Kunde: ${selectedCustomer.company_name}` : "Bitte zuerst einen Kunden auswählen."}
-          </p>
-          <form className="space-y-2" onSubmit={(event) => void onCreateLocation(event)}>
-            <input
-              className="input w-full"
-              placeholder="Standortcode"
-              value={locationCode}
-              onChange={(event) => setLocationCode(event.target.value)}
-              disabled={!selectedCustomerId}
-            />
-            <input
-              className="input w-full"
-              placeholder="Standortname"
-              value={locationName}
-              onChange={(event) => setLocationName(event.target.value)}
-              disabled={!selectedCustomerId}
-            />
-            <input
-              className="input w-full"
-              placeholder="Telefon"
-              value={locationPhone}
-              onChange={(event) => setLocationPhone(event.target.value)}
-              disabled={!selectedCustomerId}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input w-full"
-                placeholder="Straße"
-                value={locationStreet}
-                onChange={(event) => setLocationStreet(event.target.value)}
-                disabled={!selectedCustomerId}
-              />
-              <input
-                className="input w-full"
-                placeholder="Hausnr."
-                value={locationHouseNumber}
-                onChange={(event) => setLocationHouseNumber(event.target.value)}
-                disabled={!selectedCustomerId}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input w-full"
-                placeholder="PLZ"
-                value={locationPostalCode}
-                onChange={(event) => setLocationPostalCode(event.target.value)}
-                disabled={!selectedCustomerId}
-              />
-              <input
-                className="input w-full"
-                placeholder="Ort"
-                value={locationCity}
-                onChange={(event) => setLocationCity(event.target.value)}
-                disabled={!selectedCustomerId}
-              />
-            </div>
-            <button className="btn btn-primary w-full justify-center" type="submit" disabled={!selectedCustomerId}>
-              <Plus className="w-4 h-4" />
-              Standort anlegen
-            </button>
-          </form>
-
-          <div className="border border-[var(--line)] rounded-[var(--radius-sm)] divide-y divide-[var(--line)] max-h-[360px] overflow-auto">
-            {(locationsQuery.data ?? []).map((location) => (
-              <div key={location.id} className="px-3 py-2">
-                <p className="font-medium text-sm">{location.name}</p>
-                <p className="text-xs text-[var(--muted)]">{location.location_code}</p>
-                <button
-                  type="button"
-                  className="text-xs mt-1 text-red-600"
-                  onClick={() =>
-                    selectedCustomerId
-                      ? void deleteLocationMutation.mutateAsync({ customerId: selectedCustomerId, locationId: location.id })
-                      : undefined
-                  }
-                >
-                  Standort löschen
-                </button>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] p-5 shadow-sm space-y-4">
-          <h3 className="section-title flex items-center gap-2">
-            <UserRound className="w-4 h-4" />
-            Ansprechpartner
-          </h3>
-          <form className="space-y-2" onSubmit={(event) => void onCreateContact(event)}>
-            <select
-              className="input w-full"
-              value={contactLocationId}
-              onChange={(event) => setContactLocationId(event.target.value)}
-              disabled={!selectedCustomerId}
-            >
-              <option value="">Ohne Standort-Zuordnung</option>
-              {(locationsQuery.data ?? []).map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.location_code} - {location.name}
-                </option>
-              ))}
-            </select>
-            <input
-              className="input w-full"
-              placeholder="Titel / Funktion (z. B. Kassenleitung)"
-              value={contactJobTitle}
-              onChange={(event) => setContactJobTitle(event.target.value)}
-              disabled={!selectedCustomerId}
-            />
-            <input
-              className="input w-full"
-              placeholder="Anrede (z. B. Frau)"
-              value={contactSalutation}
-              onChange={(event) => setContactSalutation(event.target.value)}
-              disabled={!selectedCustomerId}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input w-full"
-                placeholder="Vorname"
-                value={contactFirstName}
-                onChange={(event) => setContactFirstName(event.target.value)}
-                disabled={!selectedCustomerId}
-              />
-              <input
-                className="input w-full"
-                placeholder="Nachname"
-                value={contactLastName}
-                onChange={(event) => setContactLastName(event.target.value)}
-                disabled={!selectedCustomerId}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input w-full"
-                placeholder="Telefon"
-                value={contactPhone}
-                onChange={(event) => setContactPhone(event.target.value)}
-                disabled={!selectedCustomerId}
-              />
-              <input
-                className="input w-full"
-                placeholder="E-Mail"
-                value={contactEmail}
-                onChange={(event) => setContactEmail(event.target.value)}
-                disabled={!selectedCustomerId}
-              />
-            </div>
-            <button className="btn btn-primary w-full justify-center" type="submit" disabled={!selectedCustomerId}>
-              <PhoneCall className="w-4 h-4" />
-              Ansprechpartner anlegen
-            </button>
-          </form>
-
-          <div className="border border-[var(--line)] rounded-[var(--radius-sm)] divide-y divide-[var(--line)] max-h-[360px] overflow-auto">
-            {(contactsQuery.data ?? []).map((contact) => (
-              <div key={contact.id} className="px-3 py-2">
-                <p className="font-medium text-sm">
-                  {contact.salutation ? `${contact.salutation} ` : ""}
-                  {contact.first_name} {contact.last_name}
-                </p>
-                <p className="text-xs text-[var(--muted)]">{contact.job_title || "Ohne Titel/Funktion"}</p>
-                <button
-                  type="button"
-                  className="text-xs mt-1 text-red-600"
-                  onClick={() =>
-                    selectedCustomerId
-                      ? void deleteContactMutation.mutateAsync({ customerId: selectedCustomerId, contactId: contact.id })
-                      : undefined
-                  }
-                >
-                  Ansprechpartner löschen
-                </button>
-              </div>
-            ))}
-          </div>
-        </article>
-      </div>
-    </section>
+    <CustomersView
+      errorMessage={errorMessage}
+      customerItems={customerItems}
+      selectedCustomerId={selectedCustomerId}
+      selectedCustomerName={selectedCustomer?.company_name ?? null}
+      customerNumber={customerNumber}
+      onCustomerNumberChange={setCustomerNumber}
+      customerCompanyName={customerCompanyName}
+      onCustomerCompanyNameChange={setCustomerCompanyName}
+      onSelectCustomer={setSelectedCustomerId}
+      onCreateCustomer={(event) => void onCreateCustomer(event)}
+      onDeleteCustomer={() => {
+        if (!selectedCustomerId) {
+          return;
+        }
+        void deleteCustomerMutation.mutateAsync(selectedCustomerId);
+      }}
+      locationCode={locationCode}
+      onLocationCodeChange={setLocationCode}
+      locationName={locationName}
+      onLocationNameChange={setLocationName}
+      locationPhone={locationPhone}
+      onLocationPhoneChange={setLocationPhone}
+      locationStreet={locationStreet}
+      onLocationStreetChange={setLocationStreet}
+      locationHouseNumber={locationHouseNumber}
+      onLocationHouseNumberChange={setLocationHouseNumber}
+      locationPostalCode={locationPostalCode}
+      onLocationPostalCodeChange={setLocationPostalCode}
+      locationCity={locationCity}
+      onLocationCityChange={setLocationCity}
+      locations={locationsQuery.data ?? []}
+      onCreateLocation={(event) => void onCreateLocation(event)}
+      onDeleteLocation={(locationId) => {
+        if (!selectedCustomerId) {
+          return;
+        }
+        void deleteLocationMutation.mutateAsync({ customerId: selectedCustomerId, locationId });
+      }}
+      contactLocationId={contactLocationId}
+      onContactLocationIdChange={setContactLocationId}
+      contactJobTitle={contactJobTitle}
+      onContactJobTitleChange={setContactJobTitle}
+      contactSalutation={contactSalutation}
+      onContactSalutationChange={setContactSalutation}
+      contactFirstName={contactFirstName}
+      onContactFirstNameChange={setContactFirstName}
+      contactLastName={contactLastName}
+      onContactLastNameChange={setContactLastName}
+      contactPhone={contactPhone}
+      onContactPhoneChange={setContactPhone}
+      contactEmail={contactEmail}
+      onContactEmailChange={setContactEmail}
+      contacts={contactsQuery.data ?? []}
+      onCreateContact={(event) => void onCreateContact(event)}
+      onDeleteContact={(contactId) => {
+        if (!selectedCustomerId) {
+          return;
+        }
+        void deleteContactMutation.mutateAsync({ customerId: selectedCustomerId, contactId });
+      }}
+    />
   );
 }

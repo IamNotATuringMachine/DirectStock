@@ -1,23 +1,28 @@
-from datetime import UTC, datetime
 from decimal import Decimal
-from secrets import token_hex
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, require_permissions
 from app.models.auth import User
 from app.models.catalog import Product, Supplier
-from app.models.phase3 import ApprovalRequest, ApprovalRule
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem
+from app.routers.purchasing_helpers import (
+    _ensure_editable,
+    _ensure_receivable,
+    _generate_number,
+    _to_item_response,
+    _to_order_response,
+)
+from app.routers.purchasing_workflow import update_purchase_order_status_workflow
 from app.schemas.purchasing import (
     PurchaseOrderCreate,
     PurchaseOrderItemCreate,
-    PurchaseOrderResolveItem,
     PurchaseOrderResolveResponse,
     PurchaseOrderItemResponse,
+    PurchaseOrderResolveItem,
     PurchaseOrderItemUpdate,
     PurchaseOrderResponse,
     PurchaseOrderStatusUpdate,
@@ -29,94 +34,6 @@ router = APIRouter(prefix="/api", tags=["purchasing"])
 
 PURCHASING_READ_PERMISSION = "module.purchasing.read"
 PURCHASING_WRITE_PERMISSION = "module.purchasing.write"
-
-
-TRANSITIONS: dict[str, set[str]] = {
-    "draft": {"approved", "cancelled"},
-    "approved": {"ordered", "cancelled"},
-    "ordered": {"partially_received", "completed", "cancelled"},
-    "partially_received": {"completed", "cancelled"},
-    "completed": set(),
-    "cancelled": set(),
-}
-
-
-def _now() -> datetime:
-    return datetime.now(UTC)
-
-
-def _generate_number(prefix: str) -> str:
-    return f"{prefix}-{_now().strftime('%Y%m%d%H%M%S')}-{token_hex(2).upper()}"
-
-
-def _to_order_response(item: PurchaseOrder) -> PurchaseOrderResponse:
-    return PurchaseOrderResponse(
-        id=item.id,
-        order_number=item.order_number,
-        supplier_id=item.supplier_id,
-        status=item.status,
-        expected_delivery_at=item.expected_delivery_at,
-        ordered_at=item.ordered_at,
-        completed_at=item.completed_at,
-        created_by=item.created_by,
-        notes=item.notes,
-        created_at=item.created_at,
-        updated_at=item.updated_at,
-    )
-
-
-def _to_item_response(item: PurchaseOrderItem) -> PurchaseOrderItemResponse:
-    return PurchaseOrderItemResponse(
-        id=item.id,
-        purchase_order_id=item.purchase_order_id,
-        product_id=item.product_id,
-        ordered_quantity=item.ordered_quantity,
-        received_quantity=item.received_quantity,
-        unit=item.unit,
-        unit_price=item.unit_price,
-        expected_delivery_at=item.expected_delivery_at,
-        created_at=item.created_at,
-        updated_at=item.updated_at,
-    )
-
-
-def _ensure_editable(order: PurchaseOrder) -> None:
-    if order.status not in {"draft", "approved"}:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Purchase order is not editable")
-
-
-def _ensure_receivable(order: PurchaseOrder) -> None:
-    if order.status not in {"ordered", "partially_received"}:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Purchase order {order.order_number} is not ready for goods receipt",
-        )
-
-
-async def _ensure_order_can_be_completed(db: AsyncSession, *, order_id: int) -> None:
-    order_items = list(
-        (
-            await db.execute(
-                select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id == order_id)
-            )
-        ).scalars()
-    )
-    if not order_items:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Purchase order cannot be completed without items",
-        )
-
-    open_items = [
-        order_item.id
-        for order_item in order_items
-        if order_item.received_quantity < order_item.ordered_quantity
-    ]
-    if open_items:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Purchase order cannot be completed while open quantities remain",
-        )
 
 
 @router.get("/purchase-orders", response_model=list[PurchaseOrderResponse])
@@ -279,92 +196,12 @@ async def update_purchase_order_status(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permissions(PURCHASING_WRITE_PERMISSION)),
 ) -> PurchaseOrderResponse:
-    item = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == order_id))).scalar_one_or_none()
-    if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
-
-    allowed = TRANSITIONS[item.status]
-    if payload.status not in allowed:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Invalid status transition: {item.status} -> {payload.status}",
-        )
-
-    if payload.status == "completed":
-        await _ensure_order_can_be_completed(db, order_id=item.id)
-
-    if payload.status in {"ordered", "completed"}:
-        active_rule = (
-            await db.execute(
-                select(ApprovalRule)
-                .where(
-                    ApprovalRule.entity_type == "purchase_order",
-                    ApprovalRule.is_active.is_(True),
-                )
-                .order_by(ApprovalRule.id.desc())
-            )
-        ).scalars().first()
-        if active_rule is not None:
-            total_amount = (
-                await db.execute(
-                    select(
-                        func.coalesce(
-                            func.sum(
-                                PurchaseOrderItem.ordered_quantity * func.coalesce(PurchaseOrderItem.unit_price, 0)
-                            ),
-                            0,
-                        )
-                    ).where(PurchaseOrderItem.purchase_order_id == item.id)
-                )
-            ).scalar_one()
-            threshold = active_rule.min_amount or 0
-            if Decimal(total_amount) >= Decimal(threshold):
-                approved = (
-                    await db.execute(
-                        select(ApprovalRequest.id).where(
-                            ApprovalRequest.entity_type == "purchase_order",
-                            ApprovalRequest.entity_id == item.id,
-                            ApprovalRequest.status == "approved",
-                        )
-                    )
-                ).scalar_one_or_none()
-                if approved is None:
-                    pending = (
-                        await db.execute(
-                            select(ApprovalRequest.id).where(
-                                ApprovalRequest.entity_type == "purchase_order",
-                                ApprovalRequest.entity_id == item.id,
-                                ApprovalRequest.status == "pending",
-                            )
-                        )
-                    ).scalar_one_or_none()
-                    if pending is None:
-                        db.add(
-                            ApprovalRequest(
-                                entity_type="purchase_order",
-                                entity_id=item.id,
-                                status="pending",
-                                amount=Decimal(total_amount),
-                                reason=f"Auto-created by approval rule {active_rule.id}",
-                                requested_by=current_user.id,
-                                requested_at=_now(),
-                            )
-                        )
-                        await db.commit()
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail="Purchase order requires approval before this status transition",
-                    )
-
-    item.status = payload.status
-    now = _now()
-    if payload.status == "ordered" and item.ordered_at is None:
-        item.ordered_at = now
-    if payload.status == "completed":
-        item.completed_at = now
-
-    await db.commit()
-    await db.refresh(item)
+    item = await update_purchase_order_status_workflow(
+        db=db,
+        order_id=order_id,
+        status_value=payload.status,
+        current_user=current_user,
+    )
     return _to_order_response(item)
 
 

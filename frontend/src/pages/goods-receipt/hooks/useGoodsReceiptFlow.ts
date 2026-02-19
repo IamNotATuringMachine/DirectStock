@@ -22,6 +22,8 @@ import { useGoodsReceiptQueries } from "./useGoodsReceiptQueries";
 import { useGoodsReceiptState } from "./useGoodsReceiptState";
 import { useGoodsReceiptActions } from "./useGoodsReceiptActions";
 import { flowSteps } from "../state";
+import { useGoodsReceiptDefaults } from "./useGoodsReceiptDefaults";
+import { useGoodsReceiptSyncEffects } from "./useGoodsReceiptSyncEffects";
 
 export function useGoodsReceiptFlow() {
   const queryClient = useQueryClient();
@@ -264,78 +266,37 @@ export function useGoodsReceiptFlow() {
     downloadGoodsReceiptItemSerialLabelsPdf,
   });
 
-  useEffect(() => {
-    if (!state.selectedWarehouseId && warehousesQuery.data && warehousesQuery.data.length > 0) {
-      state.setSelectedWarehouseId(warehousesQuery.data[0].id);
-    }
-  }, [state.selectedWarehouseId, warehousesQuery.data, state.setSelectedWarehouseId]);
+  useGoodsReceiptDefaults({
+    selectedWarehouseId: state.selectedWarehouseId,
+    setSelectedWarehouseId: state.setSelectedWarehouseId,
+    warehouses: warehousesQuery.data,
+    selectedZoneId: state.selectedZoneId,
+    setSelectedZoneId: state.setSelectedZoneId,
+    zones: zonesQuery.data,
+    selectedBinId: state.selectedBinId,
+    setSelectedBinId: state.setSelectedBinId,
+    bins: binsQuery.data,
+    selectedProductId: state.selectedProductId,
+    setSelectedProductId: state.setSelectedProductId,
+    products: productsQuery.data?.items,
+  });
 
-  useEffect(() => {
-    if (!state.selectedZoneId && zonesQuery.data && zonesQuery.data.length > 0) {
-      state.setSelectedZoneId(zonesQuery.data[0].id);
-    }
-  }, [state.selectedZoneId, zonesQuery.data, state.setSelectedZoneId]);
-
-  useEffect(() => {
-    if (!state.selectedBinId && binsQuery.data && binsQuery.data.length > 0) {
-      state.setSelectedBinId(String(binsQuery.data[0].id));
-    }
-  }, [state.selectedBinId, binsQuery.data, state.setSelectedBinId]);
-
-  useEffect(() => {
-    if (!state.selectedProductId && productsQuery.data?.items.length) {
-      state.setSelectedProductId(String(productsQuery.data.items[0].id));
-    }
-  }, [state.selectedProductId, productsQuery.data, state.setSelectedProductId]);
-
-  useEffect(() => {
-    if (state.receiptMode === "po") {
-      state.setSourceType("supplier");
-      state.setManualCondition("new");
-      return;
-    }
-    if (state.sourceType === "supplier" || !state.manualCondition) {
-      state.setManualCondition("new");
-    }
-  }, [state.manualCondition, state.receiptMode, state.setManualCondition, state.setSourceType, state.sourceType]);
-
-  useEffect(() => {
-    if (!selectedProduct?.requires_item_tracking) {
-      state.setScannedSerials([]);
-      state.setSerialNumbersInput("");
-    }
-  }, [selectedProduct?.requires_item_tracking, state.setScannedSerials, state.setSerialNumbersInput]);
-
-  useEffect(() => {
-    if (!selectedReceipt?.purchase_order_id) {
-      state.setSelectedPurchaseOrderItemId("");
-      return;
-    }
-    if (!state.selectedProductId) {
-      state.setSelectedPurchaseOrderItemId("");
-      return;
-    }
-    const matchingPoItem = (purchaseOrderItemsQuery.data ?? []).find(
-      (poItem) => poItem.product_id === Number(state.selectedProductId)
-    );
-    state.setSelectedPurchaseOrderItemId(matchingPoItem ? String(matchingPoItem.id) : "");
-  }, [
-    purchaseOrderItemsQuery.data,
-    selectedReceipt?.purchase_order_id,
-    state.selectedProductId,
-    state.setSelectedPurchaseOrderItemId,
-  ]);
-
-  useEffect(() => {
-    if (!selectedReceipt) {
-      return;
-    }
-    state.setReceiptMode(selectedReceipt.mode);
-    state.setSourceType(selectedReceipt.source_type);
-    if (selectedReceipt.mode === "po" && selectedReceipt.purchase_order_id) {
-      state.setPurchaseOrderId(String(selectedReceipt.purchase_order_id));
-    }
-  }, [selectedReceipt, state.setPurchaseOrderId, state.setReceiptMode, state.setSourceType]);
+  useGoodsReceiptSyncEffects({
+    receiptMode: state.receiptMode,
+    sourceType: state.sourceType,
+    manualCondition: state.manualCondition,
+    setSourceType: state.setSourceType,
+    setManualCondition: state.setManualCondition,
+    selectedProductRequiresItemTracking: selectedProduct?.requires_item_tracking,
+    setScannedSerials: state.setScannedSerials,
+    setSerialNumbersInput: state.setSerialNumbersInput,
+    selectedReceipt,
+    purchaseOrderItems: purchaseOrderItemsQuery.data,
+    selectedProductId: state.selectedProductId,
+    setSelectedPurchaseOrderItemId: state.setSelectedPurchaseOrderItemId,
+    setPurchaseOrderId: state.setPurchaseOrderId,
+    setReceiptMode: state.setReceiptMode,
+  });
 
   const flowStepIndex = flowSteps.findIndex((step) => step.id === state.flowStep);
   const flowProgress = ((flowStepIndex + 1) / flowSteps.length) * 100;
