@@ -28,6 +28,7 @@ backend/.documents/
 backend/directstock_backend.egg-info/
 backend/app/**/__pycache__/
 *.tsbuildinfo
+.ralph/runs/
 
 
 # Env
