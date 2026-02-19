@@ -15,6 +15,8 @@ describe("confirmation output", () => {
       dryRun: false,
       autoCommit: true,
       sessionStrategy: "reset",
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
       postCheckProfile: "fast",
       logFormat: "text",
       runLogPath: "/repo/project/.ralph/runs/20260219T172849Z.jsonl",
@@ -28,6 +30,6 @@ describe("confirmation output", () => {
     expect(output).toContain("Log");
     expect(output).toContain("ui_ux_plan.json / 26 steps / iter=26");
     expect(output).toContain(".ralph/runs/20260219T172849Z.jsonl");
-    expect(output).toContain("session=reset / post-check=fast");
+    expect(output).toContain("session=reset / out=timeline / thinking=summary / post-check=fast");
   });
 });

@@ -10,10 +10,10 @@ export const PROVIDER_LABELS: Record<ProviderId, string> = {
 
 export const MODEL_CATALOG: Record<ProviderId, ModelOption[]> = {
   anthropic: [
-    { value: "claude-sonnet-4-6-20250217", label: "claude-sonnet-4-6-20250217", tag: "SOTA" },
-    { value: "claude-opus-4-6-20250205", label: "claude-opus-4-6-20250205" },
-    { value: "claude-sonnet-4-5-20241022", label: "claude-sonnet-4-5-20241022" },
-    { value: "claude-haiku-4-5-20251015", label: "claude-haiku-4-5-20251015" },
+    { value: "claude-sonnet-4-6", label: "claude-sonnet-4-6", tag: "SOTA" },
+    { value: "claude-opus-4-6", label: "claude-opus-4-6" },
+    { value: "claude-sonnet-4-5", label: "claude-sonnet-4-5" },
+    { value: "claude-haiku-4-5", label: "claude-haiku-4-5" },
   ],
   openai: [
     { value: "gpt-5.3-codex", label: "gpt-5.3-codex", tag: "SOTA" },

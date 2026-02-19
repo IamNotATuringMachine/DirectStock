@@ -13,6 +13,7 @@ import { runRalphLoop } from "./loop/executor.js";
 import { createPlanFromGoal } from "./planner/planner.js";
 import { loadPlan, savePlan } from "./planner/plan-schema.js";
 import { runPostChecks, type PostCheckProfile } from "./post-checks.js";
+import { type OutputMode, type ThinkingVisibility } from "./providers/output-events.js";
 import { probeProviderCapabilities } from "./providers/capabilities.js";
 import { getProvider } from "./providers/index.js";
 import type { ProviderId, SessionStrategy } from "./providers/types.js";
@@ -30,9 +31,14 @@ import {
 } from "./ui/prompts.js";
 
 export interface RalphCliOptions {
+  provider?: ProviderId;
+  model?: string;
+  thinking?: string;
+  yes?: boolean;
   noPreset?: boolean;
   dryRun?: boolean;
   noAutoCommit?: boolean;
+  autoCommit?: boolean;
   allowDirty?: boolean;
   maxIterations?: number;
   plan?: string;
@@ -43,15 +49,21 @@ export interface RalphCliOptions {
   logFormat?: RunLogFormat;
   runLogPath?: string;
   strictProviderCapabilities?: boolean;
+  outputMode?: OutputMode;
+  thinkingVisibility?: ThinkingVisibility;
 }
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_SESSION_STRATEGY: SessionStrategy = "reset";
 const DEFAULT_POST_CHECK_PROFILE: PostCheckProfile = "fast";
 const DEFAULT_LOG_FORMAT: RunLogFormat = "text";
+const DEFAULT_OUTPUT_MODE: OutputMode = "timeline";
+const DEFAULT_THINKING_VISIBILITY: ThinkingVisibility = "summary";
 const VALID_SESSION_STRATEGIES: SessionStrategy[] = ["reset", "resume"];
 const VALID_POST_CHECK_PROFILES: PostCheckProfile[] = ["none", "fast", "governance", "full"];
 const VALID_LOG_FORMATS: RunLogFormat[] = ["text", "jsonl"];
+const VALID_OUTPUT_MODES: OutputMode[] = ["timeline", "final", "raw"];
+const VALID_THINKING_VISIBILITY: ThinkingVisibility[] = ["summary", "hidden", "full"];
 const PLAN_TEMPLATE_RELATIVE_PATH = path.join("docs", "guides", "ralph-plan-template.md");
 
 export interface AutoCommitPolicyInput {
@@ -64,6 +76,13 @@ export interface AutoCommitPolicyInput {
 export interface AutoCommitPolicyOutput {
   autoCommit: boolean;
   warning?: string;
+}
+
+export function normalizeProviderModel(providerId: ProviderId, model: string): string {
+  if (providerId === "google" && model === "gemini-3.0-flash-preview") {
+    return "gemini-3-flash-preview";
+  }
+  return model;
 }
 
 export function resolveAutoCommitPolicy(input: AutoCommitPolicyInput): AutoCommitPolicyOutput {
@@ -93,10 +112,12 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   const cwd = process.cwd();
   const dryRun = Boolean(options.dryRun);
   const allowDirty = Boolean(options.allowDirty);
-  const autoCommit = !options.noAutoCommit;
+  const autoCommit = options.autoCommit === false ? false : !options.noAutoCommit;
   const requestedSessionStrategy = coerceSessionStrategy(options.sessionStrategy);
   const postCheckProfile = coercePostCheckProfile(options.postCheckProfile);
   const logFormat = coerceLogFormat(options.logFormat);
+  const outputMode = coerceOutputMode(options.outputMode);
+  const thinkingVisibility = coerceThinkingVisibility(options.thinkingVisibility);
   const strictProviderCapabilities = Boolean(options.strictProviderCapabilities);
 
   if (options.planTemplate) {
@@ -105,9 +126,9 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     return;
   }
 
-  let providerId: ProviderId | null = null;
-  let model = "";
-  let thinkingValue = "";
+  let providerId: ProviderId | null = coerceProviderId(options.provider);
+  let model = options.model ?? "";
+  let thinkingValue = options.thinking ?? "";
   let maxIterations = options.maxIterations;
   let planPath = options.plan ? resolveAbsolutePath(options.plan, cwd) : "";
   let goalFilePath = options.goalFile ? resolveAbsolutePath(options.goalFile, cwd) : "";
@@ -123,7 +144,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   }
 
   const preset = !options.noPreset ? await loadPreset() : null;
-  if (preset && (await askUsePreset(preset))) {
+  if (preset && !providerId && !model && !thinkingValue && (await askUsePreset(preset))) {
     providerId = preset.provider;
     model = preset.model;
     thinkingValue = preset.thinkingValue;
@@ -140,6 +161,14 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   const provider = getProvider(providerId);
   if (!(await provider.isInstalled())) {
     throw new Error(`${provider.cliCommand} CLI ist nicht installiert oder nicht im PATH verfügbar.`);
+  }
+
+  if (model) {
+    const normalizedModel = normalizeProviderModel(providerId, model);
+    if (normalizedModel !== model) {
+      console.log(chalk.yellow(`[ralph] Modell-ID korrigiert: ${model} -> ${normalizedModel}`));
+      model = normalizedModel;
+    }
   }
 
   const capabilityProbe = await probeProviderCapabilities({
@@ -160,8 +189,21 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     sessionStrategy = "reset";
   }
 
+  let providerStreamingEnabled = Boolean(provider.supportsStreamJson);
+  if (providerStreamingEnabled && !capabilityProbe.supportsStreamOutput) {
+    providerStreamingEnabled = false;
+    console.log(
+      chalk.yellow(`[ralph capabilities] Streaming output für ${provider.name} nicht verfügbar. Fallback aktiv.`),
+    );
+  }
+
   if (!model) {
     model = await askModel(provider);
+    const normalizedModel = normalizeProviderModel(providerId, model);
+    if (normalizedModel !== model) {
+      console.log(chalk.yellow(`[ralph] Modell-ID korrigiert: ${model} -> ${normalizedModel}`));
+      model = normalizedModel;
+    }
   }
 
   if (!thinkingValue) {
@@ -227,6 +269,25 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     }
   }
 
+  // Sanitize stale in_progress steps from interrupted runs
+  let sanitizedCount = 0;
+  for (const step of plan.steps) {
+    if (step.status === "in_progress") {
+      step.status = "pending";
+      sanitizedCount += 1;
+    }
+  }
+  if (sanitizedCount > 0) {
+    console.log(
+      chalk.yellow(
+        `[ralph] ${sanitizedCount} step(s) were left in_progress from a previous interrupted run. Reset to pending.`,
+      ),
+    );
+    if (!dryRun) {
+      await savePlan(planPath, plan);
+    }
+  }
+
   if (!maxIterations) {
     maxIterations = await askMaxIterations(plan.metadata.totalIterations || 10);
   }
@@ -274,10 +335,13 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
       logFormat,
       runLogPath: runLogger.filePath,
       strictProviderCapabilities,
+      outputMode,
+      thinkingVisibility,
     }),
   );
 
-  if (!(await askFinalConfirmation())) {
+  const approved = options.yes ? true : await askFinalConfirmation();
+  if (!approved) {
     await runLogger.log({
       event: "run_finished",
       details: "status=aborted_by_user",
@@ -300,7 +364,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
 
   await runLogger.log({
     event: "run_started",
-    details: `plan=${planPath};dryRun=${dryRun};postCheckProfile=${postCheckProfile};sessionStrategy=${sessionStrategy};autoCommit=${effectiveAutoCommit}`,
+    details: `plan=${planPath};dryRun=${dryRun};postCheckProfile=${postCheckProfile};sessionStrategy=${sessionStrategy};autoCommit=${effectiveAutoCommit};outputMode=${outputMode};thinkingVisibility=${thinkingVisibility}`,
     maxIterations,
     sessionId: sessionStrategy === "resume" ? plan.metadata.resumeSessionId : undefined,
   });
@@ -320,6 +384,9 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     dryRun,
     autoCommit: effectiveAutoCommit,
     sessionStrategy,
+    providerStreamingEnabled,
+    outputMode,
+    thinkingVisibility,
     initialResumeSessionId:
       sessionStrategy === "resume" ? plan.metadata.resumeSessionId : undefined,
     runLogger,
@@ -369,6 +436,16 @@ function coerceSessionStrategy(value?: string): SessionStrategy {
   throw new Error(`Ungültige session strategy: ${value}`);
 }
 
+function coerceProviderId(value?: string): ProviderId | null {
+  if (!value) {
+    return null;
+  }
+  if (value === "openai" || value === "anthropic" || value === "google") {
+    return value;
+  }
+  throw new Error(`Ungültiger provider: ${value}`);
+}
+
 function coercePostCheckProfile(value?: string): PostCheckProfile {
   if (!value) {
     return DEFAULT_POST_CHECK_PROFILE;
@@ -387,6 +464,26 @@ function coerceLogFormat(value?: string): RunLogFormat {
     return value as RunLogFormat;
   }
   throw new Error(`Ungültiges log format: ${value}`);
+}
+
+function coerceOutputMode(value?: string): OutputMode {
+  if (!value) {
+    return DEFAULT_OUTPUT_MODE;
+  }
+  if (VALID_OUTPUT_MODES.includes(value as OutputMode)) {
+    return value as OutputMode;
+  }
+  throw new Error(`Ungültiger output mode: ${value}`);
+}
+
+function coerceThinkingVisibility(value?: string): ThinkingVisibility {
+  if (!value) {
+    return DEFAULT_THINKING_VISIBILITY;
+  }
+  if (VALID_THINKING_VISIBILITY.includes(value as ThinkingVisibility)) {
+    return value as ThinkingVisibility;
+  }
+  throw new Error(`Ungültige thinking visibility: ${value}`);
 }
 
 async function resolvePlanTemplatePath(cwd: string): Promise<string> {

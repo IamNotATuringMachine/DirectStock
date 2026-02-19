@@ -5,6 +5,7 @@ export interface ProviderRuntimeCapabilities {
   supportsResume: boolean;
   supportsOutputSchemaPath: boolean;
   supportsJsonSchema: boolean;
+  supportsStreamOutput: boolean;
   warnings: string[];
 }
 
@@ -24,6 +25,7 @@ interface ProbeSpec {
     resume?: string[];
     outputSchemaPath?: string[];
     jsonSchema?: string[];
+    streamJson?: string[];
   };
   helpCommand: string[];
   resumeHelpCommand?: string[];
@@ -35,6 +37,7 @@ const PROBE_SPECS: Record<ProviderId, ProbeSpec> = {
     optional: {
       resume: ["resume"],
       outputSchemaPath: ["--output-schema"],
+      streamJson: ["--json"],
     },
     helpCommand: ["exec", "--help"],
     resumeHelpCommand: ["exec", "resume", "--help"],
@@ -44,6 +47,7 @@ const PROBE_SPECS: Record<ProviderId, ProbeSpec> = {
     optional: {
       resume: ["--resume"],
       jsonSchema: ["--json-schema"],
+      streamJson: ["stream-json"],
     },
     helpCommand: ["--help"],
   },
@@ -51,6 +55,7 @@ const PROBE_SPECS: Record<ProviderId, ProbeSpec> = {
     requiredTokens: ["--output-format", "--approval-mode"],
     optional: {
       resume: ["--resume"],
+      streamJson: ["stream-json"],
     },
     helpCommand: ["--help"],
   },
@@ -105,6 +110,7 @@ export async function probeProviderCapabilities(
     ? hasAllTokens(helpText, spec.optional.outputSchemaPath)
     : false;
   const supportsJsonSchema = spec.optional.jsonSchema ? hasAllTokens(helpText, spec.optional.jsonSchema) : false;
+  const supportsStreamOutput = spec.optional.streamJson ? hasAllTokens(helpText, spec.optional.streamJson) : false;
 
   if (input.provider.supportsResume && !supportsResume) {
     warnings.push(`${input.provider.name}: resume capability was not detected and will be disabled.`);
@@ -119,6 +125,11 @@ export async function probeProviderCapabilities(
       `${input.provider.name}: --json-schema capability was not detected, planner uses fallback parsing.`,
     );
   }
+  if (input.provider.supportsStreamJson && !supportsStreamOutput) {
+    warnings.push(
+      `${input.provider.name}: stream-json capability was not detected, provider falls back to non-stream parsing.`,
+    );
+  }
 
   if (input.strict && fatalMissing.length > 0) {
     throw new Error(
@@ -130,6 +141,7 @@ export async function probeProviderCapabilities(
     supportsResume,
     supportsOutputSchemaPath,
     supportsJsonSchema,
+    supportsStreamOutput,
     warnings,
     fatalMissing,
   };

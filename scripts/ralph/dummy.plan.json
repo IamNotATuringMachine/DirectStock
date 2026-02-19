@@ -1,0 +1,28 @@
+{
+    "schemaVersion": "1.1.0",
+    "goal": "Dummy test for Ralph UI",
+    "createdAt": "2026-02-19T20:36:00.000Z",
+    "steps": [
+        {
+            "id": "step-01",
+            "title": "Demonstrate the Ora spinner",
+            "description": "Just run this to get the spinner UI.",
+            "successCriteria": "false",
+            "status": "pending",
+            "attempts": 0,
+            "maxAttempts": 1,
+            "type": "test",
+            "files": [],
+            "riskLevel": "low",
+            "owner": "agent",
+            "postChecks": [],
+            "rollbackHint": "none"
+        }
+    ],
+    "metadata": {
+        "provider": "openai",
+        "model": "gpt-5.3-codex",
+        "totalIterations": 1,
+        "completedIterations": 0
+    }
+}

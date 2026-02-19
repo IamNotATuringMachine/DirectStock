@@ -30,8 +30,11 @@ function provider(id: ProviderAdapter["id"]): ProviderAdapter {
       stdout: "",
       stderr: "",
       responseText: "",
+      finalText: "",
+      events: [],
       usedModel: "test-model",
       command: { command: "noop", args: [] },
+      rawOutput: { stdout: "", stderr: "" },
     }),
   };
 }
@@ -67,6 +70,7 @@ describe("provider capability probe", () => {
     expect(result.fatalMissing).toEqual([]);
     expect(result.supportsOutputSchemaPath).toBe(true);
     expect(result.supportsResume).toBe(true);
+    expect(result.supportsStreamOutput).toBe(true);
   });
 
   it("fails in strict mode when required capabilities are missing", async () => {

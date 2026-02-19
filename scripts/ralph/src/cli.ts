@@ -18,6 +18,9 @@ export function buildProgram(): Command {
     .option("--dry-run", "Show what would run without mutating plan/git")
     .option("--no-auto-commit", "Disable automatic git commits")
     .option("--allow-dirty", "Allow auto-commit on a dirty working tree")
+    .option("--provider <provider>", "Provider override: openai|anthropic|google")
+    .option("--model <model>", "Model override")
+    .option("--thinking <value>", "Thinking/Reasoning override")
     .option("--max-iterations <number>", "Maximum iterations", (value) => Number(value))
     .option("--plan <path>", "Path to existing plan file")
     .option("--goal-file <path>", "Path to a text/markdown goal file used to generate a new JSON plan")
@@ -25,6 +28,13 @@ export function buildProgram(): Command {
     .option("--post-check-profile <profile>", "Post-check profile: none|fast|governance|full", "fast")
     .option("--log-format <format>", "Log format: text|jsonl", "text")
     .option("--run-log-path <path>", "Path for run log file (.jsonl)")
+    .option("--output-mode <mode>", "Output mode: timeline|final|raw", "timeline")
+    .option(
+      "--thinking-visibility <mode>",
+      "Thinking visibility: summary|hidden|full",
+      "summary",
+    )
+    .option("-y, --yes", "Skip final confirmation prompt")
     .option("--strict-provider-capabilities", "Fail fast if required provider capabilities are missing")
     .option("--plan-template", "Print the Ralph plan template and exit")
     .action(async (options) => {

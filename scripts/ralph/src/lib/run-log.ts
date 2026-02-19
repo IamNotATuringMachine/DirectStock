@@ -10,6 +10,7 @@ export type RunEventName =
   | "run_started"
   | "iteration_started"
   | "provider_retry"
+  | "provider_event"
   | "step_done"
   | "step_failed"
   | "post_check_failed"
@@ -29,6 +30,8 @@ export interface RunLogEvent {
   attempt?: number;
   maxAttempts?: number;
   sessionId?: string;
+  providerEventType?: string;
+  preview?: string;
   details?: string;
 }
 

@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveAutoCommitPolicy } from "../src/ralph.js";
+import { normalizeProviderModel, resolveAutoCommitPolicy } from "../src/ralph.js";
 
 describe("ralph auto-commit policy", () => {
+  it("normalizes known google model id typo from old presets", () => {
+    expect(normalizeProviderModel("google", "gemini-3.0-flash-preview")).toBe("gemini-3-flash-preview");
+    expect(normalizeProviderModel("google", "gemini-3-flash-preview")).toBe("gemini-3-flash-preview");
+    expect(normalizeProviderModel("openai", "gemini-3.0-flash-preview")).toBe("gemini-3.0-flash-preview");
+  });
+
   it("keeps auto-commit enabled on clean worktree", () => {
     const result = resolveAutoCommitPolicy({
       requestedAutoCommit: true,

@@ -1,0 +1,152 @@
+{
+  "mcpServers": {
+    "directstock-filesystem": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_filesystem_server.sh\""
+      ],
+      "env": {}
+    },
+    "directstock-postgres": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_postgres_server.sh\""
+      ],
+      "env": {}
+    },
+    "directstock-github": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_github_server.sh\""
+      ],
+      "env": {}
+    },
+    "directstock-playwright": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_playwright_server.sh\""
+      ],
+      "env": {}
+    },
+    "directstock-git": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_git_server.sh\""
+      ],
+      "env": {}
+    },
+    "directstock-memory": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_memory_server.sh\""
+      ],
+      "env": {}
+    },
+    "directstock-sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {}
+    },
+    "directstock-fetch": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-fetch"
+      ],
+      "env": {}
+    },
+    "directstock-docker": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-docker"
+      ],
+      "env": {}
+    }
+  },
+  "profiles": {
+    "dev-autonomy": {
+      "description": "Local autonomy profile with full DirectStock MCP topology, memory context, reasoning, and infra access.",
+      "servers": [
+        "directstock-filesystem",
+        "directstock-postgres",
+        "directstock-github",
+        "directstock-playwright",
+        "directstock-git",
+        "directstock-memory",
+        "directstock-sequential-thinking",
+        "directstock-fetch",
+        "directstock-docker"
+      ]
+    },
+    "dev-full": {
+      "description": "Compatibility alias for legacy docs/tools; equivalent to dev-autonomy.",
+      "servers": [
+        "directstock-filesystem",
+        "directstock-postgres",
+        "directstock-github",
+        "directstock-playwright",
+        "directstock-git",
+        "directstock-memory",
+        "directstock-sequential-thinking",
+        "directstock-fetch",
+        "directstock-docker"
+      ]
+    },
+    "ci-readonly": {
+      "description": "CI profile with mandatory read-only PostgreSQL posture for MCP.",
+      "servers": [
+        "directstock-filesystem",
+        "directstock-postgres",
+        "directstock-github",
+        "directstock-playwright",
+        "directstock-git",
+        "directstock-memory"
+      ],
+      "env": {
+        "MCP_REQUIRE_POSTGRES_READONLY": "1",
+        "MCP_PROBE_ALLOW_BLOCKED": "1"
+      }
+    },
+    "triage-readonly": {
+      "description": "Low-blast-radius triage profile for incident analysis.",
+      "servers": [
+        "directstock-filesystem",
+        "directstock-postgres",
+        "directstock-git"
+      ],
+      "env": {
+        "MCP_REQUIRE_POSTGRES_READONLY": "1"
+      }
+    },
+    "review-governance": {
+      "description": "Policy/review profile for governance and repository state checks.",
+      "servers": [
+        "directstock-filesystem",
+        "directstock-github",
+        "directstock-git"
+      ]
+    }
+  },
+  "defaults": {
+    "profile": "dev-autonomy"
+  }
+}

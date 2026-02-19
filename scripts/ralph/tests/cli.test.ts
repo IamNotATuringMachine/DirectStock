@@ -14,12 +14,18 @@ describe("cli", () => {
     expect(optionFlags).toContain("--no-preset");
     expect(optionFlags).toContain("--no-auto-commit");
     expect(optionFlags).toContain("--allow-dirty");
+    expect(optionFlags).toContain("--provider");
+    expect(optionFlags).toContain("--model");
+    expect(optionFlags).toContain("--thinking");
     expect(optionFlags).toContain("--max-iterations");
     expect(optionFlags).toContain("--plan");
     expect(optionFlags).toContain("--session-strategy");
     expect(optionFlags).toContain("--post-check-profile");
     expect(optionFlags).toContain("--log-format");
     expect(optionFlags).toContain("--run-log-path");
+    expect(optionFlags).toContain("--output-mode");
+    expect(optionFlags).toContain("--thinking-visibility");
+    expect(optionFlags).toContain("--yes");
     expect(optionFlags).toContain("--strict-provider-capabilities");
     expect(optionFlags).toContain("--plan-template");
   });

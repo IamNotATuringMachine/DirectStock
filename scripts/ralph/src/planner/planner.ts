@@ -104,6 +104,7 @@ export async function createPlanFromGoal(input: CreatePlanInput): Promise<Plan> 
     supportsResume: input.provider.supportsResume,
     supportsOutputSchemaPath: Boolean(input.provider.supportsOutputSchemaPath),
     supportsJsonSchema: Boolean(input.provider.supportsJsonSchema),
+    supportsStreamOutput: Boolean(input.provider.supportsStreamJson),
     warnings: [],
   };
 

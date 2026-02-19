@@ -5,7 +5,7 @@ import fs from "fs-extra";
 import { describe, expect, it } from "vitest";
 
 import { createRunLogger } from "../src/lib/run-log.js";
-import { buildIterationPrompt, runRalphLoop } from "../src/loop/executor.js";
+import { buildIterationPrompt, isThinkingUnsupportedError, runRalphLoop } from "../src/loop/executor.js";
 import type { Plan } from "../src/planner/plan-schema.js";
 import type { ProviderAdapter, ProviderExecutionInput } from "../src/providers/types.js";
 
@@ -50,6 +50,7 @@ function fakeProvider(ok = true): ProviderAdapter {
     defaultModel: "gpt-5.3-codex",
     defaultThinking: "high",
     supportsResume: true,
+    supportsStreamJson: true,
     isInstalled: async () => true,
     buildCommand: () => ({ command: "codex", args: ["exec"] }),
     execute: async (input) => ({
@@ -59,9 +60,22 @@ function fakeProvider(ok = true): ProviderAdapter {
       stdout: "",
       stderr: ok ? "" : "error",
       responseText: ok ? "ok" : "",
+      finalText: ok ? "ok" : "",
+      events: ok
+        ? [
+          {
+            type: "assistant_text",
+            provider: "openai",
+            timestamp: new Date().toISOString(),
+            attempt: input.attempt ?? 1,
+            payload: { text: "ok" },
+          },
+        ]
+        : [],
       usedModel: input.model,
       command: { command: "codex", args: ["exec"] },
       sessionId: input.resumeSessionId ?? "session-1",
+      rawOutput: { stdout: "", stderr: ok ? "" : "error" },
     }),
   };
 }
@@ -111,6 +125,9 @@ describe("executor", () => {
       dryRun: false,
       autoCommit: false,
       sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
     });
 
     expect(summary.completedSteps).toBe(1);
@@ -135,6 +152,9 @@ describe("executor", () => {
       dryRun: false,
       autoCommit: false,
       sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
     });
 
     expect(summary.failedSteps).toBe(1);
@@ -160,9 +180,12 @@ describe("executor", () => {
           stdout: "",
           stderr: "Unknown model: gemini-3-pro-preview",
           responseText: "",
+          finalText: "",
+          events: [],
           usedModel: input.model,
           command: { command: "codex", args: ["exec"] },
           sessionId: input.resumeSessionId,
+          rawOutput: { stdout: "", stderr: "Unknown model: gemini-3-pro-preview" },
         };
       },
     };
@@ -179,6 +202,9 @@ describe("executor", () => {
       dryRun: false,
       autoCommit: false,
       sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
     });
 
     expect(summary.failedSteps).toBe(0);
@@ -210,6 +236,9 @@ describe("executor", () => {
       dryRun: true,
       autoCommit: false,
       sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
     });
 
     const after = await fs.readFile(planPath, "utf8");
@@ -242,9 +271,12 @@ describe("executor", () => {
           stdout: "",
           stderr: "",
           responseText: "ok",
+          finalText: "ok",
+          events: [],
           usedModel: input.model,
           command: { command: "codex", args: ["exec"] },
           sessionId: calls.length === 1 ? "session-alpha" : "session-beta",
+          rawOutput: { stdout: "", stderr: "" },
         };
       },
     };
@@ -261,6 +293,9 @@ describe("executor", () => {
       dryRun: false,
       autoCommit: false,
       sessionStrategy: "resume",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
       initialResumeSessionId: "session-persisted",
     });
 
@@ -289,6 +324,9 @@ describe("executor", () => {
       dryRun: false,
       autoCommit: false,
       sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
     });
 
     expect(summary.failedSteps).toBe(1);
@@ -323,6 +361,9 @@ describe("executor", () => {
       dryRun: false,
       autoCommit: false,
       sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
       runLogger: logger,
     });
 
@@ -333,6 +374,175 @@ describe("executor", () => {
       .map((line) => JSON.parse(line) as { event: string });
 
     expect(lines.some((line) => line.event === "iteration_started")).toBe(true);
+    expect(lines.some((line) => line.event === "provider_event")).toBe(true);
     expect(lines.some((line) => line.event === "step_done")).toBe(true);
+  });
+
+  it("compacts provider failure details in timeline mode", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-compact-fail-"));
+    const planPath = path.join(tempDir, "plan.json");
+    const plan = samplePlan("true", 1);
+    await fs.writeJson(planPath, plan, { spaces: 2 });
+
+    const noisy = "x".repeat(5000);
+    const provider: ProviderAdapter = {
+      ...fakeProvider(false),
+      execute: async (input) => ({
+        ok: false,
+        exitCode: 1,
+        timedOut: false,
+        stdout: noisy,
+        stderr: noisy,
+        responseText: noisy,
+        finalText: noisy,
+        events: [
+          {
+            type: "error",
+            provider: "openai",
+            timestamp: new Date().toISOString(),
+            attempt: input.attempt ?? 1,
+            payload: { error: noisy },
+          },
+        ],
+        usedModel: input.model,
+        command: { command: "codex", args: ["exec"] },
+        sessionId: "session-compact",
+        rawOutput: { stdout: noisy, stderr: noisy },
+      }),
+    };
+
+    await runRalphLoop({
+      provider,
+      model: "gpt-5.3-codex",
+      thinkingValue: "high",
+      planPath,
+      plan,
+      maxIterations: 1,
+      workingDir: tempDir,
+      timeoutMs: 2000,
+      dryRun: false,
+      autoCommit: false,
+      sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+    });
+
+    expect(plan.steps[0].status).toBe("failed");
+    expect((plan.steps[0].lastError ?? "").length).toBeLessThanOrEqual(1800);
+  });
+
+  it("treats in_progress steps as runnable (cancel-resume bug fix)", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-inprogress-"));
+    const planPath = path.join(tempDir, "plan.json");
+    const plan = samplePlan("true");
+    plan.steps[0].status = "in_progress";
+    await fs.writeJson(planPath, plan, { spaces: 2 });
+
+    const summary = await runRalphLoop({
+      provider: fakeProvider(true),
+      model: "gpt-5.3-codex",
+      thinkingValue: "high",
+      planPath,
+      plan,
+      maxIterations: 1,
+      workingDir: tempDir,
+      timeoutMs: 2000,
+      dryRun: false,
+      autoCommit: false,
+      sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+    });
+
+    expect(summary.completedSteps).toBe(1);
+    expect(plan.steps[0].status).toBe("done");
+  });
+
+  it("does not skip in_progress step when a second pending step exists", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-noskip-"));
+    const planPath = path.join(tempDir, "plan.json");
+    const plan = samplePlan("true");
+    plan.steps[0].status = "in_progress";
+    plan.steps.push({
+      ...plan.steps[0],
+      id: "step-02",
+      title: "Second step",
+      status: "pending",
+    });
+    await fs.writeJson(planPath, plan, { spaces: 2 });
+
+    const calls: ProviderExecutionInput[] = [];
+    const provider: ProviderAdapter = {
+      ...fakeProvider(true),
+      execute: async (input) => {
+        calls.push(input);
+        return {
+          ok: true,
+          exitCode: 0,
+          timedOut: false,
+          stdout: "",
+          stderr: "",
+          responseText: "ok",
+          finalText: "ok",
+          events: [],
+          usedModel: input.model,
+          command: { command: "codex", args: ["exec"] },
+          rawOutput: { stdout: "", stderr: "" },
+        };
+      },
+    };
+
+    await runRalphLoop({
+      provider,
+      model: "gpt-5.3-codex",
+      thinkingValue: "high",
+      planPath,
+      plan,
+      maxIterations: 1,
+      workingDir: tempDir,
+      timeoutMs: 2000,
+      dryRun: false,
+      autoCommit: false,
+      sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+    });
+
+    // Must pick step-01 (in_progress) first, not skip to step-02
+    expect(plan.steps[0].status).toBe("done");
+    expect(plan.steps[1].status).toBe("pending");
+  });
+
+  it("detects thinking-unsupported errors", () => {
+    const cases = [
+      { stderr: "Error: unsupported thinking budget for this model", expected: true },
+      { stderr: "invalid reasoning_effort option", expected: true },
+      { stderr: "unrecognized option --thinking-budget", expected: true },
+      { stderr: "max-turns: invalid value", expected: true },
+      { stderr: "thinking is not supported for this model", expected: true },
+      { stderr: "model not available", expected: false },
+      { stderr: "429 rate limit", expected: false },
+      { stderr: "generic error", expected: false },
+    ];
+
+    for (const { stderr, expected } of cases) {
+      const result = {
+        ok: false,
+        exitCode: 1,
+        timedOut: false,
+        stdout: "",
+        stderr,
+        responseText: "",
+        finalText: "",
+        events: [],
+        usedModel: "test",
+        command: { command: "test", args: [] },
+        rawOutput: { stdout: "", stderr },
+      };
+      expect(isThinkingUnsupportedError(result), `Expected ${expected} for: "${stderr}"`).toBe(expected);
+    }
   });
 });

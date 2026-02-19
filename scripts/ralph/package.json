@@ -9,6 +9,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "test:e2e:matrix": "vitest run tests/e2e/output-matrix.e2e.test.ts",
+    "test:e2e:live": "RALPH_LIVE_E2E=1 vitest run tests/e2e/live-smoke.e2e.test.ts",
     "dev": "tsx src/cli.ts",
     "lint": "tsc -p tsconfig.json --noEmit"
   },

@@ -1,0 +1,21 @@
+{
+    "hooks": {
+        "PreToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "command": "echo '⚡ Agent editing: follow AGENTS.md + nearest nested AGENTS.md'"
+            }
+        ],
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "command": "bash -c 'FILE=\"$CLAUDE_FILE\"; if [ -n \"$FILE\" ]; then LINES=$(wc -l < \"$FILE\" 2>/dev/null || echo 0); if [ \"$LINES\" -gt 500 ]; then echo \"⚠️  WARNING: $FILE is $LINES lines (target <500)\"; fi; fi'"
+            }
+        ],
+        "SessionStart": [
+            {
+                "command": "echo '🚀 DirectStock | Mode: unrestricted_senior | Policy: AGENTS.md'"
+            }
+        ]
+    }
+}

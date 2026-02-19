@@ -1,3 +1,5 @@
+import type { OutputMode, ProviderOutputEvent, ThinkingVisibility } from "./output-events.js";
+
 export type ProviderId = "anthropic" | "openai" | "google";
 export type SessionStrategy = "reset" | "resume";
 
@@ -23,6 +25,11 @@ export interface ProviderExecutionInput {
   resumeSessionId?: string;
   outputSchema?: unknown;
   outputSchemaPath?: string;
+  outputMode?: OutputMode;
+  thinkingVisibility?: ThinkingVisibility;
+  attempt?: number;
+  streamingEnabled?: boolean;
+  onEvent?: (event: ProviderOutputEvent) => void;
 }
 
 export interface ProviderCommand {
@@ -38,9 +45,14 @@ export interface ProviderExecutionResult {
   stdout: string;
   stderr: string;
   responseText: string;
+  finalText: string;
+  events: ProviderOutputEvent[];
+  thinkingSummary?: string;
+  rawOutput?: { stdout: string; stderr: string };
   usedModel: string;
   command: ProviderCommand;
   sessionId?: string;
+  attempt?: number;
 }
 
 export interface ProviderAdapter {
@@ -54,6 +66,7 @@ export interface ProviderAdapter {
   supportsResume: boolean;
   supportsOutputSchemaPath?: boolean;
   supportsJsonSchema?: boolean;
+  supportsStreamJson?: boolean;
   isInstalled(): Promise<boolean>;
   buildCommand(input: ProviderExecutionInput): ProviderCommand;
   execute(input: ProviderExecutionInput): Promise<ProviderExecutionResult>;

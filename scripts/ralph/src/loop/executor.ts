@@ -5,6 +5,15 @@ import { runCommand, sleep } from "../lib/process.js";
 import type { RalphRunLogger } from "../lib/run-log.js";
 import type { Plan, Step } from "../planner/plan-schema.js";
 import { savePlan } from "../planner/plan-schema.js";
+import {
+  eventPreview,
+  normalizeInlineText,
+  truncateText,
+  asString,
+  type OutputMode,
+  type ProviderOutputEvent,
+  type ThinkingVisibility,
+} from "../providers/output-events.js";
 import type { ProviderAdapter, ProviderExecutionResult, SessionStrategy } from "../providers/types.js";
 import {
   printIterationHeader,
@@ -13,6 +22,7 @@ import {
   printProviderAttemptDone,
   printProviderAttemptStart,
   printProviderHeartbeat,
+  printProviderOutput,
   printRetryScheduled,
   printStepPostCheckResult,
   printStepPostChecksStart,
@@ -33,6 +43,9 @@ export interface RalphLoopConfig {
   dryRun: boolean;
   autoCommit: boolean;
   sessionStrategy: SessionStrategy;
+  providerStreamingEnabled: boolean;
+  outputMode: OutputMode;
+  thinkingVisibility: ThinkingVisibility;
   initialResumeSessionId?: string;
   runLogger?: RalphRunLogger;
 }
@@ -82,7 +95,10 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): 
 
 function nextRunnableStep(plan: Plan): Step | undefined {
   return plan.steps.find(
-    (step) => step.status === "pending" || (step.status === "failed" && step.attempts < step.maxAttempts),
+    (step) =>
+      step.status === "pending" ||
+      step.status === "in_progress" ||
+      (step.status === "failed" && step.attempts < step.maxAttempts),
   );
 }
 
@@ -112,7 +128,60 @@ function isModelUnavailableError(result: ProviderExecutionResult): boolean {
   );
 }
 
+export function isThinkingUnsupportedError(result: ProviderExecutionResult): boolean {
+  const raw = `${result.stderr}\n${result.stdout}`.toLowerCase();
+  const hasThinkingKeyword =
+    raw.includes("thinking") || raw.includes("budget") || raw.includes("reasoning_effort") || raw.includes("max-turns");
+  const hasRejection =
+    raw.includes("unsupported") ||
+    raw.includes("invalid") ||
+    raw.includes("unrecognized option") ||
+    raw.includes("unknown option") ||
+    raw.includes("not supported") ||
+    raw.includes("not available");
+  return hasThinkingKeyword && hasRejection;
+}
+
 const PROVIDER_HEARTBEAT_INTERVAL_MS = 15_000;
+const PROVIDER_STALL_WARNING_THRESHOLD_MS = 60_000;
+
+function summarizeProviderFailure(args: {
+  execution: ProviderExecutionResult;
+  modelUnavailableHint?: string;
+  thinkingUnsupportedHint?: string;
+  includeRaw: boolean;
+}): string {
+  const eventErrors = (args.execution.events ?? [])
+    .filter((event) => event.type === "error")
+    .slice(0, 3)
+    .map((event) => truncateText(eventPreview(event, 260), 260));
+
+  const finalSummary = truncateText(args.execution.finalText ?? "", 320);
+
+  const uniqueParts = Array.from(
+    new Set(
+      [
+        args.modelUnavailableHint ?? "",
+        args.thinkingUnsupportedHint ?? "",
+        finalSummary,
+        ...eventErrors,
+      ]
+        .filter(Boolean)
+        .map((item) => normalizeInlineText(item)),
+    ),
+  );
+
+  const parts = [...uniqueParts].filter(Boolean);
+
+  if (args.includeRaw) {
+    const raw = [args.execution.stderr, args.execution.stdout].filter(Boolean).join("\n").trim();
+    if (raw) {
+      parts.push(truncateText(raw, 700));
+    }
+  }
+
+  return parts.join("\n").slice(0, 1800);
+}
 
 async function executeWithRetries(args: {
   provider: ProviderAdapter;
@@ -123,6 +192,9 @@ async function executeWithRetries(args: {
   timeoutMs: number;
   dryRun: boolean;
   sessionStrategy: SessionStrategy;
+  outputMode: OutputMode;
+  thinkingVisibility: ThinkingVisibility;
+  streamingEnabled: boolean;
   resumeSessionId?: string;
   onAttemptStart?: (input: {
     model: string;
@@ -145,8 +217,10 @@ async function executeWithRetries(args: {
     timedOut: boolean;
     modelUnavailable: boolean;
     sessionId?: string;
+    result: ProviderExecutionResult;
   }) => Promise<void> | void;
   onRetry?: (input: { model: string; attempt: number; delayMs: number; reason: string }) => Promise<void>;
+  onEvent?: (event: ProviderOutputEvent) => Promise<void> | void;
 }): Promise<ProviderExecutionResult> {
   const selectedModel = args.model;
 
@@ -180,9 +254,13 @@ async function executeWithRetries(args: {
       stdout: "",
       stderr: "Provider execution failed unexpectedly.",
       responseText: "",
+      finalText: "",
+      events: [],
       usedModel: selectedModel,
       command: { command: args.provider.cliCommand, args: [] },
       sessionId: args.resumeSessionId,
+      rawOutput: { stdout: "", stderr: "Provider execution failed unexpectedly." },
+      attempt,
     };
     try {
       result = await args.provider.execute({
@@ -194,11 +272,18 @@ async function executeWithRetries(args: {
         dryRun: args.dryRun,
         sessionStrategy: args.sessionStrategy,
         resumeSessionId: args.resumeSessionId,
+        attempt,
+        outputMode: args.outputMode,
+        thinkingVisibility: args.thinkingVisibility,
+        streamingEnabled: args.streamingEnabled,
+        onEvent: args.onEvent,
       });
+      result.attempt = attempt;
     } catch (error) {
       result = {
         ...result,
         stderr: error instanceof Error ? error.message : String(error),
+        rawOutput: { stdout: "", stderr: error instanceof Error ? error.message : String(error) },
       };
     } finally {
       if (heartbeatHandle) {
@@ -216,6 +301,7 @@ async function executeWithRetries(args: {
       timedOut: result.timedOut,
       modelUnavailable,
       sessionId: result.sessionId,
+      result,
     });
 
     if (result.ok) {
@@ -223,7 +309,8 @@ async function executeWithRetries(args: {
     }
 
     lastResult = result;
-    if (modelUnavailable || !isTransientError(result) || attempt === 3) {
+    const thinkingUnsupported = isThinkingUnsupportedError(result);
+    if (modelUnavailable || thinkingUnsupported || !isTransientError(result) || attempt === 3) {
       break;
     }
 
@@ -245,9 +332,12 @@ async function executeWithRetries(args: {
       stdout: "",
       stderr: "Provider execution failed before returning a result.",
       responseText: "",
+      finalText: "",
+      events: [],
       usedModel: args.model,
       command: { command: args.provider.cliCommand, args: [] },
       sessionId: args.resumeSessionId,
+      rawOutput: { stdout: "", stderr: "Provider execution failed before returning a result." },
     }
   );
 }
@@ -362,6 +452,9 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         dryRun: true,
         sessionStrategy: config.sessionStrategy,
         resumeSessionId,
+        outputMode: config.outputMode,
+        thinkingVisibility: config.thinkingVisibility,
+        streamingEnabled: config.providerStreamingEnabled,
       });
 
       console.log(chalk.dim(`Command: ${command.command} ${command.args.join(" ")}`));
@@ -378,6 +471,8 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
 
     const gitState = await captureIterationContext(config.workingDir);
     const prompt = buildIterationPrompt(config.plan, step, gitState);
+    const stalledAttempts = new Set<number>();
+    let latestThinkingChunk: string | undefined;
 
     const execution = await executeWithRetries({
       provider: config.provider,
@@ -388,8 +483,14 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       timeoutMs: config.timeoutMs,
       dryRun: false,
       sessionStrategy: config.sessionStrategy,
+      outputMode: config.outputMode,
+      thinkingVisibility: config.thinkingVisibility,
+      streamingEnabled: config.providerStreamingEnabled,
       resumeSessionId,
       onAttemptStart: ({ model, attempt, maxAttempts, timeoutMs }) => {
+        if (attempt === 1) {
+          stalledAttempts.clear();
+        }
         printProviderAttemptStart({
           step,
           model,
@@ -407,9 +508,56 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
           attempt,
           elapsedMs,
           timeoutMs,
+          thinkingChunk: latestThinkingChunk,
         });
+        if (
+          config.provider.id === "anthropic" &&
+          elapsedMs >= PROVIDER_STALL_WARNING_THRESHOLD_MS &&
+          !stalledAttempts.has(attempt)
+        ) {
+          stalledAttempts.add(attempt);
+          console.log(
+            chalk.yellow(
+              `[status] ${step.id} provider:stall model=${model} attempt=${attempt} elapsed=${Math.round(
+                elapsedMs / 1000,
+              )}s hint=No completion event yet; check auth/network or reduce thinking/max-turns.`,
+            ),
+          );
+          void config.runLogger?.log({
+            event: "provider_event",
+            iteration,
+            stepId: step.id,
+            stepTitle: step.title,
+            attempt,
+            sessionId: resumeSessionId,
+            providerEventType: "status",
+            preview: `stall_detected elapsedMs=${elapsedMs}`,
+          });
+        }
       },
-      onAttemptDone: ({ model, attempt, durationMs, ok, exitCode, timedOut, modelUnavailable, sessionId }) => {
+      onEvent: (event) => {
+        if (event.type === "thinking") {
+          const text = asString(event.payload.summary);
+          if (text && text.trim().length > 0) {
+            const lines = text.split("\n").filter(Boolean);
+            if (lines.length > 0) {
+              latestThinkingChunk = lines[lines.length - 1].trim() || latestThinkingChunk;
+            }
+          }
+        }
+      },
+      onAttemptDone: async ({
+        model,
+        attempt,
+        durationMs,
+        ok,
+        exitCode,
+        timedOut,
+        modelUnavailable,
+        sessionId,
+        result,
+      }) => {
+        const providerEvents = Array.isArray(result.events) ? result.events : [];
         printProviderAttemptDone({
           step,
           model,
@@ -421,6 +569,29 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
           modelUnavailable,
           sessionId,
         });
+
+        printProviderOutput({
+          step,
+          outputMode: config.outputMode,
+          thinkingVisibility: config.thinkingVisibility,
+          events: providerEvents,
+          finalText: result.finalText || result.responseText,
+          thinkingSummary: result.thinkingSummary,
+          rawOutput: result.rawOutput ?? { stdout: result.stdout, stderr: result.stderr },
+        });
+
+        for (const providerEvent of providerEvents) {
+          await config.runLogger?.log({
+            event: "provider_event",
+            iteration,
+            stepId: step.id,
+            stepTitle: step.title,
+            attempt,
+            sessionId: result.sessionId ?? resumeSessionId,
+            providerEventType: providerEvent.type,
+            preview: eventPreview(providerEvent, 220),
+          });
+        }
       },
       onRetry: async ({ model, attempt, delayMs, reason }) => {
         printRetryScheduled({
@@ -454,10 +625,15 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       const modelUnavailableHint = isModelUnavailableError(execution)
         ? `Selected model unavailable: ${config.model}. No fallback models are configured.`
         : "";
-      step.lastError = [modelUnavailableHint, execution.stderr, execution.stdout]
-        .filter(Boolean)
-        .join("\n")
-        .slice(0, 4000);
+      const thinkingUnsupportedHint = isThinkingUnsupportedError(execution)
+        ? `Thinking/budget configuration rejected by provider. Check --thinking value "${config.thinkingValue}" compatibility with model "${config.model}".`
+        : "";
+      step.lastError = summarizeProviderFailure({
+        execution,
+        modelUnavailableHint,
+        thinkingUnsupportedHint,
+        includeRaw: config.outputMode === "raw",
+      });
       step.status = step.attempts >= step.maxAttempts ? "failed" : "pending";
 
       printIterationResult({
@@ -493,20 +669,20 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       const stepPostChecks =
         criteriaResult.passed
           ? await (() => {
-              if (step.postChecks.length > 0) {
-                printStepPostChecksStart({ step, total: step.postChecks.length });
-              }
-              return runStepPostChecks(step.postChecks, config.workingDir, (postCheck) => {
-                printStepPostCheckResult({
-                  step,
-                  command: postCheck.command,
-                  index: postCheck.index,
-                  total: postCheck.total,
-                  passed: postCheck.passed,
-                  durationMs: postCheck.durationMs,
-                });
+            if (step.postChecks.length > 0) {
+              printStepPostChecksStart({ step, total: step.postChecks.length });
+            }
+            return runStepPostChecks(step.postChecks, config.workingDir, (postCheck) => {
+              printStepPostCheckResult({
+                step,
+                command: postCheck.command,
+                index: postCheck.index,
+                total: postCheck.total,
+                passed: postCheck.passed,
+                durationMs: postCheck.durationMs,
               });
-            })()
+            });
+          })()
           : { passed: true, output: "" };
 
       if (criteriaResult.passed && stepPostChecks.passed) {
@@ -547,7 +723,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         });
       } else {
         step.attempts += 1;
-        step.lastError = [execution.stderr, criteriaResult.output, stepPostChecks.output]
+        step.lastError = [truncateText(execution.finalText ?? "", 320), criteriaResult.output, stepPostChecks.output]
           .filter(Boolean)
           .join("\n")
           .slice(0, 4000);

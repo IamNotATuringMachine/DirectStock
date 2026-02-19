@@ -6,6 +6,7 @@ export interface CommandInvocation {
   cwd?: string;
   timeoutMs?: number;
   env?: Record<string, string>;
+  onStdout?: (chunk: string) => void;
 }
 
 export interface CommandResult {
@@ -21,9 +22,10 @@ export async function runCommand({
   cwd,
   timeoutMs,
   env,
+  onStdout,
 }: CommandInvocation): Promise<CommandResult> {
   try {
-    const result = await execa(command, args, {
+    const child = execa(command, args, {
       cwd,
       env,
       reject: false,
@@ -31,6 +33,14 @@ export async function runCommand({
       all: false,
       stripFinalNewline: false,
     });
+
+    if (onStdout && child.stdout) {
+      child.stdout.on("data", (data: string | Buffer) => {
+        onStdout(data.toString());
+      });
+    }
+
+    const result = await child;
 
     return {
       exitCode: result.exitCode ?? null,

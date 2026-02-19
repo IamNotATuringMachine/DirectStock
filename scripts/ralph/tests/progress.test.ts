@@ -5,10 +5,13 @@ import {
   printIterationResult,
   printProviderAttemptDone,
   printProviderHeartbeat,
+  printProviderOutput,
   printRetryScheduled,
 } from "../src/ui/progress.js";
 
-const step = {
+import type { Step } from "../src/planner/plan-schema.js";
+
+const step: Step = {
   id: "step-01",
   title: "Title",
   description: "Description",
@@ -22,10 +25,10 @@ const step = {
   owner: "agent",
   postChecks: [],
   rollbackHint: "git revert",
-} as const;
+};
 
 describe("progress output", () => {
-  const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  const logSpy = vi.spyOn(console, "log").mockImplementation(() => { });
 
   afterEach(() => {
     logSpy.mockClear();
@@ -35,7 +38,7 @@ describe("progress output", () => {
     logSpy.mockRestore();
   });
 
-  it("prints iteration header with session info", () => {
+  it("prints iteration header with box-drawn frame and session info", () => {
     printIterationHeader({
       iteration: 1,
       maxIterations: 10,
@@ -46,7 +49,9 @@ describe("progress output", () => {
 
     const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
     expect(output).toContain("Iteration 1/10");
-    expect(output).toContain("Session: resume (sess-123)");
+    expect(output).toContain("╭");
+    expect(output).toContain("╰");
+    expect(output).toContain("resume (sess-123)");
   });
 
   it("prints failure classification for timeout", () => {
@@ -60,10 +65,11 @@ describe("progress output", () => {
     });
 
     const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-    expect(output).toContain("class=timeout");
+    expect(output).toContain("FAIL");
+    expect(output).toContain("timeout");
   });
 
-  it("prints provider heartbeat state", () => {
+  it("prints provider heartbeat with thinking icon", () => {
     printProviderHeartbeat({
       step: { ...step },
       model: "gemini-3-flash-preview",
@@ -73,8 +79,8 @@ describe("progress output", () => {
     });
 
     const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-    expect(output).toContain("provider:thinking");
-    expect(output).toContain("elapsed=15s");
+    expect(output).toContain("💭");
+    expect(output).toContain("15s");
   });
 
   it("prints retry reason for transient failures", () => {
@@ -87,8 +93,8 @@ describe("progress output", () => {
     });
 
     const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-    expect(output).toContain("provider:retry");
-    expect(output).toContain("reason=429 rate limit reached");
+    expect(output).toContain("Retry");
+    expect(output).toContain("429 rate limit reached");
   });
 
   it("prints explicit model_unavailable state", () => {
@@ -105,6 +111,100 @@ describe("progress output", () => {
     });
 
     const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-    expect(output).toContain("state=model_unavailable");
+    expect(output).toContain("model_unavailable");
+  });
+
+  it("prints timeline output with tool call icons and final text", () => {
+    printProviderOutput({
+      step: { ...step },
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+      events: [
+        {
+          type: "thinking",
+          provider: "openai",
+          timestamp: new Date().toISOString(),
+          attempt: 1,
+          payload: { summary: "plan built" },
+        },
+        {
+          type: "tool_call",
+          provider: "openai",
+          timestamp: new Date().toISOString(),
+          attempt: 1,
+          payload: { name: "Read", command: "cat file.ts" },
+        },
+      ],
+      finalText: "done",
+      thinkingSummary: "plan built",
+      rawOutput: { stdout: "", stderr: "" },
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("💭");
+    expect(output).toContain("⚡");
+    expect(output).toContain("Read");
+    expect(output).toContain("✓");
+  });
+
+  it("renders full thinking block when thinkingVisibility=full", () => {
+    printProviderOutput({
+      step: { ...step },
+      outputMode: "timeline",
+      thinkingVisibility: "full",
+      events: [
+        {
+          type: "thinking",
+          provider: "openai",
+          timestamp: new Date().toISOString(),
+          attempt: 1,
+          payload: { text: "I am analyzing the codebase structure carefully" },
+        },
+      ],
+      finalText: "",
+      rawOutput: { stdout: "", stderr: "" },
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("Thinking");
+    expect(output).toContain("┌");
+    expect(output).toContain("└");
+    expect(output).toContain("analyzing");
+  });
+
+  it("prints error events with error icon", () => {
+    printProviderOutput({
+      step: { ...step },
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+      events: [
+        {
+          type: "error",
+          provider: "openai",
+          timestamp: new Date().toISOString(),
+          attempt: 1,
+          payload: { error: "authentication failed" },
+        },
+      ],
+      finalText: "",
+      rawOutput: { stdout: "", stderr: "" },
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("✗");
+    expect(output).toContain("authentication failed");
+  });
+
+  it("classifies thinking_unsupported errors", () => {
+    printIterationResult({
+      step: { ...step },
+      passed: false,
+      attempts: 1,
+      maxAttempts: 3,
+      info: "unsupported thinking budget for this model",
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("thinking_unsupported");
   });
 });

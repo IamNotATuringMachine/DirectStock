@@ -4,6 +4,7 @@ import chalk from "chalk";
 
 import type { RunLogFormat } from "../lib/run-log.js";
 import type { PostCheckProfile } from "../post-checks.js";
+import type { OutputMode, ThinkingVisibility } from "../providers/output-events.js";
 import type { SessionStrategy } from "../providers/types.js";
 
 export interface ConfirmationData {
@@ -17,6 +18,8 @@ export interface ConfirmationData {
   dryRun: boolean;
   autoCommit: boolean;
   sessionStrategy: SessionStrategy;
+  outputMode: OutputMode;
+  thinkingVisibility: ThinkingVisibility;
   postCheckProfile: PostCheckProfile;
   logFormat: RunLogFormat;
   runLogPath: string;
@@ -31,7 +34,7 @@ export function renderConfirmation(data: ConfirmationData): string {
   const lines = [
     `${chalk.cyan("Runtime")}  ${data.provider} / ${data.model} / thinking=${data.thinking}`,
     `${chalk.cyan("Plan")}     ${truncateMiddle(planPath, maxWidth - 15)} / ${data.stepCount} steps / iter=${data.maxIterations}`,
-    `${chalk.cyan("Exec")}     session=${data.sessionStrategy} / post-check=${data.postCheckProfile} / dry=${formatBoolean(data.dryRun)} / commit=${formatBoolean(data.autoCommit)}`,
+    `${chalk.cyan("Exec")}     session=${data.sessionStrategy} / out=${data.outputMode} / thinking=${data.thinkingVisibility} / post-check=${data.postCheckProfile} / dry=${formatBoolean(data.dryRun)} / commit=${formatBoolean(data.autoCommit)}`,
     `${chalk.cyan("Log")}      format=${data.logFormat} / strict-caps=${formatBoolean(data.strictProviderCapabilities)} / ${truncateMiddle(runLogPath, maxWidth - 42)}`,
     `${chalk.cyan("CWD")}      ${truncateMiddle(data.workingDir, maxWidth - 11)}`,
   ];
