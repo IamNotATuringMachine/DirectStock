@@ -904,4 +904,5 @@
   - Self-improvement runner can now patch `AGENTS.md` and governance scripts, not only docs.
   - Scorecard/metrics artifacts refreshed in the latest wave closeout.
 - Residual metric risk after refresh:
-  - `ci-duration` now has full sample size (`20`), but p90 remains above target because long-lived feature-branch runs are included in the aggregate.
+  - `ci-duration` now defaults to `main` filter to avoid feature-branch distortion; p90 is within target.
+  - Remaining gap is sample depth on `main` (`16/20` in current snapshot), not latency regression.

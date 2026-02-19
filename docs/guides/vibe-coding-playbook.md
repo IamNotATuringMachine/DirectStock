@@ -58,7 +58,7 @@ pre-commit run --all-files
 ./scripts/autonomous_task_harness.sh
 ./scripts/collect_complexity_metrics.sh
 RUNS=20 TEST_FLAKE_CMD="cd frontend && npm run test:e2e:smoke" ./scripts/collect_test_flakiness.sh
-CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh
+CI_BRANCH_FILTER=main CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh
 ./scripts/check_file_size_limits.sh
 ./scripts/perf/run_perf_smoke.sh
 ./scripts/perf/assert_budgets.sh

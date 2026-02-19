@@ -97,6 +97,7 @@ jobs:
           BRANCH_PROTECTION_REQUIRED_CONTEXTS: frontend,backend,e2e_smoke,security,size_guard,llm_guards
           BRANCH_PROTECTION_REQUIRE_REVIEWS: "1"
           BRANCH_PROTECTION_REQUIRE_CONVERSATION_RESOLUTION: "1"
+          BRANCH_PROTECTION_REQUIRE_SUPPORTED: ${{ vars.BRANCH_PROTECTION_REQUIRE_SUPPORTED || '0' }}
         run: ./scripts/check_branch_protection.sh
 
       - name: Create pull request

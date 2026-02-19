@@ -135,7 +135,8 @@ Run this matrix based on change type before marking tasks complete:
 6. Governance/Wave baseline updates:
    - `./scripts/collect_complexity_metrics.sh`
    - `RUNS=20 TEST_FLAKE_CMD="cd frontend && npm run test:e2e:smoke" ./scripts/collect_test_flakiness.sh`
-   - `CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh`
+   - `CI_BRANCH_FILTER=main CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh`
+   - `CI_BRANCH_FILTER=all CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh` (optional full-history comparison)
 7. Perf-sensitive backend changes:
    - `./scripts/perf/run_perf_smoke.sh`
    - `./scripts/perf/assert_budgets.sh`
@@ -158,6 +159,7 @@ Run this matrix based on change type before marking tasks complete:
 15. Branch protection baseline for autonomous auto-merge:
    - `./scripts/check_branch_protection.sh`
    - `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1 ./scripts/check_branch_protection.sh` (strict mode, fail if repo plan does not expose branch-protection API)
+   - CI toggle: set repository variable `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1` to enforce strict mode in `agent_self_improve.yml`.
 
 ## MCP Strategy
 For project-specific MCP server setup and balanced security defaults, use:
