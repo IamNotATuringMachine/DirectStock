@@ -102,6 +102,16 @@ if [ "${RUN_GOLDEN_TASKS:-0}" = "1" ]; then
   GOLDEN_TASK_MODE="${GOLDEN_TASK_MODE:-smoke}" ./scripts/run_golden_tasks.sh
 fi
 
+if [ "${RUN_AGENT_GOVERNANCE:-0}" = "1" ]; then
+  echo "==> Running agent governance check"
+  ./scripts/agent_governance_check.sh
+fi
+
+if [ "${RUN_MCP_READINESS:-0}" = "1" ]; then
+  echo "==> Running MCP readiness check"
+  MCP_PROBE_ALLOW_BLOCKED="${MCP_PROBE_ALLOW_BLOCKED:-1}" ./scripts/check_mcp_readiness.sh
+fi
+
 if [ "${COLLECT_SCORECARD_METRICS:-0}" = "1" ]; then
   echo "==> Collecting scorecard complexity metrics"
   ./scripts/collect_complexity_metrics.sh

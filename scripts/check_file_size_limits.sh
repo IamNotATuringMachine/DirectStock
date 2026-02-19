@@ -76,19 +76,19 @@ while IFS= read -r file; do
   limit=0
 
   if [[ "${file}" =~ ^frontend/src/ ]] || [[ "${file}" =~ ^backend/app/ ]]; then
-    limit=700
+    limit=500
   fi
 
-  if [[ "${file}" =~ ^frontend/src/pages/(GoodsIssuePage|StockTransferPage|ShippingPage|PurchasingPage|InterWarehouseTransferPage|ReturnsPage|ReportsPage|ProductFormPage|GoodsReceiptPage)\.tsx$ ]]; then
-    limit=450
+  if [[ "${file}" =~ ^frontend/src/pages/.*(Page|PageContainer|Workspace).*\.(ts|tsx)$ ]]; then
+    limit=350
   fi
 
-  if [[ "${file}" =~ ^frontend/src/pages/.*Workspace\.tsx$ ]]; then
-    limit=450
+  if [[ "${file}" =~ ^frontend/src/routing/.*\.(ts|tsx)$ ]]; then
+    limit=350
   fi
 
   if [[ "${file}" =~ ^backend/app/routers/.*\.py$ ]]; then
-    limit=450
+    limit=350
   fi
 
   if [ "${limit}" -eq 0 ]; then

@@ -9,7 +9,7 @@ All waves must update these metrics with reproducible commands before merge.
 ## Targets
 | Criterion | 9/10 Exit Gate |
 | --- | --- |
-| Architecture / Modularity | No production file >700 LOC, no page/router file >450 LOC |
+| Architecture / Modularity | No production file >500 LOC, no page/router file >350 LOC |
 | Security Baseline | 100% mutating endpoints with permission guard + audit + idempotency |
 | Data Integrity / Idempotency | Critical mutation paths have replay/conflict/timeout regression tests |
 | API Contract Discipline | OpenAPI drift guard required, no unapproved breaking changes |
@@ -21,6 +21,7 @@ All waves must update these metrics with reproducible commands before merge.
 | Observability / Operability | End-to-end traces + SLO dashboards + actionable alert runbooks |
 | DevEx / Tooling | Deterministic one-command verification in local + CI |
 | LLM / Vibe Coding SOTA | Golden task first-pass gate success >=90% |
+| Agent Governance Loop | Scheduled governance scan with debt issue auto-sync |
 
 ## Baseline Collection Commands
 Run from repository root:

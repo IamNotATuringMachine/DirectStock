@@ -66,4 +66,5 @@ CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh
 ./scripts/check_security_gates.sh
 ./scripts/observability/smoke.sh
 ./scripts/run_golden_tasks.sh
+./scripts/agent_governance_check.sh
 ```

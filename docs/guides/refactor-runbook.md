@@ -19,6 +19,7 @@ A refactor wave is complete only when changed-scope metrics improve or remain st
 7. Performance budgets (`./scripts/perf/run_perf_smoke.sh` + `./scripts/perf/assert_budgets.sh`) for perf-relevant scope.
 8. Security gates (`./scripts/check_security_gates.sh`) for auth/mutation/data-integrity relevant scope.
 9. Observability smoke (`./scripts/observability/smoke.sh`) for observability/runtime config changes.
+10. Agent governance debt scan (`./scripts/agent_governance_check.sh`) for AGENTS/docs/tooling waves.
 
 ## Mandatory Wave Metrics
 Update these after every merged wave PR:
@@ -30,7 +31,7 @@ CI_RUN_LIMIT=20 ./scripts/collect_ci_duration.sh
 ```
 
 ## Exit Criteria By Category
-1. Modularity: no production file >700 LOC, no page/router file >450 LOC.
+1. Modularity: no production file >500 LOC, no page/router file >350 LOC.
 2. Test reproducibility: E2E flake rate below 1%.
 3. CI velocity: median CI duration below 15 minutes.
 4. Contract safety: no unapproved OpenAPI breaking drift.
