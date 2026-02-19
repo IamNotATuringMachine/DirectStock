@@ -37,6 +37,9 @@
 4. Emit verification commands and outcomes for each completed task.
 5. Emit runtime evidence when falling back from an unavailable capability.
 6. Reference `.agents/workflows/` for step-by-step execution patterns.
+7. For OpenAI docs queries, route to `directstock-openai-docs` before any generic docs server.
+8. If `directstock-openai-docs` is unavailable, fallback to `directstock-fetch` against `platform.openai.com` only and report fallback evidence.
+9. Documentation answers must include source URLs and a verification timestamp (`verified on <UTC date>`).
 
 ## Ralph Runtime Parity
 `direct ralph` must stay aligned with Codex CLI behavior:

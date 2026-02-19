@@ -24,6 +24,9 @@ This repository runs in `unrestricted_senior` mode:
 4. Playwright MCP: deterministic browser-flow checks.
 5. Git MCP: commit/diff/blame context for history-aware agents.
 6. Memory MCP: cross-task context continuity for long-running autonomous workflows.
+7. OpenAI Docs MCP: provider-official OpenAI documentation via remote MCP endpoint.
+8. Context7 MCP: framework/library documentation retrieval (React/FastAPI/Vite/TanStack/etc.).
+9. Fetch MCP: standards-based fallback for official docs pages when provider/framework MCP coverage is missing.
 
 ## Repository MCP Profiles (`.mcp.json`)
 1. `dev-autonomy`: full topology + memory for local autonomous execution.
@@ -31,12 +34,14 @@ This repository runs in `unrestricted_senior` mode:
 3. `ci-readonly`: CI topology with mandatory PostgreSQL read-only posture.
 4. `triage-readonly`: low-blast-radius incident triage profile.
 5. `review-governance`: governance review profile (filesystem + github + git).
+6. `docs-research`: docs-first profile (`filesystem`, `github`, `git`, `memory`, `openai-docs`, `context7`, `fetch`).
 
 Selection examples:
 ```bash
 MCP_PROFILE=dev-autonomy ./scripts/check_mcp_readiness.sh
 MCP_PROFILE=triage-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh
 MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh
+MCP_PROFILE=docs-research ./scripts/check_mcp_readiness.sh
 ```
 
 ## Read-Only PostgreSQL Policy
@@ -88,7 +93,7 @@ Register the same server set across Codex, Claude, and Gemini:
 This bootstrap configures `postgres` for Codex by default (no feature flag toggle).
 
 Antigravity project profile mirror:
-1. `.idx/mcp.json` mirrors `dev-autonomy`, `triage-readonly`, and `review-governance`.
+1. `.idx/mcp.json` mirrors `dev-autonomy`, `triage-readonly`, `review-governance`, and `docs-research`.
 2. Keep profile names aligned with `.mcp.json` to avoid tooling drift.
 3. `.idx/airules.md` defines Antigravity IDE behavior and mandatory UI/UX artifact reporting.
 
@@ -99,8 +104,11 @@ Wrappers:
 4. `scripts/mcp/start_playwright_server.sh`
 5. `scripts/mcp/start_git_server.sh`
 6. `scripts/mcp/start_memory_server.sh`
-7. PostgreSQL MCP runtime: `scripts/mcp/directstock_postgres_server.py`
-8. Optional GitHub remote overlay: `scripts/mcp/setup_github_remote_overlay.sh`
+7. `scripts/mcp/start_openai_docs_server.sh`
+8. `scripts/mcp/start_context7_server.sh`
+9. `scripts/mcp/start_fetch_server.sh`
+10. PostgreSQL MCP runtime: `scripts/mcp/directstock_postgres_server.py`
+11. Optional GitHub remote overlay: `scripts/mcp/setup_github_remote_overlay.sh`
 
 ## Deterministic MCP Version Pinning
 Default wrapper pins (override via env variables if needed):
@@ -109,8 +117,29 @@ Default wrapper pins (override via env variables if needed):
 3. `MCP_PLAYWRIGHT_VERSION=0.0.68`
 4. `MCP_GIT_VERSION=2026.1.14`
 5. `GITHUB_MCP_IMAGE=ghcr.io/github/github-mcp-server:v0.31.0`
+6. `MCP_CONTEXT7_VERSION=2.1.1`
+7. `MCP_FETCH_VERSION=2025.4.7`
+8. `MCP_REMOTE_VERSION=0.1.38`
+9. `OPENAI_DOCS_MCP_URL=https://mcp.openai.com/mcp`
 
 Pinning applies to startup wrappers and readiness probes to keep local and CI behavior reproducible.
+
+## Documentation Routing Policy (Hybrid)
+1. OpenAI platform/API questions: `directstock-openai-docs` first.
+2. Framework/library questions: `directstock-context7` first.
+3. Claude/Gemini provider docs and uncovered sources: `directstock-fetch` against official docs domains.
+4. Fallback sequence: if preferred docs server fails, fallback to `directstock-fetch` and log fallback path in task output.
+
+Official docs domain allowlist baseline:
+1. `platform.openai.com`
+2. `docs.anthropic.com`
+3. `ai.google.dev`
+4. `google.github.io`
+
+Response evidence requirements:
+1. Include source URLs for documentation-based answers.
+2. Include verification timestamp (`verified on <UTC date>`).
+3. Prefer pages with explicit update metadata when available.
 
 ## GitHub MCP Hardening Defaults
 `scripts/mcp/start_github_server.sh` applies profile-aware defaults if env vars are unset:

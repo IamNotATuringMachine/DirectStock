@@ -472,7 +472,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     const gitState = await captureIterationContext(config.workingDir);
     const prompt = buildIterationPrompt(config.plan, step, gitState);
     const stalledAttempts = new Set<number>();
-    let latestThinkingChunk: string | undefined;
+    let latestThinkingChunk: string = "";
 
     const execution = await executeWithRetries({
       provider: config.provider,
@@ -538,10 +538,11 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       onEvent: (event) => {
         if (event.type === "thinking") {
           const text = asString(event.payload.summary);
-          if (text && text.trim().length > 0) {
-            const lines = text.split("\n").filter(Boolean);
-            if (lines.length > 0) {
-              latestThinkingChunk = lines[lines.length - 1].trim() || latestThinkingChunk;
+          if (text) {
+            latestThinkingChunk += text;
+            latestThinkingChunk = latestThinkingChunk.replace(/\\r?\\n/g, " ").replace(/\\s+/g, " ");
+            if (latestThinkingChunk.length > 300) {
+              latestThinkingChunk = "..." + latestThinkingChunk.slice(-250);
             }
           }
         }

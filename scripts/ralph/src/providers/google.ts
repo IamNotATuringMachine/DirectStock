@@ -1,3 +1,7 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
 import { MODEL_CATALOG, THINKING_CATALOG } from "../config/models.js";
 import { extractJsonFromText } from "../lib/io.js";
 import { commandExists, runCommand } from "../lib/process.js";
@@ -291,6 +295,87 @@ export function parseGeminiResponse(stdout: string, stderr = "", attempt = 1): P
   };
 }
 
+async function findSessionFile(shortId: string): Promise<string | undefined> {
+  const tmpDir = path.join(os.homedir(), ".gemini", "tmp");
+  try {
+    const hashes = await fs.readdir(tmpDir);
+    for (const hash of hashes) {
+      const chatsDir = path.join(tmpDir, hash, "chats");
+      try {
+        const files = await fs.readdir(chatsDir);
+        const match = files.find((f) => f.startsWith("session-") && f.endsWith(`${shortId}.json`));
+        if (match) {
+          return path.join(chatsDir, match);
+        }
+      } catch {
+        // Ignore errors reading individual chat dirs
+      }
+    }
+  } catch {
+    // Ignore if tmp dir does not exist
+  }
+  return undefined;
+}
+
+async function watchGeminiSessionThoughts(
+  sessionId: string,
+  onEvent: (event: ProviderOutputEvent) => void,
+  attempt: number,
+  signal: AbortSignal,
+): Promise<void> {
+  const shortId = sessionId.slice(0, 8);
+  let sessionFile: string | undefined;
+
+  // Poll briefly to find the newly created session file
+  for (let i = 0; i < 20; i++) {
+    if (signal.aborted) return;
+    sessionFile = await findSessionFile(shortId);
+    if (sessionFile) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+
+  if (!sessionFile) return;
+
+  let lastThoughtCount = 0;
+
+  // Tail the session file while the command is running
+  while (!signal.aborted) {
+    try {
+      const content = await fs.readFile(sessionFile, "utf8");
+      const data = JSON.parse(content) as Record<string, unknown>;
+      const messages = (data.messages as Record<string, unknown>[]) || [];
+      const lastGeminiMessage = [...messages].reverse().find((m) => m.type === "gemini");
+
+      if (lastGeminiMessage && Array.isArray(lastGeminiMessage.thoughts)) {
+        const currentCount = lastGeminiMessage.thoughts.length;
+        if (currentCount > lastThoughtCount) {
+          for (let i = lastThoughtCount; i < currentCount; i++) {
+            const thought = lastGeminiMessage.thoughts[i] as Record<string, unknown>;
+            if (thought && (thought.subject || thought.description)) {
+              const text = [asString(thought.subject), asString(thought.description)].filter(Boolean).join("\\n");
+              if (text) {
+                onEvent(
+                  createProviderEvent({
+                    type: "thinking",
+                    provider: "google",
+                    attempt,
+                    payload: { summary: text },
+                  }),
+                );
+              }
+            }
+          }
+          lastThoughtCount = currentCount;
+        }
+      }
+    } catch {
+      // Ignore JSON parse errors (file might be locked/mid-write)
+    }
+
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+
 function buildCommand(input: ProviderExecutionInput): ProviderCommand {
   const outputFormat = input.streamingEnabled !== false ? "stream-json" : "json";
   const args = [
@@ -351,7 +436,10 @@ export const googleAdapter: ProviderAdapter = {
       };
     }
 
+    const abortController = new AbortController();
+    let watcherStartedForSessionId: string | undefined;
     let stdoutBuffer = "";
+
     const result = await runCommand({
       command: command.command,
       args: command.args,
@@ -362,19 +450,32 @@ export const googleAdapter: ProviderAdapter = {
         if (!input.onEvent) return;
         stdoutBuffer += chunk;
         let newlineIndex;
-        while ((newlineIndex = stdoutBuffer.indexOf("\n")) !== -1) {
+        while ((newlineIndex = stdoutBuffer.indexOf("\\n")) !== -1) {
           const line = stdoutBuffer.slice(0, newlineIndex);
           stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
 
           if (!line.trim()) continue;
 
           const parsedChunk = parseGeminiResponse(line, "", input.attempt ?? 1);
+
+          if (parsedChunk.sessionId && !watcherStartedForSessionId) {
+            watcherStartedForSessionId = parsedChunk.sessionId;
+            void watchGeminiSessionThoughts(
+              watcherStartedForSessionId,
+              input.onEvent,
+              input.attempt ?? 1,
+              abortController.signal,
+            );
+          }
+
           for (const event of parsedChunk.events) {
             void input.onEvent(event);
           }
         }
-      }
+      },
     });
+
+    abortController.abort();
 
     const parsed = parseGeminiResponse(result.stdout, result.stderr, input.attempt ?? 1);
 

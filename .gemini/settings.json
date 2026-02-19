@@ -48,6 +48,27 @@
         "-lc",
         "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_memory_server.sh\""
       ]
+    },
+    "directstock-openai-docs": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_openai_docs_server.sh\""
+      ]
+    },
+    "directstock-context7": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_context7_server.sh\""
+      ]
+    },
+    "directstock-fetch": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_fetch_server.sh\""
+      ]
     }
   }
 }

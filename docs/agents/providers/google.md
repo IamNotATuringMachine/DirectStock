@@ -60,6 +60,9 @@ For long-running tasks (30+ min), use conversation checkpointing:
 8. Enforce a fallback sequence when design-tooling providers are unavailable.
 9. Reference `.agents/workflows/` for step-by-step execution patterns.
 10. Use conversation checkpointing for long-running tasks.
+11. For Gemini/ADK docs queries, use `directstock-fetch` against `ai.google.dev` and `google.github.io` as primary provider-doc sources.
+12. For framework/library docs, use `directstock-context7` first, then fallback to `directstock-fetch` with official-domain constraints.
+13. Documentation answers must include source URLs and a verification timestamp (`verified on <UTC date>`).
 
 ## Ralph Runtime Parity
 `direct ralph` must stay aligned with Gemini CLI behavior:

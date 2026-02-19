@@ -18,6 +18,10 @@ memory_version="${MCP_MEMORY_VERSION:-2026.1.26}"
 playwright_version="${MCP_PLAYWRIGHT_VERSION:-0.0.68}"
 git_version="${MCP_GIT_VERSION:-2026.1.14}"
 github_image="${GITHUB_MCP_IMAGE:-ghcr.io/github/github-mcp-server:v0.31.0}"
+context7_version="${MCP_CONTEXT7_VERSION:-2.1.1}"
+fetch_version="${MCP_FETCH_VERSION:-2025.4.7}"
+remote_version="${MCP_REMOTE_VERSION:-0.1.38}"
+openai_docs_mcp_url="${OPENAI_DOCS_MCP_URL:-https://mcp.openai.com/mcp}"
 
 has_heading() {
   local heading="$1"
@@ -275,6 +279,9 @@ cfg_github="no"
 cfg_playwright="no"
 cfg_git="no"
 cfg_memory="no"
+cfg_openai_docs="no"
+cfg_context7="no"
+cfg_fetch="no"
 
 if [ "${config_source}" = ".mcp.json" ]; then
   if server_enabled_repo "filesystem"; then cfg_filesystem="yes"; fi
@@ -283,6 +290,9 @@ if [ "${config_source}" = ".mcp.json" ]; then
   if server_enabled_repo "playwright"; then cfg_playwright="yes"; fi
   if server_enabled_repo "git"; then cfg_git="yes"; fi
   if server_enabled_repo "memory"; then cfg_memory="yes"; fi
+  if server_enabled_repo "openai-docs"; then cfg_openai_docs="yes"; fi
+  if server_enabled_repo "context7"; then cfg_context7="yes"; fi
+  if server_enabled_repo "fetch"; then cfg_fetch="yes"; fi
 else
   if has_any_heading "[mcp_servers.filesystem]" "[mcp_servers.directstock_filesystem]"; then cfg_filesystem="yes"; fi
   if has_any_heading "[mcp_servers.postgres]" "[mcp_servers.directstock_postgres]"; then cfg_postgres="yes"; fi
@@ -290,6 +300,9 @@ else
   if has_any_heading "[mcp_servers.playwright]" "[mcp_servers.directstock_playwright]"; then cfg_playwright="yes"; fi
   if has_any_heading "[mcp_servers.git]" "[mcp_servers.directstock_git]"; then cfg_git="yes"; fi
   if has_any_heading "[mcp_servers.memory]" "[mcp_servers.directstock_memory]"; then cfg_memory="yes"; fi
+  if has_any_heading "[mcp_servers.openai-docs]" "[mcp_servers.openai_docs]" "[mcp_servers.directstock_openai_docs]"; then cfg_openai_docs="yes"; fi
+  if has_any_heading "[mcp_servers.context7]" "[mcp_servers.directstock_context7]"; then cfg_context7="yes"; fi
+  if has_any_heading "[mcp_servers.fetch]" "[mcp_servers.directstock_fetch]"; then cfg_fetch="yes"; fi
 fi
 
 status_filesystem="blocked"
@@ -304,12 +317,19 @@ status_git="blocked"
 note_git="server not configured"
 status_memory="blocked"
 note_memory="server not configured"
+status_openai_docs="blocked"
+note_openai_docs="server not configured"
+status_context7="blocked"
+note_context7="server not configured"
+status_fetch="blocked"
+note_fetch="server not configured"
 
 if [ "${cfg_filesystem}" = "yes" ]; then
   if command -v npx >/dev/null 2>&1; then
-    result="$(run_start_probe "npx -y \"@modelcontextprotocol/server-filesystem@${filesystem_version}\" \"${ROOT_DIR}\"")"
+    npm_cache_dir="${NPM_CACHE_DIR:-${TMPDIR:-/tmp}/directstock-npm-cache}"
+    result="$(run_start_probe "NPM_CACHE_DIR=\"${npm_cache_dir}\" MCP_FILESYSTEM_VERSION=\"${filesystem_version}\" \"${ROOT_DIR}/scripts/mcp/start_filesystem_server.sh\"")"
     status_filesystem="${result%%|*}"
-    note_filesystem="${result#*|}"
+    note_filesystem="${result#*|}; version=${filesystem_version}"
   else
     note_filesystem="npx not found"
   fi
@@ -367,31 +387,75 @@ fi
 
 if [ "${cfg_playwright}" = "yes" ]; then
   if command -v npx >/dev/null 2>&1; then
-    result="$(run_probe "npx -y \"@playwright/mcp@${playwright_version}\" --help")"
+    npm_cache_dir="${NPM_CACHE_DIR:-${TMPDIR:-/tmp}/directstock-npm-cache}"
+    result="$(run_start_probe "NPM_CACHE_DIR=\"${npm_cache_dir}\" MCP_PLAYWRIGHT_VERSION=\"${playwright_version}\" \"${ROOT_DIR}/scripts/mcp/start_playwright_server.sh\"")"
     status_playwright="${result%%|*}"
-    note_playwright="${result#*|}"
+    note_playwright="${result#*|}; version=${playwright_version}"
   else
     note_playwright="npx not found"
   fi
 fi
 
 if [ "${cfg_git}" = "yes" ]; then
-  if command -v uvx >/dev/null 2>&1; then
-    result="$(run_start_probe "uvx --from \"mcp-server-git==${git_version}\" mcp-server-git --repository \"${ROOT_DIR}\"")"
+  if command -v uv >/dev/null 2>&1; then
+    uv_cache_dir="${UV_CACHE_DIR:-${TMPDIR:-/tmp}/directstock-uv-cache}"
+    result="$(run_start_probe "UV_CACHE_DIR=\"${uv_cache_dir}\" MCP_GIT_VERSION=\"${git_version}\" \"${ROOT_DIR}/scripts/mcp/start_git_server.sh\"")"
     status_git="${result%%|*}"
-    note_git="${result#*|}"
+    note_git="${result#*|}; version=${git_version}"
   else
-    note_git="uvx not found"
+    note_git="uv not found"
   fi
 fi
 
 if [ "${cfg_memory}" = "yes" ]; then
   if command -v npx >/dev/null 2>&1; then
-    result="$(run_probe "npx -y \"@modelcontextprotocol/server-memory@${memory_version}\" --help")"
+    npm_cache_dir="${NPM_CACHE_DIR:-${TMPDIR:-/tmp}/directstock-npm-cache}"
+    result="$(run_start_probe "NPM_CACHE_DIR=\"${npm_cache_dir}\" MCP_MEMORY_VERSION=\"${memory_version}\" \"${ROOT_DIR}/scripts/mcp/start_memory_server.sh\"")"
     status_memory="${result%%|*}"
-    note_memory="${result#*|}"
+    note_memory="${result#*|}; version=${memory_version}"
   else
     note_memory="npx not found"
+  fi
+fi
+
+if [ "${cfg_openai_docs}" = "yes" ]; then
+  if command -v npx >/dev/null 2>&1; then
+    npm_cache_dir="${NPM_CACHE_DIR:-${TMPDIR:-/tmp}/directstock-npm-cache}"
+    result="$(run_start_probe "NPM_CACHE_DIR=\"${npm_cache_dir}\" MCP_REMOTE_VERSION=\"${remote_version}\" OPENAI_DOCS_MCP_URL=\"${openai_docs_mcp_url}\" \"${ROOT_DIR}/scripts/mcp/start_openai_docs_server.sh\"")"
+    status_openai_docs="${result%%|*}"
+    note_openai_docs="${result#*|}; endpoint=${openai_docs_mcp_url}; remote=${remote_version}"
+    if [ "${status_openai_docs}" = "fail" ]; then
+      case "${note_openai_docs}" in
+        *OAuth*|*ENOTFOUND*|*getaddrinfo*|*EAI_AGAIN*|*Connecting\ to\ remote\ server*|*fetch\ failed*)
+          status_openai_docs="blocked"
+          note_openai_docs="${note_openai_docs}; remote auth/network prerequisite missing"
+          ;;
+      esac
+    fi
+  else
+    note_openai_docs="npx not found"
+  fi
+fi
+
+if [ "${cfg_context7}" = "yes" ]; then
+  if command -v npx >/dev/null 2>&1; then
+    npm_cache_dir="${NPM_CACHE_DIR:-${TMPDIR:-/tmp}/directstock-npm-cache}"
+    result="$(run_start_probe "NPM_CACHE_DIR=\"${npm_cache_dir}\" MCP_CONTEXT7_VERSION=\"${context7_version}\" \"${ROOT_DIR}/scripts/mcp/start_context7_server.sh\"")"
+    status_context7="${result%%|*}"
+    note_context7="${result#*|}; version=${context7_version}"
+  else
+    note_context7="npx not found"
+  fi
+fi
+
+if [ "${cfg_fetch}" = "yes" ]; then
+  if command -v uv >/dev/null 2>&1; then
+    uv_cache_dir="${UV_CACHE_DIR:-${TMPDIR:-/tmp}/directstock-uv-cache}"
+    result="$(run_start_probe "UV_CACHE_DIR=\"${uv_cache_dir}\" MCP_FETCH_VERSION=\"${fetch_version}\" \"${ROOT_DIR}/scripts/mcp/start_fetch_server.sh\"")"
+    status_fetch="${result%%|*}"
+    note_fetch="${result#*|}; version=${fetch_version}"
+  else
+    note_fetch="uv not found"
   fi
 fi
 
@@ -408,7 +472,7 @@ evaluate_server() {
       overall="blocked"
       return
     fi
-  else
+  elif [ "${config_source}" != ".mcp.json" ]; then
     if [ "${overall}" = "ready" ]; then
       overall="blocked"
     fi
@@ -430,6 +494,15 @@ if [ "${overall}" != "failing" ]; then
 fi
 if [ "${overall}" != "failing" ]; then
   evaluate_server "${cfg_memory}" "${status_memory}"
+fi
+if [ "${overall}" != "failing" ]; then
+  evaluate_server "${cfg_openai_docs}" "${status_openai_docs}"
+fi
+if [ "${overall}" != "failing" ]; then
+  evaluate_server "${cfg_context7}" "${status_context7}"
+fi
+if [ "${overall}" != "failing" ]; then
+  evaluate_server "${cfg_fetch}" "${status_fetch}"
 fi
 
 {
@@ -457,6 +530,9 @@ fi
   echo "| playwright | ${cfg_playwright} | ${status_playwright} | ${note_playwright} |"
   echo "| git | ${cfg_git} | ${status_git} | ${note_git} |"
   echo "| memory | ${cfg_memory} | ${status_memory} | ${note_memory} |"
+  echo "| openai-docs | ${cfg_openai_docs} | ${status_openai_docs} | ${note_openai_docs} |"
+  echo "| context7 | ${cfg_context7} | ${status_context7} | ${note_context7} |"
+  echo "| fetch | ${cfg_fetch} | ${status_fetch} | ${note_fetch} |"
   echo
   echo "## Probe Semantics"
   echo
@@ -464,6 +540,8 @@ fi
   echo "- It does not execute business-side effects."
   echo "- PostgreSQL readiness fails when MCP role is not a read-only role (user suffix '_ro'), unless explicitly disabled."
   echo "- GitHub probe surfaces effective MCP hardening (image pin, read-only posture, toolsets)."
+  echo "- OpenAI docs probe validates startup against the configured MCP endpoint and pinned mcp-remote version."
+  echo "- Context7 and fetch probes validate pinned runtime availability for framework and fallback docs retrieval."
 } > "${REPORT_FILE}"
 
 if [ "${overall}" = "ready" ]; then

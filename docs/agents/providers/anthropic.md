@@ -31,6 +31,9 @@
 5. Emit runtime fallback evidence when hooks/cache/connectors are unavailable.
 6. Use subagents for parallelizable subtasks within large features.
 7. Reference `.agents/workflows/` for step-by-step execution patterns.
+8. For Anthropic docs queries, use `directstock-fetch` against `docs.anthropic.com` as the primary provider-doc source.
+9. For framework/library docs, use `directstock-context7` first, then fallback to `directstock-fetch` with official-domain constraints.
+10. Documentation answers must include source URLs and a verification timestamp (`verified on <UTC date>`).
 
 ## Ralph Runtime Parity
 `direct ralph` must stay aligned with Claude CLI behavior:

@@ -28,6 +28,11 @@ function truncateInline(text: string, maxLen = 160): string {
   return normalized.length > maxLen ? `${normalized.slice(0, maxLen - 3)}...` : normalized;
 }
 
+function truncateInlineEnd(text: string, maxLen = 160): string {
+  const normalized = normalizeInline(text);
+  return normalized.length > maxLen ? `...${normalized.slice(-(maxLen - 3))}` : normalized;
+}
+
 function termWidth(): number {
   return Math.max(60, Math.min(process.stdout.columns ?? 100, 120));
 }
@@ -329,10 +334,10 @@ export function printProviderHeartbeat(args: {
 }): void {
   const elapsed = formatDuration(args.elapsedMs);
   if (currentSpinner) {
-    const thinkingText = args.thinkingChunk ? `: ${truncateInline(args.thinkingChunk, 80)}` : " thinking...";
+    const thinkingText = args.thinkingChunk ? `: ${truncateInlineEnd(args.thinkingChunk, 140)}` : " thinking...";
     currentSpinner.text = chalk.cyan(`${ICON.thinking} ${args.model}${thinkingText} (${elapsed})`);
   } else {
-    const thinkingText = args.thinkingChunk ? `: ${truncateInline(args.thinkingChunk, 80)}` : " thinking...";
+    const thinkingText = args.thinkingChunk ? `: ${truncateInlineEnd(args.thinkingChunk, 140)}` : " thinking...";
     console.log(chalk.dim(`  ${ICON.thinking} ${args.model}${thinkingText} ${elapsed}`));
   }
 }

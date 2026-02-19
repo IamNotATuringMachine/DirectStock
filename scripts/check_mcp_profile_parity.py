@@ -12,8 +12,13 @@ MCP_PATH = REPO_ROOT / ".mcp.json"
 IDX_PATH = REPO_ROOT / ".idx/mcp.json"
 GEMINI_PATH = REPO_ROOT / ".gemini/settings.json"
 
-REQUIRED_PROFILES = ("dev-autonomy", "triage-readonly", "review-governance")
+REQUIRED_PROFILES = ("dev-autonomy", "triage-readonly", "review-governance", "docs-research")
 REQUIRED_MEMORY_SERVER = "directstock-memory"
+REQUIRED_DOC_SERVERS = (
+    "directstock-openai-docs",
+    "directstock-context7",
+    "directstock-fetch",
+)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -58,8 +63,14 @@ def render_md(payload: dict[str, Any]) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate parity across .mcp.json, .idx/mcp.json and .gemini/settings.json")
-    parser.add_argument("--strict", action="store_true", help="Require directstock-memory across MCP server maps")
+    parser = argparse.ArgumentParser(
+        description="Validate parity across .mcp.json, .idx/mcp.json and .gemini/settings.json"
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Require directstock-memory and docs MCP servers across MCP server maps",
+    )
     parser.add_argument("--format", choices=["md", "json"], default="md", help="Output format")
     return parser.parse_args()
 
@@ -141,6 +152,13 @@ def main() -> int:
             findings.append(f"strict mode: {REQUIRED_MEMORY_SERVER} missing in .idx/mcp.json.mcpServers")
         if REQUIRED_MEMORY_SERVER not in gemini_server_set:
             findings.append(f"strict mode: {REQUIRED_MEMORY_SERVER} missing in .gemini/settings.json.mcpServers")
+        for server_name in REQUIRED_DOC_SERVERS:
+            if server_name not in mcp_server_set:
+                findings.append(f"strict mode: {server_name} missing in .mcp.json.mcpServers")
+            if server_name not in idx_server_set:
+                findings.append(f"strict mode: {server_name} missing in .idx/mcp.json.mcpServers")
+            if server_name not in gemini_server_set:
+                findings.append(f"strict mode: {server_name} missing in .gemini/settings.json.mcpServers")
 
     payload = {
         "valid": len(findings) == 0,

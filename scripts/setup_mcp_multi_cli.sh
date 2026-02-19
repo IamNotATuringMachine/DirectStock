@@ -11,6 +11,9 @@ GH_WRAPPER="${MCP_DIR}/start_github_server.sh"
 PW_WRAPPER="${MCP_DIR}/start_playwright_server.sh"
 GT_WRAPPER="${MCP_DIR}/start_git_server.sh"
 MW_WRAPPER="${MCP_DIR}/start_memory_server.sh"
+OD_WRAPPER="${MCP_DIR}/start_openai_docs_server.sh"
+C7_WRAPPER="${MCP_DIR}/start_context7_server.sh"
+FC_WRAPPER="${MCP_DIR}/start_fetch_server.sh"
 
 announce() {
   printf "\n==> %s\n" "$1"
@@ -37,8 +40,8 @@ setup_codex() {
   mkdir -p "$(dirname "${CODEX_CONFIG}")"
   touch "${CODEX_CONFIG}"
 
-  local names=("filesystem" "postgres" "github" "playwright" "git" "memory")
-  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}")
+  local names=("filesystem" "postgres" "github" "playwright" "git" "memory" "openai-docs" "context7" "fetch")
+  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}" "${OD_WRAPPER}" "${C7_WRAPPER}" "${FC_WRAPPER}")
 
   if command -v codex >/dev/null 2>&1; then
     local i
@@ -92,6 +95,27 @@ setup_codex() {
   else
     echo "codex memory server already configured"
   fi
+
+  if ! has_toml_section openai-docs; then
+    append_codex_section openai-docs "${OD_WRAPPER}"
+    echo "added codex openai-docs server"
+  else
+    echo "codex openai-docs server already configured"
+  fi
+
+  if ! has_toml_section context7; then
+    append_codex_section context7 "${C7_WRAPPER}"
+    echo "added codex context7 server"
+  else
+    echo "codex context7 server already configured"
+  fi
+
+  if ! has_toml_section fetch; then
+    append_codex_section fetch "${FC_WRAPPER}"
+    echo "added codex fetch server"
+  else
+    echo "codex fetch server already configured"
+  fi
 }
 
 setup_claude() {
@@ -102,8 +126,8 @@ setup_claude() {
   fi
 
   local scope="project"
-  local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git" "directstock-memory")
-  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}")
+  local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git" "directstock-memory" "directstock-openai-docs" "directstock-context7" "directstock-fetch")
+  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}" "${OD_WRAPPER}" "${C7_WRAPPER}" "${FC_WRAPPER}")
   local i
 
   for i in "${!names[@]}"; do
@@ -132,7 +156,7 @@ setup_gemini() {
 
   local settings_dir="${ROOT_DIR}/.gemini"
   local settings_file="${settings_dir}/settings.json"
-  local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git" "directstock-memory")
+  local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git" "directstock-memory" "directstock-openai-docs" "directstock-context7" "directstock-fetch")
   local i
 
   mkdir -p "${settings_dir}"
@@ -142,14 +166,17 @@ import sys
 from pathlib import Path
 
 settings_file = Path(sys.argv[1])
-names = [
-    "directstock-filesystem",
-    "directstock-postgres",
-    "directstock-github",
-    "directstock-playwright",
-    "directstock-git",
-    "directstock-memory",
-]
+server_wrappers = {
+    "directstock-filesystem": "start_filesystem_server.sh",
+    "directstock-postgres": "start_postgres_server.sh",
+    "directstock-github": "start_github_server.sh",
+    "directstock-playwright": "start_playwright_server.sh",
+    "directstock-git": "start_git_server.sh",
+    "directstock-memory": "start_memory_server.sh",
+    "directstock-openai-docs": "start_openai_docs_server.sh",
+    "directstock-context7": "start_context7_server.sh",
+    "directstock-fetch": "start_fetch_server.sh",
+}
 
 if settings_file.exists():
     payload = json.loads(settings_file.read_text(encoding="utf-8"))
@@ -160,13 +187,12 @@ payload.setdefault("context", {})
 payload["context"]["fileName"] = ["AGENTS.md", "GEMINI.md", "frontend/AGENTS.md"]
 
 mcp_servers = payload.setdefault("mcpServers", {})
-for name in names:
-    suffix = name.replace("directstock-", "")
+for name, wrapper in server_wrappers.items():
     mcp_servers[name] = {
         "command": "bash",
         "args": [
             "-lc",
-            f"exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_{suffix}_server.sh\"",
+            f"exec \"$(git rev-parse --show-toplevel)/scripts/mcp/{wrapper}\"",
         ],
     }
 
