@@ -1,0 +1,53 @@
+{
+  "context": {
+    "fileName": [
+      "AGENTS.md",
+      "GEMINI.md",
+      "frontend/AGENTS.md"
+    ]
+  },
+  "mcpServers": {
+    "directstock-filesystem": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_filesystem_server.sh\""
+      ]
+    },
+    "directstock-postgres": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_postgres_server.sh\""
+      ]
+    },
+    "directstock-github": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_github_server.sh\""
+      ]
+    },
+    "directstock-playwright": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_playwright_server.sh\""
+      ]
+    },
+    "directstock-git": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_git_server.sh\""
+      ]
+    },
+    "directstock-memory": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_memory_server.sh\""
+      ]
+    }
+  }
+}

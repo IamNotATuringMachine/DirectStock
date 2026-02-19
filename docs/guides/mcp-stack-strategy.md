@@ -76,6 +76,11 @@ Register the same server set across Codex, Claude, and Gemini:
 ./scripts/setup_mcp_multi_cli.sh
 ```
 
+Antigravity project profile mirror:
+1. `.idx/mcp.json` mirrors `dev-autonomy`, `triage-readonly`, and `review-governance`.
+2. Keep profile names aligned with `.mcp.json` to avoid tooling drift.
+3. `.idx/airules.md` defines Antigravity IDE behavior and mandatory UI/UX artifact reporting.
+
 Wrappers:
 1. `scripts/mcp/start_filesystem_server.sh`
 2. `scripts/mcp/start_postgres_server.sh`

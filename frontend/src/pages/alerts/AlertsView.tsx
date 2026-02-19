@@ -87,6 +87,10 @@ export function AlertsView({
   onPrevPage,
   onNextPage,
 }: AlertsViewProps) {
+  const statusFilterId = "alerts-status-filter-field";
+  const severityFilterId = "alerts-severity-filter-field";
+  const typeFilterId = "alerts-type-filter-field";
+
   return (
     <div className="page space-y-6 animate-fade-in" data-testid="alerts-page">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -151,7 +155,11 @@ export function AlertsView({
             </div>
 
             <div className="relative min-w-[140px] flex-1 lg:flex-none">
+              <label className="sr-only" htmlFor={statusFilterId}>
+                Statusfilter
+              </label>
               <select
+                id={statusFilterId}
                 className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
                 value={statusFilter}
                 onChange={(event) => onStatusFilterChange(event.target.value)}
@@ -165,7 +173,11 @@ export function AlertsView({
             </div>
 
             <div className="relative min-w-[140px] flex-1 lg:flex-none">
+              <label className="sr-only" htmlFor={severityFilterId}>
+                Prioritaetsfilter
+              </label>
               <select
+                id={severityFilterId}
                 className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
                 value={severityFilter}
                 onChange={(event) => onSeverityFilterChange(event.target.value)}
@@ -180,7 +192,11 @@ export function AlertsView({
             </div>
 
             <div className="relative min-w-[140px] flex-1 lg:flex-none">
+              <label className="sr-only" htmlFor={typeFilterId}>
+                Typfilter
+              </label>
               <select
+                id={typeFilterId}
                 className="w-full appearance-none pl-3 pr-8 py-2 bg-[var(--panel)] text-[var(--ink)] border border-[var(--line)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all"
                 value={typeFilter}
                 onChange={(event) => onTypeFilterChange(event.target.value)}

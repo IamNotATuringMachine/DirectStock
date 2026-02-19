@@ -99,6 +99,7 @@ export function CustomersView({
   onDeleteContact,
 }: CustomersViewProps) {
   const hasSelectedCustomer = selectedCustomerId !== null;
+  const contactLocationSelectId = "customers-contact-location-select";
 
   return (
     <section className="page flex flex-col gap-6" data-testid="customers-page">
@@ -249,7 +250,11 @@ export function CustomersView({
             Ansprechpartner
           </h3>
           <form className="space-y-2" onSubmit={onCreateContact}>
+            <label className="sr-only" htmlFor={contactLocationSelectId}>
+              Standort-Zuordnung
+            </label>
             <select
+              id={contactLocationSelectId}
               className="input w-full"
               value={contactLocationId}
               onChange={(event) => onContactLocationIdChange(event.target.value)}

@@ -118,6 +118,7 @@ export function InventoryView({
                 value={warehouseFilter}
                 onChange={(event) => onWarehouseFilterChange(event.target.value)}
                 data-testid="inventory-warehouse-filter"
+                aria-label="Bestand nach Lager filtern"
               >
                 <option value="">Alle Lager</option>
                 {warehouses.map((warehouse) => (

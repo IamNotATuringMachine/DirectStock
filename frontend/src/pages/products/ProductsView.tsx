@@ -121,6 +121,7 @@ export function ProductsView({
               value={statusFilter}
               onChange={(event) => onStatusFilterChange(event.target.value as "" | ProductStatus)}
               data-testid="products-status-filter"
+              aria-label="Produkte nach Status filtern"
             >
               <option value="">Alle Status</option>
               {productStatuses.map((status) => (
@@ -141,6 +142,7 @@ export function ProductsView({
               value={groupFilter}
               onChange={(event) => onGroupFilterChange(event.target.value)}
               data-testid="products-group-filter"
+              aria-label="Produkte nach Gruppe filtern"
             >
               <option value="">Alle Gruppen</option>
               {groups.map((group) => (

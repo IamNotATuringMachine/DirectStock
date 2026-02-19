@@ -8,7 +8,7 @@ BRANCH="${BRANCH_PROTECTION_BRANCH:-main}"
 ALLOW_WARN_ONLY="${BRANCH_PROTECTION_ALLOW_WARN_ONLY:-0}"
 REQUIRE_REVIEWS="${BRANCH_PROTECTION_REQUIRE_REVIEWS:-1}"
 REQUIRE_CONVERSATION_RESOLUTION="${BRANCH_PROTECTION_REQUIRE_CONVERSATION_RESOLUTION:-1}"
-REQUIRED_CONTEXTS="${BRANCH_PROTECTION_REQUIRED_CONTEXTS:-frontend,backend,e2e_smoke,security,size_guard,llm_guards}"
+REQUIRED_CONTEXTS="${BRANCH_PROTECTION_REQUIRED_CONTEXTS:-provider_capability_openai,provider_capability_anthropic,provider_capability_google,llm_guards,size_guard,frontend,backend,e2e_smoke,frontend_a11y_gate,frontend_a11y_gate_mobile,frontend_visual_gate,frontend_visual_gate_mobile,design_token_drift_gate,gemini_config_guard,security}"
 REQUIRE_SUPPORTED="${BRANCH_PROTECTION_REQUIRE_SUPPORTED:-0}"
 
 resolve_repo_from_origin() {

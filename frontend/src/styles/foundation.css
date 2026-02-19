@@ -1,6 +1,7 @@
 /* ---------------------------------------------
    Phase 4: Clean Industrial UI Modernization
 ---------------------------------------------- */
+/* Theme variables are synchronized with frontend/src/styles/tokens.json. */
 
 :root {
   --bg: #f0eee7;

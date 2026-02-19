@@ -15,6 +15,13 @@ PROFILE_DOCS = {
     "google": REPO_ROOT / "docs/agents/providers/google.md",
 }
 REQUIRED_PROVIDERS = ("openai", "anthropic", "google")
+CI_WORKFLOW_PATH = REPO_ROOT / ".github/workflows/ci.yml"
+FRONTEND_PACKAGE_PATH = REPO_ROOT / "frontend/package.json"
+A11Y_SPEC_PATH = REPO_ROOT / "frontend/tests/e2e/a11y-smoke.spec.ts"
+VISUAL_SPEC_PATH = REPO_ROOT / "frontend/tests/e2e/visual-baseline.spec.ts"
+TOKEN_DRIFT_PATH = REPO_ROOT / "scripts/check_design_token_drift.sh"
+AIRULES_PATH = REPO_ROOT / ".idx/airules.md"
+BRANCH_GUARD_PATH = REPO_ROOT / "scripts/check_branch_protection.sh"
 
 BEHAVIOR_KEYWORDS = {
     "responses_api_first": ["responses", "responses-native"],
@@ -30,6 +37,21 @@ BEHAVIOR_KEYWORDS = {
     "agent_engine_patterns_supported": ["agent_engine", "agent engine", "pattern"],
     "a2a_interoperability_supported": ["a2a", "interoperability"],
     "mcp_tooling_supported": ["mcp", "tooling"],
+    "ui_ux_visual_diff_mandatory": ["visual diff", "test:e2e:visual", "tohavescreenshot"],
+    "ui_ux_accessibility_gate_mandatory": ["accessibility", "a11y", "test:e2e:a11y"],
+    "ui_ux_fallback_sequence_defined": ["fallback sequence", "check_design_token_drift", "fallback"],
+    "ui_ux_visual_diff_mobile_desktop_mandatory": [
+        "test:e2e:visual -- --project=web-desktop",
+        "test:e2e:visual:mobile",
+        "ios-iphone-se",
+        "ios-ipad",
+    ],
+    "ui_ux_accessibility_mobile_desktop_mandatory": [
+        "test:e2e:a11y -- --project=web-desktop",
+        "test:e2e:a11y:mobile",
+        "ios-iphone-se",
+        "ios-ipad",
+    ],
 }
 
 
@@ -43,7 +65,118 @@ def _keyword_match(content: str, behavior: str) -> bool:
     if not keywords:
         return True
     lowered = content.lower()
+    if behavior in {
+        "ui_ux_visual_diff_mobile_desktop_mandatory",
+        "ui_ux_accessibility_mobile_desktop_mandatory",
+    }:
+        return all(keyword.lower() in lowered for keyword in keywords)
     return any(keyword.lower() in lowered for keyword in keywords)
+
+
+def _load_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _validate_google_visual_artifacts() -> list[str]:
+    findings: list[str] = []
+
+    if not VISUAL_SPEC_PATH.exists():
+        findings.append(f"missing visual artifact spec: {VISUAL_SPEC_PATH.relative_to(REPO_ROOT)}")
+
+    if not CI_WORKFLOW_PATH.exists():
+        findings.append(f"missing CI workflow: {CI_WORKFLOW_PATH.relative_to(REPO_ROOT)}")
+    else:
+        ci_text = _load_text(CI_WORKFLOW_PATH)
+        required_ci_snippets = (
+            "frontend_visual_gate:",
+            "npm run test:e2e:visual",
+            "frontend_visual_gate_mobile:",
+            "npm run test:e2e:visual:mobile",
+        )
+        for snippet in required_ci_snippets:
+            if snippet not in ci_text:
+                findings.append(f"ci visual contract missing snippet: {snippet}")
+
+    if not FRONTEND_PACKAGE_PATH.exists():
+        findings.append(f"missing frontend package manifest: {FRONTEND_PACKAGE_PATH.relative_to(REPO_ROOT)}")
+    else:
+        try:
+            package_payload = json.loads(_load_text(FRONTEND_PACKAGE_PATH))
+        except json.JSONDecodeError as exc:
+            findings.append(f"invalid frontend/package.json: {exc}")
+        else:
+            scripts = package_payload.get("scripts")
+            if not isinstance(scripts, dict):
+                findings.append("frontend/package.json missing scripts object")
+            else:
+                for key in ("test:e2e:visual", "test:e2e:visual:mobile"):
+                    if key not in scripts:
+                        findings.append(f"frontend/package.json missing script: {key}")
+
+    return findings
+
+
+def _validate_google_a11y_artifacts() -> list[str]:
+    findings: list[str] = []
+
+    if not A11Y_SPEC_PATH.exists():
+        findings.append(f"missing accessibility artifact spec: {A11Y_SPEC_PATH.relative_to(REPO_ROOT)}")
+
+    if not CI_WORKFLOW_PATH.exists():
+        findings.append(f"missing CI workflow: {CI_WORKFLOW_PATH.relative_to(REPO_ROOT)}")
+    else:
+        ci_text = _load_text(CI_WORKFLOW_PATH)
+        required_ci_snippets = (
+            "frontend_a11y_gate:",
+            "npm run test:e2e:a11y",
+            "frontend_a11y_gate_mobile:",
+            "npm run test:e2e:a11y:mobile",
+        )
+        for snippet in required_ci_snippets:
+            if snippet not in ci_text:
+                findings.append(f"ci a11y contract missing snippet: {snippet}")
+
+    if not FRONTEND_PACKAGE_PATH.exists():
+        findings.append(f"missing frontend package manifest: {FRONTEND_PACKAGE_PATH.relative_to(REPO_ROOT)}")
+    else:
+        try:
+            package_payload = json.loads(_load_text(FRONTEND_PACKAGE_PATH))
+        except json.JSONDecodeError as exc:
+            findings.append(f"invalid frontend/package.json: {exc}")
+        else:
+            scripts = package_payload.get("scripts")
+            if not isinstance(scripts, dict):
+                findings.append("frontend/package.json missing scripts object")
+            else:
+                for key in ("test:e2e:a11y", "test:e2e:a11y:mobile"):
+                    if key not in scripts:
+                        findings.append(f"frontend/package.json missing script: {key}")
+
+    return findings
+
+
+def _validate_google_fallback_artifacts() -> list[str]:
+    findings: list[str] = []
+    if not TOKEN_DRIFT_PATH.exists():
+        findings.append(f"missing token drift fallback artifact: {TOKEN_DRIFT_PATH.relative_to(REPO_ROOT)}")
+    if not AIRULES_PATH.exists():
+        findings.append(f"missing Antigravity fallback contract: {AIRULES_PATH.relative_to(REPO_ROOT)}")
+    if not BRANCH_GUARD_PATH.exists():
+        findings.append(f"missing branch protection guard: {BRANCH_GUARD_PATH.relative_to(REPO_ROOT)}")
+    return findings
+
+
+def _validate_behavior_artifacts(*, provider: str, behavior: str) -> list[str]:
+    if provider != "google":
+        return []
+
+    if behavior in {"ui_ux_visual_diff_mandatory", "ui_ux_visual_diff_mobile_desktop_mandatory"}:
+        return _validate_google_visual_artifacts()
+    if behavior in {"ui_ux_accessibility_gate_mandatory", "ui_ux_accessibility_mobile_desktop_mandatory"}:
+        return _validate_google_a11y_artifacts()
+    if behavior == "ui_ux_fallback_sequence_defined":
+        return _validate_google_fallback_artifacts()
+    return []
 
 
 def _validate_provider(
@@ -89,6 +222,10 @@ def _validate_provider(
             if not isinstance(behavior, str) or not behavior:
                 findings.append(f"provider_runtime_contracts.{provider}.required_behaviors contains invalid entry")
                 continue
+            artifact_findings = _validate_behavior_artifacts(provider=provider, behavior=behavior)
+            findings.extend(
+                f"provider runtime artifact check failed for {provider}:{behavior}: {item}" for item in artifact_findings
+            )
             if not _keyword_match(profile_text, behavior):
                 findings.append(
                     f"provider profile docs/agents/providers/{provider}.md missing behavior evidence for: {behavior}"

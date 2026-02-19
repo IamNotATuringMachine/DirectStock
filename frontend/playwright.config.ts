@@ -3,6 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
   globalTeardown: "./tests/e2e/globalTeardown.ts",
+  snapshotPathTemplate: "{testDir}/__screenshots__/{testFilePath}/{projectName}/{arg}{ext}",
   fullyParallel: false,
   preserveOutput: "always",
   timeout: 60_000,
@@ -16,6 +17,9 @@ export default defineConfig({
     video: "retain-on-failure",
     screenshot: "only-on-failure",
     testIdAttribute: "data-testid",
+    locale: "en-US",
+    timezoneId: "UTC",
+    colorScheme: "light",
   },
   projects: [
     {
@@ -29,6 +33,7 @@ export default defineConfig({
       name: "ios-iphone-se",
       use: {
         ...devices["iPhone SE"],
+        colorScheme: "light",
       },
     },
     {
@@ -41,6 +46,7 @@ export default defineConfig({
       name: "ios-ipad",
       use: {
         ...devices["iPad Pro 11"],
+        colorScheme: "light",
       },
     },
   ],

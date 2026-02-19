@@ -54,14 +54,22 @@ export function ReportsFilterBar({
   recomputePending,
   onRecomputeForecast,
 }: ReportsFilterBarProps) {
+  const reportTypeSelectId = "reports-type-select-field";
+  const dateFromInputId = "reports-date-from-field";
+  const dateToInputId = "reports-date-to-field";
+  const movementTypeSelectId = "reports-movement-type-select-field";
+
   return (
     <div className="bg-[var(--panel)] p-4 rounded-xl border border-[var(--line)] shadow-sm space-y-4">
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end justify-between">
         <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
           <div className="w-full sm:w-64">
-            <label className="form-label-standard mb-1.5 block">Berichtstyp</label>
+            <label className="form-label-standard mb-1.5 block" htmlFor={reportTypeSelectId}>
+              Berichtstyp
+            </label>
             <div className="relative">
               <select
+                id={reportTypeSelectId}
                 className="input reports-type-select w-full font-medium"
                 value={reportType}
                 onChange={(event) => {
@@ -83,10 +91,13 @@ export function ReportsFilterBar({
           {reportType !== "purchase-recommendations" ? (
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="w-full sm:w-40">
-                <label className="form-label-standard mb-1.5 block">Von</label>
+                <label className="form-label-standard mb-1.5 block" htmlFor={dateFromInputId}>
+                  Von
+                </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
                   <input
+                    id={dateFromInputId}
                     type="date"
                     className="input input-leading-icon w-full"
                     value={dateFrom}
@@ -97,10 +108,13 @@ export function ReportsFilterBar({
               </div>
               <span className="text-[var(--muted)] mt-6">-</span>
               <div className="w-full sm:w-40">
-                <label className="form-label-standard mb-1.5 block">Bis</label>
+                <label className="form-label-standard mb-1.5 block" htmlFor={dateToInputId}>
+                  Bis
+                </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
                   <input
+                    id={dateToInputId}
                     type="date"
                     className="input input-leading-icon w-full"
                     value={dateTo}
@@ -132,7 +146,11 @@ export function ReportsFilterBar({
 
           {reportType === "movements" ? (
             <div className="w-full sm:w-48">
+              <label className="sr-only" htmlFor={movementTypeSelectId}>
+                Bewegungsart
+              </label>
               <select
+                id={movementTypeSelectId}
                 className="input w-full"
                 value={movementType}
                 onChange={(event) => {

@@ -23,6 +23,9 @@
 3. Prefer MCP-backed data access for local code, DB, and runtime context.
 4. Keep adapter behavior parity with OpenAI/Anthropic provider profiles.
 5. Emit runtime fallback evidence when ADK/A2A primitives are unavailable.
+6. For frontend UI/UX changes, run a mandatory visual diff gate for desktop and mobile before completion.
+7. For frontend UI/UX changes, run a mandatory accessibility gate for desktop and mobile before completion.
+8. Enforce a fallback sequence when design-tooling providers are unavailable.
 
 ## Fallback Order
 1. `AGENTS.md`
@@ -32,7 +35,20 @@
 ## Failure Handling
 1. If ADK/A2A primitives are unavailable locally, execute equivalent repo-native scripts and gates.
 2. For high-risk operations, enforce pre/post entries in `docs/agents/decision-log.md`.
+3. UI/UX fallback sequence:
+   - `cd frontend && npm run test:e2e:visual -- --project=web-desktop`
+   - `cd frontend && npm run test:e2e:visual:mobile`
+   - `cd frontend && npm run test:e2e:a11y -- --project=web-desktop`
+   - `cd frontend && npm run test:e2e:a11y:mobile`
+   - `./scripts/check_design_token_drift.sh`
+   - mobile commands must target `--project=ios-iphone-se --project=ios-ipad`
+4. If MCP or external design SaaS is unavailable, execute local visual/a11y/token gates and report fallback evidence.
 
 ## Mandatory Verification Artifacts
 1. `python3 scripts/check_provider_capabilities.py --provider google --format json`
 2. `python3 scripts/agent_policy_lint.py --strict --provider google --format json`
+3. `cd frontend && npm run test:e2e:visual -- --project=web-desktop`
+4. `cd frontend && npm run test:e2e:visual:mobile`
+5. `cd frontend && npm run test:e2e:a11y -- --project=web-desktop`
+6. `cd frontend && npm run test:e2e:a11y:mobile`
+7. `./scripts/check_design_token_drift.sh`

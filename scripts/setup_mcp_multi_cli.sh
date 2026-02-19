@@ -116,19 +116,68 @@ setup_gemini() {
     return
   fi
 
-  local scope="project"
+  local settings_dir="${ROOT_DIR}/.gemini"
+  local settings_file="${settings_dir}/settings.json"
   local names=("directstock-filesystem" "directstock-postgres" "directstock-github" "directstock-playwright" "directstock-git" "directstock-memory")
-  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}")
   local i
 
+  mkdir -p "${settings_dir}"
+  python3 - "${settings_file}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+settings_file = Path(sys.argv[1])
+names = [
+    "directstock-filesystem",
+    "directstock-postgres",
+    "directstock-github",
+    "directstock-playwright",
+    "directstock-git",
+    "directstock-memory",
+]
+
+if settings_file.exists():
+    payload = json.loads(settings_file.read_text(encoding="utf-8"))
+else:
+    payload = {}
+
+payload.setdefault("context", {})
+payload["context"]["fileName"] = ["AGENTS.md", "GEMINI.md", "frontend/AGENTS.md"]
+
+mcp_servers = payload.setdefault("mcpServers", {})
+for name in names:
+    suffix = name.replace("directstock-", "")
+    mcp_servers[name] = {
+        "command": "bash",
+        "args": [
+            "-lc",
+            f"exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_{suffix}_server.sh\"",
+        ],
+    }
+
+settings_file.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+PY
+
   for i in "${!names[@]}"; do
-    gemini mcp remove -s "${scope}" "${names[$i]}" >/dev/null 2>&1 || true
-    gemini mcp add -s "${scope}" "${names[$i]}" "${wrappers[$i]}" >/dev/null
     echo "upserted gemini server ${names[$i]}"
   done
 
+  local project_mcp="${ROOT_DIR}/.mcp.json"
+  local project_mcp_backup=""
+  if [ -f "${project_mcp}" ]; then
+    project_mcp_backup="$(mktemp)"
+    cp "${project_mcp}" "${project_mcp_backup}"
+  fi
+
   local list_output=""
   list_output="$(gemini mcp list 2>&1 || true)"
+
+  if [ -n "${project_mcp_backup}" ]; then
+    cp "${project_mcp_backup}" "${project_mcp}"
+    rm -f "${project_mcp_backup}"
+  fi
+
   for name in "${names[@]}"; do
     if ! printf '%s\n' "${list_output}" | rg -Fq "${name}"; then
       echo "gemini MCP validation failed: missing ${name}" >&2

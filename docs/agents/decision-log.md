@@ -24,6 +24,32 @@ Use one entry per high-risk action (destructive git, breaking API/schema, securi
 
 <!-- Append new entries below this line in reverse chronological order. -->
 
+## 2026-02-19T14:25:09Z - realign branch protection to deterministic provider contexts
+- action: replace legacy `provider_capability_matrix` required context with explicit provider contexts (`provider_capability_openai`, `provider_capability_anthropic`, `provider_capability_google`) on `main`
+- rationale: matrix-style context naming is ambiguous for branch protection; explicit contexts remove merge-gate drift risk
+- impacted_files: GitHub repository branch protection settings for `IamNotATuringMachine/DirectStock` (`main`)
+- risk_level: high
+- expected_impact: branch protection required checks align exactly with CI job identities and remain stable across workflow execution
+- result: success
+- actual_impact: `main` required checks now use deterministic provider-specific contexts and no longer depend on matrix naming behavior
+- rollback_hint: patch branch protection required contexts back to previous list via `gh api repos/IamNotATuringMachine/DirectStock/branches/main/protection/required_status_checks`
+- verification:
+  - `gh api --method PATCH repos/IamNotATuringMachine/DirectStock/branches/main/protection/required_status_checks --input <payload.json>` -> PASS
+  - `./scripts/check_branch_protection.sh` -> PASS
+
+## 2026-02-19T14:13:11Z - synchronize main branch required status contexts
+- action: update GitHub branch protection required status checks on `main` to the autonomous UI/UX+Gemini gate set
+- rationale: enforce the newly introduced PR-blocking governance/quality gates at repository policy level
+- impacted_files: GitHub repository branch protection settings for `IamNotATuringMachine/DirectStock` (`main`)
+- risk_level: high
+- expected_impact: merges to `main` are blocked unless all required contexts (provider parity, desktop/mobile a11y+visual, token drift, gemini config) pass
+- result: success
+- actual_impact: `main` required status checks now enforce all new contexts; policy script confirms branch protection is compliant
+- rollback_hint: patch branch protection required contexts back to previous set via `gh api repos/IamNotATuringMachine/DirectStock/branches/main/protection/required_status_checks`
+- verification:
+  - `gh api --method PATCH repos/IamNotATuringMachine/DirectStock/branches/main/protection/required_status_checks --input <payload.json>` -> PASS
+  - `./scripts/check_branch_protection.sh` -> PASS
+
 ## 2026-02-19T10:48:31Z - enable branch-protection api capability
 - action: change repository visibility to public and configure main-branch protection baseline
 - rationale: strict branch-protection mode is enabled and requires GitHub Branch Protection API support

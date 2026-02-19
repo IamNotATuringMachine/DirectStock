@@ -49,7 +49,7 @@ Gemini supports configurable context filenames in `~/.gemini/settings.json`:
 ```json
 {
   "context": {
-    "fileName": ["AGENTS.md", "GEMINI.md"]
+    "fileName": ["AGENTS.md", "GEMINI.md", "frontend/AGENTS.md"]
   }
 }
 ```
@@ -133,6 +133,10 @@ Run this matrix based on change type before marking tasks complete:
 5. E2E-sensitive frontend workflow changes:
    - `cd frontend && npm run test:e2e:hermetic`
    - `cd frontend && npm run test:e2e:smoke`
+   - `cd frontend && npm run test:e2e:a11y -- --project=web-desktop`
+   - `cd frontend && npm run test:e2e:visual -- --project=web-desktop`
+   - `cd frontend && npm run test:e2e:a11y:mobile`
+   - `cd frontend && npm run test:e2e:visual:mobile`
 6. Governance/Wave baseline updates:
    - `./scripts/collect_complexity_metrics.sh`
    - `RUNS=20 TEST_FLAKE_CMD="cd frontend && npm run test:e2e:smoke" ./scripts/collect_test_flakiness.sh`
@@ -167,10 +171,17 @@ Run this matrix based on change type before marking tasks complete:
    - `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1 ./scripts/check_branch_protection.sh` (strict mode, fail if repo plan does not expose branch-protection API)
    - CI toggle: set repository variable `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1` to enforce strict mode in `agent_self_improve.yml`.
    - CI auth requirement: set repository secret `MCP_GITHUB_PAT` (admin-capable PAT) so workflow checks can read branch-protection endpoints.
+18. Gemini + Antigravity readiness:
+   - `./scripts/check_gemini_readiness.sh --mode runtime`
+   - `./scripts/check_gemini_readiness.sh --mode runtime --enforce-allowlist`
+   - `./scripts/check_gemini_readiness.sh --mode static`
+   - `python3 scripts/check_mcp_profile_parity.py --strict --format json`
+   - `./scripts/check_design_token_drift.sh`
 
 ## MCP Strategy
 For project-specific MCP server setup and balanced security defaults, use:
 - `docs/guides/mcp-stack-strategy.md`
+- `docs/guides/gemini-antigravity-setup.md`
 
 Quick bootstrap across Codex, Claude Code, and Gemini CLI:
 
@@ -184,3 +195,8 @@ Use `Makefile` shortcuts for deterministic autonomous execution:
 2. `make agent-full`
 3. `make agent-governance`
 4. `make agent-mcp`
+5. `make agent-gemini-readiness`
+6. `make agent-gemini-readiness-static`
+7. `make agent-gemini-readiness-runtime`
+8. `make agent-gemini-readiness-runtime-strict`
+9. `make agent-uiux-gates`

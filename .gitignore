@@ -32,7 +32,8 @@ backend/app/**/__pycache__/
 
 # Env
 .env
-.gemini/
+.gemini/*
+!.gemini/settings.json
 
 # Editors
 .DS_Store

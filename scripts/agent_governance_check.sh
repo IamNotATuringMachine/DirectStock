@@ -168,6 +168,48 @@ else
   add_action "Create scripts/check_provider_capabilities.py and wire it into governance checks."
 fi
 
+if [ -f scripts/check_gemini_readiness.sh ]; then
+  set +e
+  gemini_check_output="$(./scripts/check_gemini_readiness.sh --mode static 2>&1)"
+  gemini_check_rc=$?
+  set -e
+  if [ "${gemini_check_rc}" -ne 0 ]; then
+    add_finding "Gemini static readiness check failed: ${gemini_check_output}"
+    add_action "Fix .gemini/settings.json and required context/server entries consumed by scripts/check_gemini_readiness.sh --mode static."
+  fi
+else
+  add_finding "Missing required script: scripts/check_gemini_readiness.sh"
+  add_action "Create scripts/check_gemini_readiness.sh and wire it into governance checks."
+fi
+
+if [ -f scripts/check_mcp_profile_parity.py ]; then
+  set +e
+  mcp_parity_output="$(python3 scripts/check_mcp_profile_parity.py --strict --format json 2>&1)"
+  mcp_parity_rc=$?
+  set -e
+  if [ "${mcp_parity_rc}" -ne 0 ]; then
+    add_finding "MCP profile parity check failed: ${mcp_parity_output}"
+    add_action "Align .mcp.json, .idx/mcp.json and .gemini/settings.json server/profile parity."
+  fi
+else
+  add_finding "Missing required script: scripts/check_mcp_profile_parity.py"
+  add_action "Create scripts/check_mcp_profile_parity.py and wire it into governance checks."
+fi
+
+if [ -f scripts/check_design_token_drift.sh ]; then
+  set +e
+  token_drift_output="$(./scripts/check_design_token_drift.sh 2>&1)"
+  token_drift_rc=$?
+  set -e
+  if [ "${token_drift_rc}" -ne 0 ]; then
+    add_finding "Design token drift check failed: ${token_drift_output}"
+    add_action "Sync frontend/src/styles/tokens.json and frontend/src/styles/foundation.css."
+  fi
+else
+  add_finding "Missing required script: scripts/check_design_token_drift.sh"
+  add_action "Create scripts/check_design_token_drift.sh and wire it into governance checks."
+fi
+
 if [ -f scripts/generate_repo_index.py ]; then
   set +e
   repo_index_output="$(python3 scripts/generate_repo_index.py --check 2>&1)"

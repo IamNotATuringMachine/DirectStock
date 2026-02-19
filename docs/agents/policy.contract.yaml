@@ -89,11 +89,21 @@
         "agent_engine_patterns_supported",
         "a2a_interoperability_supported",
         "mcp_tooling_supported",
-        "tool_result_traceability"
+        "tool_result_traceability",
+        "ui_ux_visual_diff_mandatory",
+        "ui_ux_accessibility_gate_mandatory",
+        "ui_ux_fallback_sequence_defined",
+        "ui_ux_visual_diff_mobile_desktop_mandatory",
+        "ui_ux_accessibility_mobile_desktop_mandatory"
       ],
       "verification_artifacts": [
         "docs/agents/providers/google.md",
-        "scripts/check_provider_capabilities.py"
+        "scripts/check_provider_capabilities.py",
+        "frontend/tests/e2e/visual-baseline.spec.ts",
+        "frontend/tests/e2e/a11y-smoke.spec.ts",
+        "scripts/check_design_token_drift.sh",
+        "scripts/check_mcp_profile_parity.py",
+        ".idx/airules.md"
       ]
     }
   },
@@ -101,6 +111,13 @@
     "./scripts/agent_governance_check.sh",
     "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
     "python3 scripts/check_provider_capabilities.py --provider all --format json",
+    "./scripts/check_gemini_readiness.sh --mode static",
+    "python3 scripts/check_mcp_profile_parity.py --strict --format json",
+    "cd frontend && npm run test:e2e:a11y -- --project=web-desktop",
+    "cd frontend && npm run test:e2e:a11y:mobile",
+    "cd frontend && npm run test:e2e:visual -- --project=web-desktop",
+    "cd frontend && npm run test:e2e:visual:mobile",
+    "./scripts/check_design_token_drift.sh",
     "python3 scripts/generate_repo_index.py --check",
     "python3 scripts/check_entrypoint_coverage.py",
     "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
@@ -129,6 +146,13 @@
     "./scripts/agent_governance_check.sh",
     "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
     "python3 scripts/check_provider_capabilities.py --provider all --format json",
+    "./scripts/check_gemini_readiness.sh --mode static",
+    "python3 scripts/check_mcp_profile_parity.py --strict --format json",
+    "cd frontend && npm run test:e2e:a11y -- --project=web-desktop",
+    "cd frontend && npm run test:e2e:a11y:mobile",
+    "cd frontend && npm run test:e2e:visual -- --project=web-desktop",
+    "cd frontend && npm run test:e2e:visual:mobile",
+    "./scripts/check_design_token_drift.sh",
     "python3 scripts/generate_repo_index.py --check",
     "python3 scripts/check_entrypoint_coverage.py",
     "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",

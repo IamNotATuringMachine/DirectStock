@@ -116,6 +116,7 @@ export function PurchasingOrderDetails({
                   value={productId}
                   onChange={(event) => onProductIdChange(event.target.value)}
                   data-testid="purchase-order-item-product-select"
+                  aria-label="Produkt für Bestellposition auswählen"
                   required
                 >
                   <option value="">Produkt wählen...</option>

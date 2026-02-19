@@ -26,6 +26,7 @@ Aktuelle Plattform-Bausteine:
 - Policy contract: `docs/agents/policy.contract.yaml`
 - Setup guide: `docs/guides/ai-agent-setup.md`
 - MCP strategy: `docs/guides/mcp-stack-strategy.md`
+- Gemini + Antigravity setup: `docs/guides/gemini-antigravity-setup.md`
 - Handoff protocol: `docs/agents/handoff-protocol.md`
 
 Arbeitsmodus: production-only. Relevante Tests muessen vor Abschluss ausgefuehrt und berichtet werden.

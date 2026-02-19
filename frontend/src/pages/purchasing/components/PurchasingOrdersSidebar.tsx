@@ -46,6 +46,7 @@ export function PurchasingOrdersSidebar({
                 value={supplierId}
                 onChange={(event) => onSupplierIdChange(event.target.value)}
                 data-testid="purchase-order-supplier-select"
+                aria-label="Lieferant für Bestellung auswählen"
               >
                 <option value="">Kein Lieferant ausgewählt</option>
                 {suppliers.map((supplier) => (
