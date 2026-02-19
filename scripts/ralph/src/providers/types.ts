@@ -57,5 +57,4 @@ export interface ProviderAdapter {
   isInstalled(): Promise<boolean>;
   buildCommand(input: ProviderExecutionInput): ProviderCommand;
   execute(input: ProviderExecutionInput): Promise<ProviderExecutionResult>;
-  fallbackModels?(requestedModel: string): string[];
 }

@@ -194,6 +194,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install provider lint deps
+        working-directory: .
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install jsonschema
+
       - name: Validate policy parity
         working-directory: .
         run: python3 scripts/agent_policy_lint.py --strict --provider all --format json

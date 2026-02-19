@@ -72,11 +72,6 @@ describe("provider adapters", () => {
     expect(command.args).toContain("5");
   });
 
-  it("includes gemini-3.1-pro-preview in fallback order", () => {
-    const fallbacks = googleAdapter.fallbackModels?.("gemini-2.5-flash") ?? [];
-    expect(fallbacks).toContain("gemini-3.1-pro-preview");
-  });
-
   it("parses codex jsonl agent message + session", () => {
     const output = [
       '{"type":"thread.started","thread_id":"thread-1"}',

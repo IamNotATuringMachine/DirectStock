@@ -47,13 +47,6 @@ function buildCommand(input: ProviderExecutionInput): ProviderCommand {
   };
 }
 
-const GEMINI_FALLBACK_ORDER = [
-  "gemini-3-pro-preview",
-  "gemini-3.1-pro-preview",
-  "gemini-3-flash-preview",
-  "gemini-2.5-flash",
-];
-
 export const googleAdapter: ProviderAdapter = {
   id: "google",
   name: "Google",
@@ -103,9 +96,5 @@ export const googleAdapter: ProviderAdapter = {
       command,
       sessionId: parsed.sessionId,
     };
-  },
-  fallbackModels(requestedModel: string): string[] {
-    const ordered = [requestedModel, ...GEMINI_FALLBACK_ORDER];
-    return [...new Set(ordered)];
   },
 };

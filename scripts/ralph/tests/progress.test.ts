@@ -1,6 +1,12 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import { printIterationHeader, printIterationResult } from "../src/ui/progress.js";
+import {
+  printIterationHeader,
+  printIterationResult,
+  printProviderAttemptDone,
+  printProviderHeartbeat,
+  printRetryScheduled,
+} from "../src/ui/progress.js";
 
 const step = {
   id: "step-01",
@@ -55,5 +61,50 @@ describe("progress output", () => {
 
     const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
     expect(output).toContain("class=timeout");
+  });
+
+  it("prints provider heartbeat state", () => {
+    printProviderHeartbeat({
+      step: { ...step },
+      model: "gemini-3-flash-preview",
+      attempt: 1,
+      elapsedMs: 15_000,
+      timeoutMs: 20 * 60 * 1000,
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("provider:thinking");
+    expect(output).toContain("elapsed=15s");
+  });
+
+  it("prints retry reason for transient failures", () => {
+    printRetryScheduled({
+      step: { ...step },
+      model: "gemini-3-flash-preview",
+      attempt: 1,
+      delayMs: 2_000,
+      reason: "429 rate limit reached",
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("provider:retry");
+    expect(output).toContain("reason=429 rate limit reached");
+  });
+
+  it("prints explicit model_unavailable state", () => {
+    printProviderAttemptDone({
+      step: { ...step },
+      model: "gemini-3-pro-preview",
+      attempt: 1,
+      ok: false,
+      timedOut: false,
+      modelUnavailable: true,
+      exitCode: 1,
+      durationMs: 1200,
+      sessionId: undefined,
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("state=model_unavailable");
   });
 });

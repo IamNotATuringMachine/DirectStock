@@ -142,6 +142,53 @@ describe("executor", () => {
     expect(plan.steps[0].attempts).toBe(1);
   });
 
+  it("fails immediately when selected model is unavailable and does not fallback", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-model-unavailable-"));
+    const planPath = path.join(tempDir, "plan.json");
+    const plan = samplePlan("true", 3);
+    await fs.writeJson(planPath, plan, { spaces: 2 });
+
+    const calls: ProviderExecutionInput[] = [];
+    const provider: ProviderAdapter = {
+      ...fakeProvider(false),
+      execute: async (input) => {
+        calls.push(input);
+        return {
+          ok: false,
+          exitCode: 1,
+          timedOut: false,
+          stdout: "",
+          stderr: "Unknown model: gemini-3-pro-preview",
+          responseText: "",
+          usedModel: input.model,
+          command: { command: "codex", args: ["exec"] },
+          sessionId: input.resumeSessionId,
+        };
+      },
+    };
+
+    const summary = await runRalphLoop({
+      provider,
+      model: "gemini-3-pro-preview",
+      thinkingValue: "high",
+      planPath,
+      plan,
+      maxIterations: 1,
+      workingDir: tempDir,
+      timeoutMs: 2000,
+      dryRun: false,
+      autoCommit: false,
+      sessionStrategy: "reset",
+    });
+
+    expect(summary.failedSteps).toBe(0);
+    expect(plan.steps[0].status).toBe("pending");
+    expect(plan.steps[0].attempts).toBe(1);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].model).toBe("gemini-3-pro-preview");
+    expect(plan.steps[0].lastError).toContain("No fallback models are configured");
+  });
+
   it("does not mutate plan file in dry-run", async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-dry-"));
     const planPath = path.join(tempDir, "plan.json");

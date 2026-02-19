@@ -6,7 +6,19 @@ import type { RalphRunLogger } from "../lib/run-log.js";
 import type { Plan, Step } from "../planner/plan-schema.js";
 import { savePlan } from "../planner/plan-schema.js";
 import type { ProviderAdapter, ProviderExecutionResult, SessionStrategy } from "../providers/types.js";
-import { printIterationHeader, printIterationResult, printPlanProgress } from "../ui/progress.js";
+import {
+  printIterationHeader,
+  printIterationResult,
+  printPlanProgress,
+  printProviderAttemptDone,
+  printProviderAttemptStart,
+  printProviderHeartbeat,
+  printRetryScheduled,
+  printStepPostCheckResult,
+  printStepPostChecksStart,
+  printSuccessCriteriaDone,
+  printSuccessCriteriaStart,
+} from "../ui/progress.js";
 import { captureIterationContext } from "./context-reset.js";
 
 export interface RalphLoopConfig {
@@ -85,6 +97,23 @@ function isTransientError(result: ProviderExecutionResult): boolean {
   );
 }
 
+function isModelUnavailableError(result: ProviderExecutionResult): boolean {
+  const raw = `${result.stderr}\n${result.stdout}`.toLowerCase();
+  return (
+    raw.includes("model_unavailable") ||
+    raw.includes("model unavailable") ||
+    raw.includes("model not found") ||
+    raw.includes("unknown model") ||
+    raw.includes("invalid model") ||
+    raw.includes("no such model") ||
+    raw.includes("unsupported model") ||
+    raw.includes("does not exist") ||
+    raw.includes("is not available")
+  );
+}
+
+const PROVIDER_HEARTBEAT_INTERVAL_MS = 15_000;
+
 async function executeWithRetries(args: {
   provider: ProviderAdapter;
   model: string;
@@ -95,15 +124,69 @@ async function executeWithRetries(args: {
   dryRun: boolean;
   sessionStrategy: SessionStrategy;
   resumeSessionId?: string;
+  onAttemptStart?: (input: {
+    model: string;
+    attempt: number;
+    maxAttempts: number;
+    timeoutMs: number;
+  }) => Promise<void> | void;
+  onHeartbeat?: (input: {
+    model: string;
+    attempt: number;
+    elapsedMs: number;
+    timeoutMs: number;
+  }) => Promise<void> | void;
+  onAttemptDone?: (input: {
+    model: string;
+    attempt: number;
+    durationMs: number;
+    ok: boolean;
+    exitCode: number | null;
+    timedOut: boolean;
+    modelUnavailable: boolean;
+    sessionId?: string;
+  }) => Promise<void> | void;
   onRetry?: (input: { model: string; attempt: number; delayMs: number; reason: string }) => Promise<void>;
 }): Promise<ProviderExecutionResult> {
-  const modelCandidates = args.provider.fallbackModels?.(args.model) ?? [args.model];
+  const selectedModel = args.model;
 
   let lastResult: ProviderExecutionResult | null = null;
-  for (const candidateModel of modelCandidates) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const result = await args.provider.execute({
-        model: candidateModel,
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await args.onAttemptStart?.({
+      model: selectedModel,
+      attempt,
+      maxAttempts: 3,
+      timeoutMs: args.timeoutMs,
+    });
+
+    const attemptStartedAt = Date.now();
+    const heartbeatHandle =
+      args.onHeartbeat &&
+      setInterval(() => {
+        void Promise.resolve(
+          args.onHeartbeat?.({
+            model: selectedModel,
+            attempt,
+            elapsedMs: Date.now() - attemptStartedAt,
+            timeoutMs: args.timeoutMs,
+          }),
+        ).catch(() => undefined);
+      }, PROVIDER_HEARTBEAT_INTERVAL_MS);
+
+    let result: ProviderExecutionResult = {
+      ok: false,
+      exitCode: 1,
+      timedOut: false,
+      stdout: "",
+      stderr: "Provider execution failed unexpectedly.",
+      responseText: "",
+      usedModel: selectedModel,
+      command: { command: args.provider.cliCommand, args: [] },
+      sessionId: args.resumeSessionId,
+    };
+    try {
+      result = await args.provider.execute({
+        model: selectedModel,
         thinkingValue: args.thinkingValue,
         prompt: args.prompt,
         cwd: args.cwd,
@@ -112,26 +195,46 @@ async function executeWithRetries(args: {
         sessionStrategy: args.sessionStrategy,
         resumeSessionId: args.resumeSessionId,
       });
-
-      if (result.ok) {
-        return result;
+    } catch (error) {
+      result = {
+        ...result,
+        stderr: error instanceof Error ? error.message : String(error),
+      };
+    } finally {
+      if (heartbeatHandle) {
+        clearInterval(heartbeatHandle);
       }
-
-      lastResult = result;
-      if (!isTransientError(result) || attempt === 3) {
-        break;
-      }
-
-      const backoffMs = attempt * 2000;
-      console.log(chalk.yellow(`Transient provider error. Retrying in ${backoffMs}ms...`));
-      await args.onRetry?.({
-        model: candidateModel,
-        attempt,
-        delayMs: backoffMs,
-        reason: result.stderr || result.stdout || "transient provider failure",
-      });
-      await sleep(backoffMs);
     }
+
+    const modelUnavailable = isModelUnavailableError(result);
+    await args.onAttemptDone?.({
+      model: selectedModel,
+      attempt,
+      durationMs: Date.now() - attemptStartedAt,
+      ok: result.ok,
+      exitCode: result.exitCode,
+      timedOut: result.timedOut,
+      modelUnavailable,
+      sessionId: result.sessionId,
+    });
+
+    if (result.ok) {
+      return result;
+    }
+
+    lastResult = result;
+    if (modelUnavailable || !isTransientError(result) || attempt === 3) {
+      break;
+    }
+
+    const backoffMs = attempt * 2000;
+    await args.onRetry?.({
+      model: selectedModel,
+      attempt,
+      delayMs: backoffMs,
+      reason: result.stderr || result.stdout || "transient provider failure",
+    });
+    await sleep(backoffMs);
   }
 
   return (
@@ -149,7 +252,11 @@ async function executeWithRetries(args: {
   );
 }
 
-async function runSuccessCriteria(criteria: string, cwd: string): Promise<{ passed: boolean; output: string }> {
+async function runSuccessCriteria(
+  criteria: string,
+  cwd: string,
+): Promise<{ passed: boolean; output: string; durationMs: number }> {
+  const startedAt = Date.now();
   const result = await runCommand({
     command: "bash",
     args: ["-lc", criteria],
@@ -160,12 +267,20 @@ async function runSuccessCriteria(criteria: string, cwd: string): Promise<{ pass
   return {
     passed: result.exitCode === 0,
     output,
+    durationMs: Date.now() - startedAt,
   };
 }
 
 async function runStepPostChecks(
   commands: string[],
   cwd: string,
+  onCommandResult?: (input: {
+    index: number;
+    total: number;
+    command: string;
+    passed: boolean;
+    durationMs: number;
+  }) => void,
 ): Promise<{ passed: boolean; output: string; failedCommand?: string }> {
   if (commands.length === 0) {
     return { passed: true, output: "" };
@@ -174,15 +289,25 @@ async function runStepPostChecks(
   const outputChunks: string[] = [];
 
   for (const command of commands) {
+    const startedAt = Date.now();
     const result = await runCommand({
       command: "bash",
       args: ["-lc", command],
       cwd,
     });
+    const durationMs = Date.now() - startedAt;
+    const passed = result.exitCode === 0;
+    onCommandResult?.({
+      index: outputChunks.length + 1,
+      total: commands.length,
+      command,
+      passed,
+      durationMs,
+    });
     const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
     outputChunks.push([`$ ${command}`, output].filter(Boolean).join("\n"));
 
-    if (result.exitCode !== 0) {
+    if (!passed) {
       return { passed: false, output: outputChunks.join("\n\n"), failedCommand: command };
     }
   }
@@ -264,7 +389,47 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       dryRun: false,
       sessionStrategy: config.sessionStrategy,
       resumeSessionId,
+      onAttemptStart: ({ model, attempt, maxAttempts, timeoutMs }) => {
+        printProviderAttemptStart({
+          step,
+          model,
+          attempt,
+          maxAttempts,
+          timeoutMs,
+          sessionStrategy: config.sessionStrategy,
+          resumeSessionId,
+        });
+      },
+      onHeartbeat: ({ model, attempt, elapsedMs, timeoutMs }) => {
+        printProviderHeartbeat({
+          step,
+          model,
+          attempt,
+          elapsedMs,
+          timeoutMs,
+        });
+      },
+      onAttemptDone: ({ model, attempt, durationMs, ok, exitCode, timedOut, modelUnavailable, sessionId }) => {
+        printProviderAttemptDone({
+          step,
+          model,
+          attempt,
+          durationMs,
+          ok,
+          exitCode,
+          timedOut,
+          modelUnavailable,
+          sessionId,
+        });
+      },
       onRetry: async ({ model, attempt, delayMs, reason }) => {
+        printRetryScheduled({
+          step,
+          model,
+          attempt,
+          delayMs,
+          reason,
+        });
         await config.runLogger?.log({
           event: "provider_retry",
           iteration,
@@ -282,54 +447,14 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       config.plan.metadata.resumeSessionId = execution.sessionId;
     }
 
-    const criteriaResult = execution.ok
-      ? await runSuccessCriteria(step.successCriteria, config.workingDir)
-      : { passed: false, output: execution.stderr || execution.stdout };
-    const stepPostChecks =
-      execution.ok && criteriaResult.passed
-        ? await runStepPostChecks(step.postChecks, config.workingDir)
-        : { passed: true, output: "" };
     const durationMs = Date.now() - startedAt;
 
-    if (execution.ok && criteriaResult.passed && stepPostChecks.passed) {
-      step.status = "done";
-      step.lastError = undefined;
-
-      let commitInfo = "";
-      if (config.autoCommit) {
-        const committed = await createStepCommit(config.workingDir, `ralph(${step.id}): ${step.title}`);
-        commitInfo = committed ? "Commit: created" : "Commit: skipped (no changes)";
-      }
-
-      printIterationResult({
-        step,
-        passed: true,
-        attempts: step.attempts,
-        maxAttempts: step.maxAttempts,
-        durationMs,
-        info: [
-          `Model: ${execution.usedModel}`,
-          config.sessionStrategy === "resume" && execution.sessionId ? `Session: ${execution.sessionId}` : "",
-          commitInfo,
-        ]
-          .filter(Boolean)
-          .join(" | "),
-      });
-      await config.runLogger?.log({
-        event: "step_done",
-        iteration,
-        stepId: step.id,
-        stepTitle: step.title,
-        attempt: step.attempts,
-        maxAttempts: step.maxAttempts,
-        durationMs,
-        exitCode: execution.exitCode,
-        sessionId: execution.sessionId ?? resumeSessionId,
-        details: `criteria=pass;postChecks=${step.postChecks.length}`,
-      });
-    } else {
+    if (!execution.ok) {
       step.attempts += 1;
-      step.lastError = [execution.stderr, criteriaResult.output, stepPostChecks.output]
+      const modelUnavailableHint = isModelUnavailableError(execution)
+        ? `Selected model unavailable: ${config.model}. No fallback models are configured.`
+        : "";
+      step.lastError = [modelUnavailableHint, execution.stderr, execution.stdout]
         .filter(Boolean)
         .join("\n")
         .slice(0, 4000);
@@ -356,19 +481,113 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         sessionId: execution.sessionId ?? resumeSessionId,
         details: step.lastError?.slice(0, 1000),
       });
-      if (!stepPostChecks.passed) {
-        await config.runLogger?.log({
-          event: "post_check_failed",
-          iteration,
-          stepId: step.id,
-          stepTitle: step.title,
-          details: [
-            stepPostChecks.failedCommand ? `command=${stepPostChecks.failedCommand}` : "",
-            stepPostChecks.output.slice(0, 1000),
+    } else {
+      printSuccessCriteriaStart({ step, command: step.successCriteria });
+      const criteriaResult = await runSuccessCriteria(step.successCriteria, config.workingDir);
+      printSuccessCriteriaDone({
+        step,
+        passed: criteriaResult.passed,
+        durationMs: criteriaResult.durationMs,
+      });
+
+      const stepPostChecks =
+        criteriaResult.passed
+          ? await (() => {
+              if (step.postChecks.length > 0) {
+                printStepPostChecksStart({ step, total: step.postChecks.length });
+              }
+              return runStepPostChecks(step.postChecks, config.workingDir, (postCheck) => {
+                printStepPostCheckResult({
+                  step,
+                  command: postCheck.command,
+                  index: postCheck.index,
+                  total: postCheck.total,
+                  passed: postCheck.passed,
+                  durationMs: postCheck.durationMs,
+                });
+              });
+            })()
+          : { passed: true, output: "" };
+
+      if (criteriaResult.passed && stepPostChecks.passed) {
+        step.status = "done";
+        step.lastError = undefined;
+
+        let commitInfo = "";
+        if (config.autoCommit) {
+          const committed = await createStepCommit(config.workingDir, `ralph(${step.id}): ${step.title}`);
+          commitInfo = committed ? "Commit: created" : "Commit: skipped (no changes)";
+        }
+
+        printIterationResult({
+          step,
+          passed: true,
+          attempts: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          info: [
+            `Model: ${execution.usedModel}`,
+            config.sessionStrategy === "resume" && execution.sessionId ? `Session: ${execution.sessionId}` : "",
+            commitInfo,
           ]
             .filter(Boolean)
             .join(" | "),
         });
+        await config.runLogger?.log({
+          event: "step_done",
+          iteration,
+          stepId: step.id,
+          stepTitle: step.title,
+          attempt: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          exitCode: execution.exitCode,
+          sessionId: execution.sessionId ?? resumeSessionId,
+          details: `criteria=pass;postChecks=${step.postChecks.length}`,
+        });
+      } else {
+        step.attempts += 1;
+        step.lastError = [execution.stderr, criteriaResult.output, stepPostChecks.output]
+          .filter(Boolean)
+          .join("\n")
+          .slice(0, 4000);
+        step.status = step.attempts >= step.maxAttempts ? "failed" : "pending";
+
+        printIterationResult({
+          step,
+          passed: false,
+          attempts: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          info: step.lastError,
+        });
+
+        await config.runLogger?.log({
+          event: "step_failed",
+          iteration,
+          stepId: step.id,
+          stepTitle: step.title,
+          attempt: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          exitCode: execution.exitCode,
+          sessionId: execution.sessionId ?? resumeSessionId,
+          details: step.lastError?.slice(0, 1000),
+        });
+        if (!stepPostChecks.passed) {
+          await config.runLogger?.log({
+            event: "post_check_failed",
+            iteration,
+            stepId: step.id,
+            stepTitle: step.title,
+            details: [
+              stepPostChecks.failedCommand ? `command=${stepPostChecks.failedCommand}` : "",
+              stepPostChecks.output.slice(0, 1000),
+            ]
+              .filter(Boolean)
+              .join(" | "),
+          });
+        }
       }
     }
 

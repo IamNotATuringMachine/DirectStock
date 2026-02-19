@@ -8,7 +8,7 @@
       "title": "UI/UX SOTA Refresh DashboardPage",
       "description": "Pruefe DashboardPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
-      "status": "in_progress",
+      "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
       "type": "mixed",
