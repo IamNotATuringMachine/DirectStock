@@ -69,7 +69,7 @@ jobs:
 
       - name: Preflight repository workflow permissions
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MCP_GITHUB_PAT || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if ! perms_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/permissions/workflow" 2>/dev/null)"; then
@@ -92,7 +92,7 @@ jobs:
 
       - name: Branch protection baseline
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MCP_GITHUB_PAT || secrets.GITHUB_TOKEN }}
           BRANCH_PROTECTION_BRANCH: main
           BRANCH_PROTECTION_REQUIRED_CONTEXTS: frontend,backend,e2e_smoke,security,size_guard,llm_guards
           BRANCH_PROTECTION_REQUIRE_REVIEWS: "1"

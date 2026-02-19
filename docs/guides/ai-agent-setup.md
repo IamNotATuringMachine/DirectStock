@@ -160,6 +160,7 @@ Run this matrix based on change type before marking tasks complete:
    - `./scripts/check_branch_protection.sh`
    - `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1 ./scripts/check_branch_protection.sh` (strict mode, fail if repo plan does not expose branch-protection API)
    - CI toggle: set repository variable `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1` to enforce strict mode in `agent_self_improve.yml`.
+   - CI auth requirement: set repository secret `MCP_GITHUB_PAT` (admin-capable PAT) so workflow checks can read branch-protection endpoints.
 
 ## MCP Strategy
 For project-specific MCP server setup and balanced security defaults, use:
