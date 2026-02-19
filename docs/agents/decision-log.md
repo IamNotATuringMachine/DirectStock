@@ -24,6 +24,25 @@ Use one entry per high-risk action (destructive git, breaking API/schema, securi
 
 <!-- Append new entries below this line in reverse chronological order. -->
 
+## 2026-02-19T17:11:12Z - migrate postgres mcp server to in-repo implementation
+- action: replace deprecated npm-based PostgreSQL MCP runtime with in-repo Python MCP server and hard-switch all startup/readiness/bootstrap paths
+- rationale: `@modelcontextprotocol/server-postgres` is deprecated; repository must remove dependency on archived/deprecated server implementation
+- impacted_files: scripts/mcp/start_postgres_server.sh, scripts/mcp/directstock_postgres_server.py, scripts/check_mcp_readiness.sh, scripts/setup_mcp_multi_cli.sh, docs/guides/mcp-stack-strategy.md, docs/guides/gemini-antigravity-setup.md, docs/validation/metrics/*
+- risk_level: high
+- expected_impact: Postgres MCP behavior remains compatible for clients (`directstock-postgres`, `MCP_POSTGRES_DSN`, read-only policy) while runtime dependency changes to maintained in-repo code
+- result: success
+- actual_impact: Postgres MCP now runs via in-repo Python server with read-only enforcement and mutating-SQL blocklist; readiness/governance snapshots were regenerated and now report current parity/health state.
+- rollback_hint: restore previous `@modelcontextprotocol/server-postgres` invocation paths in start/readiness scripts and revert docs/metrics snapshots
+- verification:
+  - `python3 scripts/check_mcp_profile_parity.py --strict --format json` -> PASS
+  - `MCP_PROFILE=dev-autonomy MCP_PROBE_ALLOW_BLOCKED=1 ./scripts/check_mcp_readiness.sh` -> PASS
+  - `MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 MCP_PROBE_ALLOW_BLOCKED=0 ./scripts/check_mcp_readiness.sh` -> PASS
+  - `MCP_POSTGRES_DSN='postgresql://directstock:directstock@localhost:5432/directstock_clean' MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/mcp/start_postgres_server.sh` -> PASS (expected fail, user suffix guard)
+  - `uv run --quiet --with 'mcp>=1.26.0,<2.0.0' --with 'psycopg[binary]>=3.2.13,<4.0.0' python <inline mutating SQL check>` -> PASS (WRITE_BLOCKED enforced)
+  - `./scripts/check_gemini_readiness.sh --mode static` -> PASS
+  - `./scripts/check_gemini_readiness.sh --mode runtime --enforce-allowlist` -> PASS
+  - `./scripts/agent_governance_check.sh` -> PASS
+
 ## 2026-02-19T14:25:09Z - realign branch protection to deterministic provider contexts
 - action: replace legacy `provider_capability_matrix` required context with explicit provider contexts (`provider_capability_openai`, `provider_capability_anthropic`, `provider_capability_google`) on `main`
 - rationale: matrix-style context naming is ambiguous for branch protection; explicit contexts remove merge-gate drift risk

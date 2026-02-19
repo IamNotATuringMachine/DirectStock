@@ -37,12 +37,8 @@ setup_codex() {
   mkdir -p "$(dirname "${CODEX_CONFIG}")"
   touch "${CODEX_CONFIG}"
 
-  local names=("filesystem" "github" "playwright" "git" "memory")
-  local wrappers=("${FS_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}")
-  if [ "${CODEX_ENABLE_POSTGRES_MCP:-0}" = "1" ]; then
-    names=("filesystem" "postgres" "github" "playwright" "git" "memory")
-    wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}")
-  fi
+  local names=("filesystem" "postgres" "github" "playwright" "git" "memory")
+  local wrappers=("${FS_WRAPPER}" "${PG_WRAPPER}" "${GH_WRAPPER}" "${PW_WRAPPER}" "${GT_WRAPPER}" "${MW_WRAPPER}")
 
   if command -v codex >/dev/null 2>&1; then
     local i
@@ -62,13 +58,11 @@ setup_codex() {
     echo "codex filesystem server already configured"
   fi
 
-  if [ "${CODEX_ENABLE_POSTGRES_MCP:-0}" = "1" ]; then
-    if ! has_toml_section postgres; then
-      append_codex_section postgres "${PG_WRAPPER}"
-      echo "added codex postgres server"
-    else
-      echo "codex postgres server already configured"
-    fi
+  if ! has_toml_section postgres; then
+    append_codex_section postgres "${PG_WRAPPER}"
+    echo "added codex postgres server"
+  else
+    echo "codex postgres server already configured"
   fi
 
   if ! has_toml_section github; then

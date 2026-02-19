@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { pathToFileURL } from "node:url";
+import fs from "node:fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { runRalph } from "./ralph.js";
 
@@ -19,6 +20,7 @@ export function buildProgram(): Command {
     .option("--allow-dirty", "Allow execution on a dirty working tree")
     .option("--max-iterations <number>", "Maximum iterations", (value) => Number(value))
     .option("--plan <path>", "Path to existing plan file")
+    .option("--goal-file <path>", "Path to a text/markdown goal file used to generate a new JSON plan")
     .option("--session-strategy <strategy>", "Session strategy: reset|resume", "reset")
     .option("--post-check-profile <profile>", "Post-check profile: none|fast|governance|full", "fast")
     .option("--log-format <format>", "Log format: text|jsonl", "text")
@@ -43,7 +45,18 @@ function isDirectExecution(): boolean {
     return false;
   }
 
-  return import.meta.url === pathToFileURL(scriptPath).href;
+  const scriptHref = pathToFileURL(scriptPath).href;
+  if (import.meta.url === scriptHref) {
+    return true;
+  }
+
+  try {
+    const invokedRealPath = fs.realpathSync(scriptPath);
+    const moduleRealPath = fs.realpathSync(fileURLToPath(import.meta.url));
+    return invokedRealPath === moduleRealPath;
+  } catch {
+    return false;
+  }
 }
 
 if (isDirectExecution()) {

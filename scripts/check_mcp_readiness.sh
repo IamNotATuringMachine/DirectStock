@@ -13,6 +13,11 @@ config_file="${codex_home}/config.toml"
 repo_mcp_file="${ROOT_DIR}/.mcp.json"
 mcp_profile_input="${MCP_PROFILE:-}"
 require_postgres_readonly="${MCP_REQUIRE_POSTGRES_READONLY:-1}"
+filesystem_version="${MCP_FILESYSTEM_VERSION:-2026.1.14}"
+memory_version="${MCP_MEMORY_VERSION:-2026.1.26}"
+playwright_version="${MCP_PLAYWRIGHT_VERSION:-0.0.68}"
+git_version="${MCP_GIT_VERSION:-2026.1.14}"
+github_image="${GITHUB_MCP_IMAGE:-ghcr.io/github/github-mcp-server:v0.31.0}"
 
 has_heading() {
   local heading="$1"
@@ -219,6 +224,41 @@ validate_postgres_readonly() {
   echo "pass|readonly role policy validated (${dsn_user})"
 }
 
+effective_profile() {
+  if [ -n "${repo_active_profile:-}" ]; then
+    echo "${repo_active_profile}"
+    return
+  fi
+  if [ -n "${mcp_profile_input}" ]; then
+    echo "${mcp_profile_input}"
+    return
+  fi
+  echo "dev-autonomy"
+}
+
+effective_github_read_only() {
+  if [ -n "${GITHUB_READ_ONLY:-}" ]; then
+    echo "${GITHUB_READ_ONLY}"
+    return
+  fi
+  case "$(effective_profile)" in
+    ci-readonly|triage-readonly|review-governance) echo "1" ;;
+    *) echo "0" ;;
+  esac
+}
+
+effective_github_toolsets() {
+  if [ -n "${GITHUB_TOOLSETS:-}" ]; then
+    echo "${GITHUB_TOOLSETS}"
+    return
+  fi
+  case "$(effective_profile)" in
+    ci-readonly|review-governance) echo "repos,issues,pull_requests,actions,code_security" ;;
+    triage-readonly) echo "repos,issues,pull_requests" ;;
+    *) echo "all" ;;
+  esac
+}
+
 repo_profile_found="no"
 repo_active_profile=""
 repo_profile_servers=""
@@ -267,7 +307,7 @@ note_memory="server not configured"
 
 if [ "${cfg_filesystem}" = "yes" ]; then
   if command -v npx >/dev/null 2>&1; then
-    result="$(run_start_probe "npx -y @modelcontextprotocol/server-filesystem \"${ROOT_DIR}\"")"
+    result="$(run_start_probe "npx -y \"@modelcontextprotocol/server-filesystem@${filesystem_version}\" \"${ROOT_DIR}\"")"
     status_filesystem="${result%%|*}"
     note_filesystem="${result#*|}"
   else
@@ -276,34 +316,30 @@ if [ "${cfg_filesystem}" = "yes" ]; then
 fi
 
 if [ "${cfg_postgres}" = "yes" ]; then
-  if command -v npx >/dev/null 2>&1; then
-    postgres_dsn="${MCP_POSTGRES_DSN:-}"
-    if [ -z "${postgres_dsn}" ] && [ -f "${ROOT_DIR}/.env" ]; then
-      set -a
-      # shellcheck disable=SC1091
-      source "${ROOT_DIR}/.env"
-      set +a
-      if [ -n "${POSTGRES_USER:-}" ] && [ -n "${POSTGRES_PASSWORD:-}" ] && [ -n "${POSTGRES_DB:-}" ]; then
-        postgres_dsn="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}"
-      fi
+  postgres_dsn="${MCP_POSTGRES_DSN:-}"
+  if [ -z "${postgres_dsn}" ] && [ -f "${ROOT_DIR}/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "${ROOT_DIR}/.env"
+    set +a
+    if [ -n "${POSTGRES_USER:-}" ] && [ -n "${POSTGRES_PASSWORD:-}" ] && [ -n "${POSTGRES_DB:-}" ]; then
+      postgres_dsn="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}"
     fi
-    if [ -n "${postgres_dsn}" ]; then
-      readonly_result="$(validate_postgres_readonly "${postgres_dsn}")"
-      readonly_status="${readonly_result%%|*}"
-      readonly_note="${readonly_result#*|}"
-      if [ "${readonly_status}" != "pass" ]; then
-        status_postgres="fail"
-        note_postgres="${readonly_note}"
-      else
-        result="$(run_start_probe "npx -y @modelcontextprotocol/server-postgres \"${postgres_dsn}\"")"
-        status_postgres="${result%%|*}"
-        note_postgres="${result#*|}; ${readonly_note}"
-      fi
+  fi
+  if [ -n "${postgres_dsn}" ]; then
+    readonly_result="$(validate_postgres_readonly "${postgres_dsn}")"
+    readonly_status="${readonly_result%%|*}"
+    readonly_note="${readonly_result#*|}"
+    if [ "${readonly_status}" != "pass" ]; then
+      status_postgres="fail"
+      note_postgres="${readonly_note}"
     else
-      note_postgres="MCP_POSTGRES_DSN not set and .env DB vars unavailable"
+      result="$(run_start_probe "MCP_POSTGRES_DSN=\"${postgres_dsn}\" MCP_REQUIRE_POSTGRES_READONLY=\"${require_postgres_readonly}\" \"${ROOT_DIR}/scripts/mcp/start_postgres_server.sh\"")"
+      status_postgres="${result%%|*}"
+      note_postgres="${result#*|}; ${readonly_note}"
     fi
   else
-    note_postgres="npx not found"
+    note_postgres="MCP_POSTGRES_DSN not set and .env DB vars unavailable"
   fi
 fi
 
@@ -316,9 +352,11 @@ if [ "${cfg_github}" = "yes" ]; then
       set -e
     fi
     if [ -n "${github_pat}" ]; then
-      result="$(run_start_probe "docker run --rm -e GITHUB_PERSONAL_ACCESS_TOKEN=\"${github_pat}\" ghcr.io/github/github-mcp-server")"
+      github_read_only="$(effective_github_read_only)"
+      github_toolsets="$(effective_github_toolsets)"
+      result="$(run_start_probe "GITHUB_PERSONAL_ACCESS_TOKEN=\"${github_pat}\" GITHUB_MCP_IMAGE=\"${github_image}\" GITHUB_READ_ONLY=\"${github_read_only}\" GITHUB_TOOLSETS=\"${github_toolsets}\" MCP_PROFILE=\"$(effective_profile)\" \"${ROOT_DIR}/scripts/mcp/start_github_server.sh\"")"
       status_github="${result%%|*}"
-      note_github="${result#*|}"
+      note_github="${result#*|}; image=${github_image}; read_only=${github_read_only}; toolsets=${github_toolsets}"
     else
       note_github="GITHUB_PERSONAL_ACCESS_TOKEN not set and gh auth token unavailable"
     fi
@@ -329,7 +367,7 @@ fi
 
 if [ "${cfg_playwright}" = "yes" ]; then
   if command -v npx >/dev/null 2>&1; then
-    result="$(run_probe "npx -y @playwright/mcp@latest --help")"
+    result="$(run_probe "npx -y \"@playwright/mcp@${playwright_version}\" --help")"
     status_playwright="${result%%|*}"
     note_playwright="${result#*|}"
   else
@@ -339,7 +377,7 @@ fi
 
 if [ "${cfg_git}" = "yes" ]; then
   if command -v uvx >/dev/null 2>&1; then
-    result="$(run_start_probe "uvx mcp-server-git --repository \"${ROOT_DIR}\"")"
+    result="$(run_start_probe "uvx --from \"mcp-server-git==${git_version}\" mcp-server-git --repository \"${ROOT_DIR}\"")"
     status_git="${result%%|*}"
     note_git="${result#*|}"
   else
@@ -349,7 +387,7 @@ fi
 
 if [ "${cfg_memory}" = "yes" ]; then
   if command -v npx >/dev/null 2>&1; then
-    result="$(run_probe "npx -y @modelcontextprotocol/server-memory --help")"
+    result="$(run_probe "npx -y \"@modelcontextprotocol/server-memory@${memory_version}\" --help")"
     status_memory="${result%%|*}"
     note_memory="${result#*|}"
   else
@@ -425,6 +463,7 @@ fi
   echo "- The probe verifies startup and runtime prerequisites."
   echo "- It does not execute business-side effects."
   echo "- PostgreSQL readiness fails when MCP role is not a read-only role (user suffix '_ro'), unless explicitly disabled."
+  echo "- GitHub probe surfaces effective MCP hardening (image pin, read-only posture, toolsets)."
 } > "${REPORT_FILE}"
 
 if [ "${overall}" = "ready" ]; then

@@ -203,11 +203,24 @@ For project-specific MCP server setup and balanced security defaults, use:
 - `docs/guides/mcp-stack-strategy.md`
 - `docs/guides/gemini-antigravity-setup.md`
 
+MCP deterministic defaults:
+1. Wrapper version pins are enabled by default (`MCP_FILESYSTEM_VERSION`, `MCP_MEMORY_VERSION`, `MCP_PLAYWRIGHT_VERSION`, `MCP_GIT_VERSION`).
+2. GitHub MCP image pin is enabled by default (`GITHUB_MCP_IMAGE=ghcr.io/github/github-mcp-server:v0.31.0`).
+3. GitHub MCP read-only + toolset hardening defaults are profile-aware and surfaced by `check_mcp_readiness.sh`.
+
 Quick bootstrap across Codex, Claude Code, and Gemini CLI:
 
 ```bash
 ./scripts/setup_mcp_multi_cli.sh
 ```
+
+Optional hybrid overlay for official GitHub remote read-only MCP endpoint:
+
+```bash
+./scripts/mcp/setup_github_remote_overlay.sh
+```
+
+The overlay keeps repository MCP defaults intact and writes Claude/Gemini entries in user scope.
 
 ## One-Command Agent Runners
 Use `Makefile` shortcuts for deterministic autonomous execution:

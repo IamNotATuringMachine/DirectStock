@@ -73,7 +73,7 @@ export async function askThinking(adapter: ProviderAdapter): Promise<string> {
 export async function listPlanCandidates(cwd: string): Promise<string[]> {
   const entries = await fs.readdir(cwd);
   return entries
-    .filter((entry) => /\.(json|md)$/i.test(entry))
+    .filter((entry) => /\.json$/i.test(entry))
     .filter((entry) => /(plan|prd|ralph|task|roadmap)/i.test(entry))
     .sort()
     .map((entry) => path.join(cwd, entry));

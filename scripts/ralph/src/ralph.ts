@@ -36,6 +36,7 @@ export interface RalphCliOptions {
   allowDirty?: boolean;
   maxIterations?: number;
   plan?: string;
+  goalFile?: string;
   sessionStrategy?: SessionStrategy;
   postCheckProfile?: PostCheckProfile;
   planTemplate?: boolean;
@@ -73,6 +74,17 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   let thinkingValue = "";
   let maxIterations = options.maxIterations;
   let planPath = options.plan ? resolveAbsolutePath(options.plan, cwd) : "";
+  let goalFilePath = options.goalFile ? resolveAbsolutePath(options.goalFile, cwd) : "";
+
+  if (planPath && isGoalFilePath(planPath)) {
+    if (!goalFilePath) {
+      goalFilePath = planPath;
+    }
+    planPath = toJsonPlanPath(planPath);
+    console.log(
+      chalk.yellow(`[ralph] Markdown/TXT als Ziel erkannt. JSON-Planpfad gesetzt auf: ${planPath}`),
+    );
+  }
 
   const preset = !options.noPreset ? await loadPreset() : null;
   if (preset && (await askUsePreset(preset))) {
@@ -120,45 +132,63 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     thinkingValue = await askThinking(provider);
   }
 
+  const createPlan = async (goal: string, targetPlanPath: string) => {
+    const spinner = ora("Erstelle Plan...").start();
+    try {
+      const generatedPlan = await createPlanFromGoal({
+        provider,
+        model,
+        thinkingValue,
+        goal,
+        planPath: targetPlanPath,
+        cwd,
+        timeoutMs: DEFAULT_TIMEOUT_MS,
+        totalIterations: maxIterations ?? 10,
+        dryRun: false,
+        persist: !dryRun,
+        runtimeCapabilities: capabilityProbe,
+      });
+      spinner.succeed(
+        dryRun ? "Plan für Dry-Run im Speicher erzeugt" : `Plan gespeichert: ${targetPlanPath}`,
+      );
+      return generatedPlan;
+    } catch (error) {
+      spinner.fail("Plan-Erstellung fehlgeschlagen");
+      throw error;
+    }
+  };
+
   let plan = null;
+  const goalFromFile = goalFilePath ? await readGoalFromFile(goalFilePath) : "";
+
   if (!planPath) {
-    const planSelection = await askPlanSelection(cwd);
-    if (planSelection.action === "load") {
-      if (!planSelection.planPath) {
-        throw new Error("Plan-Auswahl ungültig: kein Pfad für bestehenden Plan.");
-      }
-      planPath = resolveAbsolutePath(planSelection.planPath ?? "", cwd);
-    } else {
-      const goal = await askGoal();
+    if (goalFromFile) {
       planPath = resolveAbsolutePath(await askPlanOutputPath(cwd), cwd);
-      const spinner = ora("Erstelle Plan...").start();
-      try {
-        plan = await createPlanFromGoal({
-          provider,
-          model,
-          thinkingValue,
-          goal,
-          planPath,
-          cwd,
-          timeoutMs: DEFAULT_TIMEOUT_MS,
-          totalIterations: maxIterations ?? 10,
-          dryRun: false,
-          persist: !dryRun,
-          runtimeCapabilities: capabilityProbe,
-        });
-        spinner.succeed(dryRun ? "Plan für Dry-Run im Speicher erzeugt" : `Plan gespeichert: ${planPath}`);
-      } catch (error) {
-        spinner.fail("Plan-Erstellung fehlgeschlagen");
-        throw error;
+      plan = await createPlan(goalFromFile, planPath);
+    } else {
+      const planSelection = await askPlanSelection(cwd);
+      if (planSelection.action === "load") {
+        if (!planSelection.planPath) {
+          throw new Error("Plan-Auswahl ungültig: kein Pfad für bestehenden Plan.");
+        }
+        planPath = resolveAbsolutePath(planSelection.planPath ?? "", cwd);
+      } else {
+        const goal = await askGoal();
+        planPath = resolveAbsolutePath(await askPlanOutputPath(cwd), cwd);
+        plan = await createPlan(goal, planPath);
       }
     }
   }
 
   if (!plan) {
     if (!(await fileExists(planPath))) {
-      throw new Error(`Plan-Datei nicht gefunden: ${planPath}`);
+      if (!goalFromFile) {
+        throw new Error(`Plan-Datei nicht gefunden: ${planPath}`);
+      }
+      plan = await createPlan(goalFromFile, planPath);
+    } else {
+      plan = await loadPlan(planPath);
     }
-    plan = await loadPlan(planPath);
   }
 
   if (!maxIterations) {
@@ -344,4 +374,28 @@ async function resolvePlanTemplatePath(cwd: string): Promise<string> {
   }
 
   throw new Error(`Template-Datei nicht gefunden. Erwarteter Pfad: ${PLAN_TEMPLATE_RELATIVE_PATH}`);
+}
+
+function isGoalFilePath(filePath: string): boolean {
+  return /\.(md|markdown|txt)$/i.test(filePath);
+}
+
+function toJsonPlanPath(filePath: string): string {
+  if (/\.[^./\\]+$/.test(filePath)) {
+    return filePath.replace(/\.[^./\\]+$/, ".json");
+  }
+  return `${filePath}.json`;
+}
+
+async function readGoalFromFile(goalFilePath: string): Promise<string> {
+  if (!(await fileExists(goalFilePath))) {
+    throw new Error(`Goal-Datei nicht gefunden: ${goalFilePath}`);
+  }
+
+  const goal = (await fs.readFile(goalFilePath, "utf8")).trim();
+  if (!goal) {
+    throw new Error(`Goal-Datei ist leer: ${goalFilePath}`);
+  }
+
+  return goal;
 }

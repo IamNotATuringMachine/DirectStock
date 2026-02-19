@@ -3,9 +3,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="${ROOT_DIR}/.env"
+SERVER_SCRIPT="${ROOT_DIR}/scripts/mcp/directstock_postgres_server.py"
+PYTHON_MCP_VERSION="${PYTHON_MCP_VERSION:-mcp>=1.26.0,<2.0.0}"
+PYTHON_PSYCOPG_VERSION="${PYTHON_PSYCOPG_VERSION:-psycopg[binary]>=3.2.13,<4.0.0}"
 
-if ! command -v npx >/dev/null 2>&1; then
-  echo "npx is required to start postgres MCP server." >&2
+if [ ! -f "${SERVER_SCRIPT}" ]; then
+  echo "Missing server script: ${SERVER_SCRIPT}" >&2
   exit 1
 fi
 
@@ -69,11 +72,27 @@ PY
 )"
 
 if [ "${host_reachable}" = "1" ]; then
-  local_server_entry="$(find "${HOME}/.npm/_npx" -path "*/node_modules/@modelcontextprotocol/server-postgres/dist/index.js" 2>/dev/null | head -n1 || true)"
-  if [ -n "${local_server_entry}" ] && command -v node >/dev/null 2>&1; then
-    exec node "${local_server_entry}" "${dsn}"
+  if command -v uv >/dev/null 2>&1; then
+    exec uv run --quiet \
+      --with "${PYTHON_MCP_VERSION}" \
+      --with "${PYTHON_PSYCOPG_VERSION}" \
+      python "${SERVER_SCRIPT}" "${dsn}" --require-readonly "${require_postgres_readonly}"
   fi
-  exec npx -y @modelcontextprotocol/server-postgres "${dsn}"
+  if command -v python3 >/dev/null 2>&1 && python3 - <<'PY' >/dev/null 2>&1
+import importlib.util
+import sys
+sys.exit(0 if importlib.util.find_spec("mcp") and importlib.util.find_spec("psycopg") else 1)
+PY
+  then
+    exec python3 "${SERVER_SCRIPT}" "${dsn}" --require-readonly "${require_postgres_readonly}"
+  fi
+  cat >&2 <<EOF
+Could not resolve a Python runtime with required MCP dependencies.
+Install uv or provide python3 with modules:
+  - ${PYTHON_MCP_VERSION}
+  - ${PYTHON_PSYCOPG_VERSION}
+EOF
+  exit 1
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -139,5 +158,9 @@ PY
 exec docker run --rm -i \
   --network "${docker_network}" \
   -e MCP_POSTGRES_DSN="${docker_dsn}" \
-  node:20-alpine \
-  sh -lc 'exec npx -y @modelcontextprotocol/server-postgres "$MCP_POSTGRES_DSN"'
+  -e MCP_REQUIRE_POSTGRES_READONLY="${require_postgres_readonly}" \
+  -e PYTHON_MCP_VERSION="${PYTHON_MCP_VERSION}" \
+  -e PYTHON_PSYCOPG_VERSION="${PYTHON_PSYCOPG_VERSION}" \
+  -v "${SERVER_SCRIPT}:/opt/directstock_postgres_server.py:ro" \
+  python:3.12-alpine \
+  sh -lc 'python -m pip install --quiet --disable-pip-version-check --no-cache-dir "$PYTHON_MCP_VERSION" "$PYTHON_PSYCOPG_VERSION" && exec python /opt/directstock_postgres_server.py "$MCP_POSTGRES_DSN" --require-readonly "$MCP_REQUIRE_POSTGRES_READONLY"'

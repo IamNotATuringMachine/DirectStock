@@ -1,0 +1,687 @@
+{
+  "schemaVersion": "1.1.0",
+  "goal": "Jede Frontend-Page auf SOTA UI/UX Pattern pruefen, ueberarbeiten und final via Gemini verifizieren.",
+  "createdAt": "2026-02-19T17:24:15.411Z",
+  "steps": [
+    {
+      "id": "step-01",
+      "title": "UI/UX SOTA Refresh DashboardPage",
+      "description": "Pruefe DashboardPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/DashboardPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-02",
+      "title": "UI/UX SOTA Refresh ProductsPage",
+      "description": "Pruefe ProductsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/ProductsPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-03",
+      "title": "UI/UX SOTA Refresh ProductFormPage",
+      "description": "Pruefe ProductFormPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/ProductFormPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "high",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-04",
+      "title": "UI/UX SOTA Refresh ProductDetailPage",
+      "description": "Pruefe ProductDetailPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/ProductDetailPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-05",
+      "title": "UI/UX SOTA Refresh InventoryPage",
+      "description": "Pruefe InventoryPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/InventoryPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-06",
+      "title": "UI/UX SOTA Refresh InventoryCountPage",
+      "description": "Pruefe InventoryCountPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/InventoryCountPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-07",
+      "title": "UI/UX SOTA Refresh WarehousePage",
+      "description": "Pruefe WarehousePage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/WarehousePage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-08",
+      "title": "UI/UX SOTA Refresh GoodsReceiptPage",
+      "description": "Pruefe GoodsReceiptPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/GoodsReceiptPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "high",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-09",
+      "title": "UI/UX SOTA Refresh GoodsIssuePage",
+      "description": "Pruefe GoodsIssuePage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/GoodsIssuePage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "high",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-10",
+      "title": "UI/UX SOTA Refresh StockTransferPage",
+      "description": "Pruefe StockTransferPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/StockTransferPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-11",
+      "title": "UI/UX SOTA Refresh InterWarehouseTransferPage",
+      "description": "Pruefe InterWarehouseTransferPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/InterWarehouseTransferPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-12",
+      "title": "UI/UX SOTA Refresh ScannerPage",
+      "description": "Pruefe ScannerPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/ScannerPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-13",
+      "title": "UI/UX SOTA Refresh PickingPage",
+      "description": "Pruefe PickingPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/PickingPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-14",
+      "title": "UI/UX SOTA Refresh ShippingPage",
+      "description": "Pruefe ShippingPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/ShippingPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-15",
+      "title": "UI/UX SOTA Refresh ReturnsPage",
+      "description": "Pruefe ReturnsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/ReturnsPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "high",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-16",
+      "title": "UI/UX SOTA Refresh PurchasingPage",
+      "description": "Pruefe PurchasingPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/PurchasingPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-17",
+      "title": "UI/UX SOTA Refresh SalesOrdersPage",
+      "description": "Pruefe SalesOrdersPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/SalesOrdersPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "high",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-18",
+      "title": "UI/UX SOTA Refresh InvoicesPage",
+      "description": "Pruefe InvoicesPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/InvoicesPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "high",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-19",
+      "title": "UI/UX SOTA Refresh CustomersPage",
+      "description": "Pruefe CustomersPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/CustomersPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-20",
+      "title": "UI/UX SOTA Refresh DocumentsPage",
+      "description": "Pruefe DocumentsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/DocumentsPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-21",
+      "title": "UI/UX SOTA Refresh AlertsPage",
+      "description": "Pruefe AlertsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/AlertsPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-22",
+      "title": "UI/UX SOTA Refresh ReportsPage",
+      "description": "Pruefe ReportsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/ReportsPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-23",
+      "title": "UI/UX SOTA Refresh ApprovalsPage",
+      "description": "Pruefe ApprovalsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/ApprovalsPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-24",
+      "title": "UI/UX SOTA Refresh AuditTrailPage",
+      "description": "Pruefe AuditTrailPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/AuditTrailPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-25",
+      "title": "UI/UX SOTA Refresh UsersPage",
+      "description": "Pruefe UsersPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "mixed",
+      "files": [
+        "frontend/src/pages/UsersPage.tsx",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "medium",
+      "owner": "agent",
+      "postChecks": [
+        "(cd frontend && npm run test:e2e:a11y -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:visual -- --project=web-desktop)",
+        "(cd frontend && npm run test:e2e:a11y:mobile)",
+        "(cd frontend && npm run test:e2e:visual:mobile)",
+        "./scripts/check_design_token_drift.sh"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    },
+    {
+      "id": "step-26",
+      "title": "Gemini Final UI/UX Consistency Pass",
+      "description": "Fuehre mit Google/Gemini einen finalen End-to-End-Konsistenzlauf ueber alle 25 Pages durch, gleiche Muster/States responsiv an und schliesse nur mit gruenen Gates ab.",
+      "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build && npm run test:e2e:a11y -- --project=web-desktop && npm run test:e2e:visual -- --project=web-desktop && npm run test:e2e:a11y:mobile && npm run test:e2e:visual:mobile) && ./scripts/check_design_token_drift.sh",
+      "status": "pending",
+      "attempts": 0,
+      "maxAttempts": 3,
+      "type": "governance",
+      "files": [
+        "frontend/src/pages/**/*",
+        "frontend/src/components/**/*",
+        "frontend/src/services/**/*",
+        "frontend/src/styles/**/*",
+        "frontend/src/types.ts"
+      ],
+      "riskLevel": "high",
+      "owner": "agent",
+      "postChecks": [
+        "python3 scripts/check_provider_capabilities.py --provider all --format json",
+        "python3 scripts/agent_policy_lint.py --strict --provider all --format json"
+      ],
+      "rollbackHint": "git revert <commit_sha>"
+    }
+  ],
+  "metadata": {
+    "provider": "Google",
+    "model": "gemini-3.1-pro-preview",
+    "totalIterations": 26,
+    "completedIterations": 0
+  }
+}
