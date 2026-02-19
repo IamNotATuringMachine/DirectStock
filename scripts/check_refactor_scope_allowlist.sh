@@ -8,6 +8,7 @@ declare -a ALLOWLIST_REGEX=(
   '^\.editorconfig$'
   '^\.pre-commit-config\.yaml$'
   '^\.gitleaks\.toml$'
+  '^\.mcp\.json$'
   '^\.env\.example$'
   '^\.github/workflows/ci\.yml$'
   '^\.github/workflows/agent_self_improve\.yml$'
@@ -181,6 +182,7 @@ declare -a ALLOWLIST_REGEX=(
   '^frontend/src/services/offlineQueueTypes\.ts$'
   '^scripts/agent_policy_lint\.py$'
   '^scripts/agent_self_improve\.py$'
+  '^scripts/check_branch_protection\.sh$'
 )
 
 resolve_base_ref() {

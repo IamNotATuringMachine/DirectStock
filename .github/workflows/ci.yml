@@ -442,6 +442,8 @@ jobs:
 
       - name: Run MCP readiness preflight
         env:
+          MCP_PROFILE: "ci-readonly"
+          MCP_REQUIRE_POSTGRES_READONLY: "1"
           MCP_PROBE_ALLOW_BLOCKED: "1"
           MCP_POSTGRES_DSN: ${{ secrets.MCP_POSTGRES_DSN }}
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.MCP_GITHUB_PAT }}

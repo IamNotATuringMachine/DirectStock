@@ -9,6 +9,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `.editorconfig`
    - `.pre-commit-config.yaml`
    - `.gitleaks.toml`
+   - `.mcp.json`
    - `.github/workflows/ci.yml`
    - `.github/workflows/agent_self_improve.yml`
    - `backend/ruff.toml`
@@ -171,6 +172,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `scripts/agent_governance_check.sh`
    - `scripts/agent_policy_lint.py`
    - `scripts/agent_self_improve.py`
+   - `scripts/check_branch_protection.sh`
    - `scripts/check_mcp_readiness.sh`
    - `scripts/setup_mcp_multi_cli.sh`
    - `scripts/mcp/**`

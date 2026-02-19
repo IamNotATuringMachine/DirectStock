@@ -10,6 +10,9 @@ mkdir -p "$(dirname "${REPORT_FILE}")"
 timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 codex_home="${CODEX_HOME:-${HOME}/.codex}"
 config_file="${codex_home}/config.toml"
+repo_mcp_file="${ROOT_DIR}/.mcp.json"
+mcp_profile_input="${MCP_PROFILE:-}"
+require_postgres_readonly="${MCP_REQUIRE_POSTGRES_READONLY:-1}"
 
 has_heading() {
   local heading="$1"
@@ -25,6 +28,85 @@ has_any_heading() {
       return 0
     fi
   done
+  return 1
+}
+
+contains_csv() {
+  local csv="$1"
+  local needle="$2"
+  if [ -z "${csv}" ]; then
+    return 1
+  fi
+  [[ ",${csv}," == *",${needle},"* ]]
+}
+
+load_repo_mcp_state() {
+  if [ ! -f "${repo_mcp_file}" ]; then
+    return 1
+  fi
+
+  python3 - "${repo_mcp_file}" "${mcp_profile_input}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+requested_profile = sys.argv[2]
+payload = json.loads(path.read_text(encoding="utf-8"))
+
+profiles = payload.get("profiles", {})
+defaults = payload.get("defaults", {})
+mcp_servers = payload.get("mcpServers", {})
+
+active_profile = requested_profile or defaults.get("profile", "")
+profile_found = bool(active_profile and active_profile in profiles)
+profile_servers = []
+if profile_found:
+    profile_servers = profiles.get(active_profile, {}).get("servers", []) or []
+
+print(f"active_profile={active_profile}")
+print(f"profile_found={'yes' if profile_found else 'no'}")
+print(f"profile_servers={','.join(profile_servers)}")
+print(f"all_servers={','.join(mcp_servers.keys())}")
+PY
+}
+
+resolve_repo_configuration() {
+  local mcp_state=""
+  if ! mcp_state="$(load_repo_mcp_state 2>/dev/null)"; then
+    return 1
+  fi
+
+  repo_active_profile=""
+  repo_profile_found="no"
+  repo_profile_servers=""
+  repo_all_servers=""
+  while IFS='=' read -r key value; do
+    case "${key}" in
+      active_profile) repo_active_profile="${value}" ;;
+      profile_found) repo_profile_found="${value}" ;;
+      profile_servers) repo_profile_servers="${value}" ;;
+      all_servers) repo_all_servers="${value}" ;;
+    esac
+  done <<< "${mcp_state}"
+
+  if [ -n "${repo_active_profile}" ] && [ "${repo_profile_found}" != "yes" ]; then
+    echo "Requested MCP profile '${repo_active_profile}' does not exist in .mcp.json" >&2
+    exit 2
+  fi
+}
+
+server_enabled_repo() {
+  local base="$1"
+  local directstock_name="directstock-${base}"
+  if [ "${repo_profile_found:-no}" = "yes" ]; then
+    contains_csv "${repo_profile_servers}" "${directstock_name}" || contains_csv "${repo_profile_servers}" "${base}"
+    return $?
+  fi
+  if [ -n "${repo_all_servers:-}" ]; then
+    contains_csv "${repo_all_servers}" "${directstock_name}" || contains_csv "${repo_all_servers}" "${base}"
+    return $?
+  fi
   return 1
 }
 
@@ -75,17 +157,97 @@ run_start_probe() {
   echo "fail|${output}"
 }
 
+extract_dsn_user() {
+  local dsn="$1"
+  python3 - "${dsn}" <<'PY'
+import sys
+from urllib.parse import urlparse
+
+dsn = sys.argv[1]
+try:
+    user = urlparse(dsn).username or ""
+except Exception:
+    user = ""
+print(user)
+PY
+}
+
+validate_postgres_readonly() {
+  local dsn="$1"
+
+  if [ "${require_postgres_readonly}" != "1" ]; then
+    echo "pass|readonly enforcement disabled via MCP_REQUIRE_POSTGRES_READONLY=0"
+    return
+  fi
+
+  local dsn_user=""
+  dsn_user="$(extract_dsn_user "${dsn}")"
+  if [ -z "${dsn_user}" ]; then
+    echo "fail|Could not parse PostgreSQL username from MCP DSN."
+    return
+  fi
+
+  if [[ ! "${dsn_user}" =~ _ro$ ]]; then
+    echo "fail|MCP DSN user '${dsn_user}' must end with '_ro' for read-only policy."
+    return
+  fi
+
+  if ! command -v psql >/dev/null 2>&1; then
+    echo "pass|readonly role suffix validated (${dsn_user}); deep probe skipped (psql not found)"
+    return
+  fi
+
+  local elevated=""
+  local write_all_data=""
+  set +e
+  elevated="$(psql "${dsn}" -tAqc "SELECT CASE WHEN rolsuper OR rolcreaterole OR rolcreatedb OR rolreplication OR rolbypassrls THEN 't' ELSE 'f' END FROM pg_roles WHERE rolname = current_user;" 2>/dev/null | tr -d '[:space:]')"
+  local elevated_rc=$?
+  write_all_data="$(psql "${dsn}" -tAqc "SELECT CASE WHEN pg_has_role(current_user, 'pg_write_all_data', 'member') THEN 't' ELSE 'f' END;" 2>/dev/null | tr -d '[:space:]')"
+  local write_rc=$?
+  set -e
+
+  if [ "${elevated_rc}" -ne 0 ] || [ "${write_rc}" -ne 0 ]; then
+    echo "fail|readonly role suffix validated (${dsn_user}), but privilege probe failed via psql."
+    return
+  fi
+
+  if [ "${elevated}" = "t" ] || [ "${write_all_data}" = "t" ]; then
+    echo "fail|readonly role '${dsn_user}' has elevated privileges (super/create/write-all-data)."
+    return
+  fi
+
+  echo "pass|readonly role policy validated (${dsn_user})"
+}
+
+repo_profile_found="no"
+repo_active_profile=""
+repo_profile_servers=""
+repo_all_servers=""
+config_source="codex-config"
+
+if resolve_repo_configuration; then
+  config_source=".mcp.json"
+fi
+
 cfg_filesystem="no"
 cfg_postgres="no"
 cfg_github="no"
 cfg_playwright="no"
 cfg_git="no"
 
-if has_any_heading "[mcp_servers.filesystem]" "[mcp_servers.directstock_filesystem]"; then cfg_filesystem="yes"; fi
-if has_any_heading "[mcp_servers.postgres]" "[mcp_servers.directstock_postgres]"; then cfg_postgres="yes"; fi
-if has_any_heading "[mcp_servers.github]" "[mcp_servers.directstock_github]"; then cfg_github="yes"; fi
-if has_any_heading "[mcp_servers.playwright]" "[mcp_servers.directstock_playwright]"; then cfg_playwright="yes"; fi
-if has_any_heading "[mcp_servers.git]" "[mcp_servers.directstock_git]"; then cfg_git="yes"; fi
+if [ "${config_source}" = ".mcp.json" ]; then
+  if server_enabled_repo "filesystem"; then cfg_filesystem="yes"; fi
+  if server_enabled_repo "postgres"; then cfg_postgres="yes"; fi
+  if server_enabled_repo "github"; then cfg_github="yes"; fi
+  if server_enabled_repo "playwright"; then cfg_playwright="yes"; fi
+  if server_enabled_repo "git"; then cfg_git="yes"; fi
+else
+  if has_any_heading "[mcp_servers.filesystem]" "[mcp_servers.directstock_filesystem]"; then cfg_filesystem="yes"; fi
+  if has_any_heading "[mcp_servers.postgres]" "[mcp_servers.directstock_postgres]"; then cfg_postgres="yes"; fi
+  if has_any_heading "[mcp_servers.github]" "[mcp_servers.directstock_github]"; then cfg_github="yes"; fi
+  if has_any_heading "[mcp_servers.playwright]" "[mcp_servers.directstock_playwright]"; then cfg_playwright="yes"; fi
+  if has_any_heading "[mcp_servers.git]" "[mcp_servers.directstock_git]"; then cfg_git="yes"; fi
+fi
 
 status_filesystem="blocked"
 note_filesystem="server not configured"
@@ -121,9 +283,17 @@ if [ "${cfg_postgres}" = "yes" ]; then
       fi
     fi
     if [ -n "${postgres_dsn}" ]; then
-      result="$(run_start_probe "npx -y @modelcontextprotocol/server-postgres \"${postgres_dsn}\"")"
-      status_postgres="${result%%|*}"
-      note_postgres="${result#*|}"
+      readonly_result="$(validate_postgres_readonly "${postgres_dsn}")"
+      readonly_status="${readonly_result%%|*}"
+      readonly_note="${readonly_result#*|}"
+      if [ "${readonly_status}" != "pass" ]; then
+        status_postgres="fail"
+        note_postgres="${readonly_note}"
+      else
+        result="$(run_start_probe "npx -y @modelcontextprotocol/server-postgres \"${postgres_dsn}\"")"
+        status_postgres="${result%%|*}"
+        note_postgres="${result#*|}; ${readonly_note}"
+      fi
     else
       note_postgres="MCP_POSTGRES_DSN not set and .env DB vars unavailable"
     fi
@@ -214,7 +384,12 @@ fi
   echo "## Summary"
   echo
   echo "- Overall status: ${overall}"
+  echo "- Configuration source: ${config_source}"
+  if [ "${config_source}" = ".mcp.json" ]; then
+    echo "- Active profile: ${repo_active_profile:-<none>}"
+  fi
   echo "- Config file: ${config_file}"
+  echo "- Read-only DB enforcement: ${require_postgres_readonly}"
   echo
   echo "## Server Checks"
   echo
@@ -228,8 +403,9 @@ fi
   echo
   echo "## Probe Semantics"
   echo
-  echo "- The probe verifies startup (--help) and runtime prerequisites."
+  echo "- The probe verifies startup and runtime prerequisites."
   echo "- It does not execute business-side effects."
+  echo "- PostgreSQL readiness fails when MCP role is not a read-only role (user suffix '_ro'), unless explicitly disabled."
 } > "${REPORT_FILE}"
 
 if [ "${overall}" = "ready" ]; then

@@ -21,6 +21,21 @@ This repository operates in `unrestricted_senior` mode:
 3. Scope tokens minimally and avoid long-lived secrets in repo.
 4. Prefer stdio transport for local execution.
 
+## Repository MCP Profiles (`.mcp.json`)
+The repository-level contract defines two profiles:
+1. `dev-full`: full local MCP topology for engineering.
+2. `ci-readonly`: same topology, plus mandatory read-only PostgreSQL posture.
+
+Selection:
+```bash
+MCP_PROFILE=dev-full ./scripts/check_mcp_readiness.sh
+MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh
+```
+
+Read-only enforcement:
+1. MCP PostgreSQL DSN user must end with `_ro`.
+2. Emergency override is explicit: `MCP_REQUIRE_POSTGRES_READONLY=0`.
+
 ## Codex Example (`~/.codex/config.toml`)
 ```toml
 [mcp_servers.filesystem]
@@ -65,6 +80,7 @@ Use the repo script to generate a readiness snapshot:
 
 ```bash
 MCP_PROBE_ALLOW_BLOCKED=1 ./scripts/check_mcp_readiness.sh
+MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 MCP_PROBE_ALLOW_BLOCKED=0 ./scripts/check_mcp_readiness.sh
 ```
 
 Output:
@@ -73,6 +89,8 @@ Output:
 Optional env vars for full probes:
 - `MCP_POSTGRES_DSN`
 - `GITHUB_PERSONAL_ACCESS_TOKEN`
+- `MCP_PROFILE` (`dev-full` or `ci-readonly`)
+- `MCP_REQUIRE_POSTGRES_READONLY` (`1` default, set `0` only for explicit emergency override)
 
 ## Multi-CLI Bootstrap (Codex + Claude + Gemini)
 Use one shared setup script to register the same 5 MCP servers across all installed CLIs:

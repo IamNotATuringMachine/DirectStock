@@ -115,6 +115,11 @@ For any high-risk action (destructive git, breaking contract, security-critical 
 4. Default recurrence trigger: same incident category >= 3 occurrences in 14 days.
 5. All autonomous high-risk policy updates must write pre/post evidence to `docs/agents/decision-log.md`.
 
+## Autonomous Governance Maintenance Hooks
+1. Validate policy contract parity: `python3 scripts/agent_policy_lint.py --strict --provider all --format json`.
+2. Validate MCP CI profile with read-only posture: `MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh`.
+3. Validate branch protection baseline for autonomous auto-merge: `./scripts/check_branch_protection.sh`.
+
 ## Architecture Defaults (Non-Blocking)
 ### Backend
 - Prefer endpoints under `/api/*`; health at `/health` and `/api/health`.

@@ -16,6 +16,8 @@ CONTRACT_PATH = REPO_ROOT / "docs/agents/policy.contract.yaml"
 INCIDENT_LOG_PATH = REPO_ROOT / "docs/agents/incident-log.md"
 DECISION_LOG_PATH = REPO_ROOT / "docs/agents/decision-log.md"
 BACKLOG_PATH = REPO_ROOT / "docs/agents/auto-improvement-backlog.md"
+AGENTS_PATH = REPO_ROOT / "AGENTS.md"
+BRANCH_GUARD_PATH = REPO_ROOT / "scripts/check_branch_protection.sh"
 
 
 @dataclass(slots=True)
@@ -34,8 +36,13 @@ def _write_json_compatible(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _run_policy_lint() -> dict[str, Any]:
+    policy_python = sys.executable
+    backend_python = REPO_ROOT / "backend/.venv/bin/python"
+    if backend_python.exists():
+        policy_python = str(backend_python)
+
     command = [
-        sys.executable,
+        policy_python,
         str(REPO_ROOT / "scripts/agent_policy_lint.py"),
         "--strict",
         "--provider",
@@ -168,7 +175,8 @@ def _ensure_contract_defaults(contract: dict[str, Any]) -> tuple[dict[str, Any],
         contract["required_gates"] = [
             "./scripts/agent_governance_check.sh",
             "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
-            "./scripts/check_mcp_readiness.sh",
+            "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
+            "./scripts/check_branch_protection.sh",
         ]
         changed = True
 
@@ -246,6 +254,39 @@ def _append_decision_log(*, modified_files: list[str], recommendations: list[str
     DECISION_LOG_PATH.write_text(DECISION_LOG_PATH.read_text(encoding="utf-8") + "\n" + "\n".join(entry), encoding="utf-8")
 
 
+def _ensure_agents_hooks() -> bool:
+    if not AGENTS_PATH.exists():
+        return False
+
+    marker = "## Autonomous Governance Maintenance Hooks"
+    if marker in AGENTS_PATH.read_text(encoding="utf-8"):
+        return False
+
+    block = (
+        "\n## Autonomous Governance Maintenance Hooks\n"
+        "1. Validate policy contract parity: `python3 scripts/agent_policy_lint.py --strict --provider all --format json`.\n"
+        "2. Validate MCP profile in CI posture: `MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh`.\n"
+        "3. Validate branch protection baseline: `./scripts/check_branch_protection.sh`.\n"
+    )
+    AGENTS_PATH.write_text(AGENTS_PATH.read_text(encoding="utf-8").rstrip() + block + "\n", encoding="utf-8")
+    return True
+
+
+def _ensure_branch_guard_script() -> bool:
+    if BRANCH_GUARD_PATH.exists():
+        return False
+
+    BRANCH_GUARD_PATH.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n\n"
+        "echo \"Missing branch-protection guard implementation; add scripts/check_branch_protection.sh.\" >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    BRANCH_GUARD_PATH.chmod(0o755)
+    return True
+
+
 def run(*, mode: str, max_changes: int, touch: set[str], emit_decision_log: bool) -> ImprovementResult:
     lint_payload = _run_policy_lint()
     lint_findings = lint_payload.get("findings", [])
@@ -288,6 +329,16 @@ def run(*, mode: str, max_changes: int, touch: set[str], emit_decision_log: bool
         if "docs" in touch and recurring_incidents and changes < max_changes:
             if _append_incident_proposal(recurring_incidents):
                 modified_files.append(str(INCIDENT_LOG_PATH.relative_to(REPO_ROOT)))
+                changes += 1
+
+        if "AGENTS" in touch and changes < max_changes:
+            if _ensure_agents_hooks():
+                modified_files.append(str(AGENTS_PATH.relative_to(REPO_ROOT)))
+                changes += 1
+
+        if "scripts" in touch and changes < max_changes:
+            if _ensure_branch_guard_script():
+                modified_files.append(str(BRANCH_GUARD_PATH.relative_to(REPO_ROOT)))
                 changes += 1
 
         if emit_decision_log and modified_files and "docs" in touch and changes < max_changes:

@@ -153,6 +153,11 @@ Run this matrix based on change type before marking tasks complete:
    - `python3 scripts/agent_policy_lint.py --strict --provider all --format json`
 13. Autonomous self-improvement dry run:
    - `python3 scripts/agent_self_improve.py --mode dry-run --max-changes 5 --touch AGENTS docs scripts`
+14. MCP CI profile + read-only posture:
+   - `MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh`
+15. Branch protection baseline for autonomous auto-merge:
+   - `./scripts/check_branch_protection.sh`
+   - `BRANCH_PROTECTION_REQUIRE_SUPPORTED=1 ./scripts/check_branch_protection.sh` (strict mode, fail if repo plan does not expose branch-protection API)
 
 ## MCP Strategy
 For project-specific MCP server setup and balanced security defaults, use:

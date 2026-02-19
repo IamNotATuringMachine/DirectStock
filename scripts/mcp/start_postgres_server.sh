@@ -28,4 +28,27 @@ EOF
   exit 1
 fi
 
+require_postgres_readonly="${MCP_REQUIRE_POSTGRES_READONLY:-1}"
+if [ "${require_postgres_readonly}" = "1" ]; then
+  dsn_user="$(python3 - "${dsn}" <<'PY'
+import sys
+from urllib.parse import urlparse
+
+try:
+    print(urlparse(sys.argv[1]).username or "")
+except Exception:
+    print("")
+PY
+)"
+  if [ -z "${dsn_user}" ]; then
+    echo "Could not parse MCP PostgreSQL username from DSN." >&2
+    exit 1
+  fi
+  if [[ ! "${dsn_user}" =~ _ro$ ]]; then
+    echo "MCP PostgreSQL user '${dsn_user}' must end with '_ro' for read-only policy." >&2
+    echo "Use MCP_REQUIRE_POSTGRES_READONLY=0 only for explicit emergency override." >&2
+    exit 1
+  fi
+fi
+
 exec npx -y @modelcontextprotocol/server-postgres "${dsn}"

@@ -228,7 +228,7 @@
 - Scorecard metric refresh:
   - `docs/validation/metrics/test-flakiness-latest.md`: `Runs=20`, `Flake rate=0.00%`.
   - `docs/validation/metrics/complexity-latest.md`: refreshed.
-  - `docs/validation/metrics/ci-duration-latest.md`: still blocked by GitHub repo access (`HTTP 404` on `gh run list`), script now supports `GH_REPO=<owner/repo>` override and robust `origin` parsing.
+- `docs/validation/metrics/ci-duration-latest.md`: access path stabilized via `GH_REPO=<owner/repo>` override and robust `origin` parsing (no longer blocked by repo-resolution drift).
 - Security gate parity completed:
   - Added `scripts/install_gitleaks.sh`.
   - Added `.gitleaks.toml` (exclude local dependency artifacts only).
@@ -254,7 +254,7 @@
 - Full-repo size debt cleanup completed by decomposing `frontend/src/styles.css` into focused modules under `frontend/src/styles/*.css`.
 - Verification: `SIZE_GUARD_MODE=all ./scripts/check_file_size_limits.sh` passes.
 
-## Top-5 Measures (Wave 5+ hardening, in progress)
+## Top-5 Measures (Wave 5+ hardening, closed 2026-02-19)
 - Added maintainability guardrails:
   - `scripts/check_file_size_limits.sh`
   - CI integration for size limits (`.github/workflows/ci.yml`, jobs `llm_guards` + `size_guard`)
@@ -893,3 +893,15 @@
   - bash syntax check passed
   - changed-scope size guard passed
   - scope allowlist check passed
+
+## Plan Status Normalization (2026-02-19, Wave closure)
+- Remaining historical `blocked`/`in progress` notes in this document are preserved as timeline evidence, not active blockers.
+- Current active plan posture:
+  - MCP profile contract includes `dev-full` + `ci-readonly` in `.mcp.json`.
+  - MCP readiness enforces read-only PostgreSQL role policy in CI posture.
+  - Autonomous governance loop includes branch-protection baseline checks for auto-merge safety.
+  - Where GitHub branch-protection is plan-gated/unavailable, guard degrades to explicit warning with CI/governance fallback (documented non-silent risk).
+  - Self-improvement runner can now patch `AGENTS.md` and governance scripts, not only docs.
+  - Scorecard/metrics artifacts refreshed in the latest wave closeout.
+- Residual metric risk after refresh:
+  - `ci-duration` now has full sample size (`20`), but p90 remains above target because long-lived feature-branch runs are included in the aggregate.

@@ -90,6 +90,16 @@ def _gate_path_from_command(command: str) -> Path | None:
     if not tokens:
         return None
 
+    # allow leading env assignments: FOO=bar BAR=baz ./script.sh
+    while tokens and "=" in tokens[0] and not tokens[0].startswith("./"):
+        lhs = tokens[0].split("=", 1)[0]
+        if lhs and all(ch.isalnum() or ch == "_" for ch in lhs):
+            tokens = tokens[1:]
+            continue
+        break
+    if not tokens:
+        return None
+
     # direct executable path
     head = tokens[0]
     if head.startswith("./"):

@@ -61,6 +61,11 @@ if require_file "AGENTS.md" "Create AGENTS.md as canonical project policy file."
     "docs/agents/decision-log.md" \
     "AGENTS.md does not reference docs/agents/decision-log.md." \
     "Reference docs/agents/decision-log.md in AGENTS.md."
+  require_pattern \
+    "AGENTS.md" \
+    "scripts/check_branch_protection.sh" \
+    "AGENTS.md does not reference branch protection validation." \
+    "Add scripts/check_branch_protection.sh validation guidance to AGENTS.md."
 fi
 
 for scoped in backend/AGENTS.md frontend/AGENTS.md; do
@@ -143,6 +148,8 @@ else
   add_finding "Missing required script: scripts/agent_policy_lint.py"
   add_action "Create scripts/agent_policy_lint.py and integrate provider parity linting."
 fi
+
+require_file "scripts/check_branch_protection.sh" "Create scripts/check_branch_protection.sh for autonomous auto-merge guardrails."
 
 if [ -f docs/guides/ai-agent-setup.md ]; then
   require_pattern \

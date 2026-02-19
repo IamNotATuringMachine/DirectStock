@@ -73,6 +73,7 @@
   "required_gates": [
     "./scripts/agent_governance_check.sh",
     "python3 scripts/agent_policy_lint.py --strict --provider all --format json",
-    "./scripts/check_mcp_readiness.sh"
+    "MCP_PROFILE=ci-readonly MCP_REQUIRE_POSTGRES_READONLY=1 ./scripts/check_mcp_readiness.sh",
+    "./scripts/check_branch_protection.sh"
   ]
 }
