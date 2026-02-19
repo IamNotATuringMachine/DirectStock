@@ -29,8 +29,8 @@ fi
 
 awk -F $'\t' '$2 ~ /^frontend\/src\/pages\// || $2 ~ /^backend\/app\/routers\//' "${TMP_ALL}" > "${TMP_HOTSPOT}"
 
-all_over_700="$(awk -F $'\t' '$1 > 700 {count++} END {print count + 0}' "${TMP_ALL}")"
-hotspot_over_450="$(awk -F $'\t' '$1 > 450 {count++} END {print count + 0}' "${TMP_HOTSPOT}")"
+all_over_500="$(awk -F $'\t' '$1 > 500 {count++} END {print count + 0}' "${TMP_ALL}")"
+hotspot_over_350="$(awk -F $'\t' '$1 > 350 {count++} END {print count + 0}' "${TMP_HOTSPOT}")"
 
 ruff_tool=""
 if [ -x "${ROOT_DIR}/backend/.venv/bin/ruff" ]; then
@@ -64,8 +64,8 @@ fi
   echo
   echo "| Metric | Value | Target |"
   echo "| --- | --- | --- |"
-  echo "| Production files over 700 LOC | ${all_over_700} | 0 |"
-  echo "| Page/router files over 450 LOC | ${hotspot_over_450} | 0 |"
+  echo "| Production files over 500 LOC | ${all_over_500} | 0 |"
+  echo "| Page/router files over 350 LOC | ${hotspot_over_350} | 0 |"
   echo "| Python functions flagged with Ruff C901 | ${python_c901_count} | <= 10 critical hotspots total |"
   echo
   echo "## Top 25 Largest Production Files"

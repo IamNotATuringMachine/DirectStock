@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://directstock.local/docs/agents/handoff.schema.json",
+  "title": "DirectStock Agent Handoff",
+  "type": "object",
+  "required": [
+    "objective",
+    "in_scope",
+    "out_of_scope",
+    "changed_files",
+    "verification",
+    "open_risks",
+    "next_actions",
+    "assumptions"
+  ],
+  "properties": {
+    "objective": { "type": "string", "minLength": 1 },
+    "in_scope": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "out_of_scope": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "changed_files": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command", "result"],
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "result": { "type": "string", "enum": ["PASS", "FAIL"] },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "open_risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["risk", "impact", "owner"],
+        "properties": {
+          "risk": { "type": "string" },
+          "impact": { "type": "string" },
+          "owner": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "next_actions": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 3 },
+    "assumptions": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}
