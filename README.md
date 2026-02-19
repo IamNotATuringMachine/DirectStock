@@ -80,7 +80,7 @@ Wichtige Flags:
 - `--no-preset`
 - `--dry-run`
 - `--no-auto-commit`
-- `--allow-dirty`
+- `--allow-dirty` (erlaubt Auto-Commit trotz dirty Worktree; ohne Flag läuft der Loop weiter, aber Auto-Commit wird deaktiviert)
 - `--max-iterations <n>`
 - `--plan <path>`
 - `--session-strategy <reset|resume>`

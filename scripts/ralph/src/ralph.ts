@@ -6,7 +6,7 @@ import fs from "fs-extra";
 import ora from "ora";
 
 import { loadPreset, savePreset } from "./config/preset.js";
-import { ensureCleanWorktree } from "./lib/git.js";
+import { readWorktreeState, type WorktreeState } from "./lib/git.js";
 import { fileExists, resolveAbsolutePath } from "./lib/io.js";
 import { createRunLogger, type RunLogFormat } from "./lib/run-log.js";
 import { runRalphLoop } from "./loop/executor.js";
@@ -54,9 +54,45 @@ const VALID_POST_CHECK_PROFILES: PostCheckProfile[] = ["none", "fast", "governan
 const VALID_LOG_FORMATS: RunLogFormat[] = ["text", "jsonl"];
 const PLAN_TEMPLATE_RELATIVE_PATH = path.join("docs", "guides", "ralph-plan-template.md");
 
+export interface AutoCommitPolicyInput {
+  requestedAutoCommit: boolean;
+  dryRun: boolean;
+  allowDirty: boolean;
+  worktree: WorktreeState;
+}
+
+export interface AutoCommitPolicyOutput {
+  autoCommit: boolean;
+  warning?: string;
+}
+
+export function resolveAutoCommitPolicy(input: AutoCommitPolicyInput): AutoCommitPolicyOutput {
+  if (!input.requestedAutoCommit || input.dryRun) {
+    return { autoCommit: input.requestedAutoCommit };
+  }
+
+  if (!input.worktree.available) {
+    return {
+      autoCommit: false,
+      warning: `[ralph] git status fehlgeschlagen (${input.worktree.error || "unknown error"}). Auto-Commit wird deaktiviert.`,
+    };
+  }
+
+  if (input.worktree.dirty && !input.allowDirty) {
+    return {
+      autoCommit: false,
+      warning:
+        "[ralph] Working tree is dirty. Loop läuft weiter, Auto-Commit wird deaktiviert. Nutze --allow-dirty, um trotzdem automatisch zu committen.",
+    };
+  }
+
+  return { autoCommit: true };
+}
+
 export async function runRalph(options: RalphCliOptions): Promise<void> {
   const cwd = process.cwd();
   const dryRun = Boolean(options.dryRun);
+  const allowDirty = Boolean(options.allowDirty);
   const autoCommit = !options.noAutoCommit;
   const requestedSessionStrategy = coerceSessionStrategy(options.sessionStrategy);
   const postCheckProfile = coercePostCheckProfile(options.postCheckProfile);
@@ -208,6 +244,20 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     runLogPath: options.runLogPath,
   });
 
+  let effectiveAutoCommit = autoCommit;
+  if (!dryRun && autoCommit) {
+    const policy = resolveAutoCommitPolicy({
+      requestedAutoCommit: autoCommit,
+      dryRun,
+      allowDirty,
+      worktree: await readWorktreeState(cwd),
+    });
+    effectiveAutoCommit = policy.autoCommit;
+    if (policy.warning) {
+      console.log(chalk.yellow(policy.warning));
+    }
+  }
+
   console.log(
     renderConfirmation({
       provider: provider.name,
@@ -218,7 +268,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
       maxIterations,
       workingDir: cwd,
       dryRun,
-      autoCommit,
+      autoCommit: effectiveAutoCommit,
       sessionStrategy,
       postCheckProfile,
       logFormat,
@@ -248,13 +298,9 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     });
   }
 
-  if (!options.allowDirty && !dryRun) {
-    await ensureCleanWorktree(cwd);
-  }
-
   await runLogger.log({
     event: "run_started",
-    details: `plan=${planPath};dryRun=${dryRun};postCheckProfile=${postCheckProfile};sessionStrategy=${sessionStrategy}`,
+    details: `plan=${planPath};dryRun=${dryRun};postCheckProfile=${postCheckProfile};sessionStrategy=${sessionStrategy};autoCommit=${effectiveAutoCommit}`,
     maxIterations,
     sessionId: sessionStrategy === "resume" ? plan.metadata.resumeSessionId : undefined,
   });
@@ -272,7 +318,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     workingDir: cwd,
     timeoutMs: DEFAULT_TIMEOUT_MS,
     dryRun,
-    autoCommit,
+    autoCommit: effectiveAutoCommit,
     sessionStrategy,
     initialResumeSessionId:
       sessionStrategy === "resume" ? plan.metadata.resumeSessionId : undefined,

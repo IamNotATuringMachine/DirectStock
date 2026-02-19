@@ -17,7 +17,7 @@ export function buildProgram(): Command {
     .option("--no-preset", "Skip loading last preset")
     .option("--dry-run", "Show what would run without mutating plan/git")
     .option("--no-auto-commit", "Disable automatic git commits")
-    .option("--allow-dirty", "Allow execution on a dirty working tree")
+    .option("--allow-dirty", "Allow auto-commit on a dirty working tree")
     .option("--max-iterations <number>", "Maximum iterations", (value) => Number(value))
     .option("--plan <path>", "Path to existing plan file")
     .option("--goal-file <path>", "Path to a text/markdown goal file used to generate a new JSON plan")
