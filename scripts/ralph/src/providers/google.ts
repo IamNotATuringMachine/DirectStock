@@ -172,7 +172,7 @@ function parseGeminiJsonPayload(
         type: "thinking",
         provider: "google",
         attempt,
-        payload: { summary: truncateText(thinkingText, 240) },
+        payload: { summary: thinkingText },
       }),
     );
   }

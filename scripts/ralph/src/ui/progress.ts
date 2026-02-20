@@ -319,6 +319,12 @@ export function printProviderAttemptStart(args: {
   if (currentSpinner) {
     currentSpinner.stop();
   }
+  if (process.env.RALPH_NO_SPINNER === "1") {
+    currentSpinner = null;
+    const sessionInfo = `${args.sessionStrategy}${args.resumeSessionId ? `(${args.resumeSessionId})` : ""}`;
+    console.log(chalk.dim(`- Loading ${args.model} (attempt ${args.attempt}/${args.maxAttempts}, session=${sessionInfo})`));
+    return;
+  }
   const sessionInfo = `${args.sessionStrategy}${args.resumeSessionId ? `(${args.resumeSessionId})` : ""}`;
   currentSpinner = ora({
     text: chalk.cyan(`Loading ${chalk.bold(args.model)} (attempt ${args.attempt}/${args.maxAttempts}, session=${sessionInfo})`),
