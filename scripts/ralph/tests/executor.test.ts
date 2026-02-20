@@ -86,7 +86,7 @@ describe("executor", () => {
     const step = plan.steps[0];
     const prompt = buildIterationPrompt(plan, step, "git state");
 
-    expect(prompt).toContain("Dein aktueller Task");
+    expect(prompt).toContain("Current Task");
     expect(prompt).toContain(step.title);
     expect(prompt).toContain(step.successCriteria);
     expect(prompt).toContain("Affected Paths");
@@ -132,6 +132,13 @@ describe("executor", () => {
 
     expect(summary.completedSteps).toBe(1);
     expect(plan.steps[0].status).toBe("done");
+    expect(summary.analytics.providerAttempts).toBe(1);
+    expect(summary.analytics.providerRetries).toBe(0);
+    expect(summary.analytics.providerEvents.assistant_text).toBe(1);
+    expect(summary.analytics.providerEvents.error).toBe(0);
+    expect(summary.analytics.successCriteria.passed).toBe(1);
+    expect(summary.analytics.successCriteria.failed).toBe(0);
+    expect(summary.analytics.stepPostChecks.commandsRun).toBe(0);
   });
 
   it("increments attempts and fails step when criteria fail", async () => {
@@ -160,6 +167,7 @@ describe("executor", () => {
     expect(summary.failedSteps).toBe(1);
     expect(plan.steps[0].status).toBe("failed");
     expect(plan.steps[0].attempts).toBe(1);
+    expect(summary.analytics.successCriteria.failed).toBe(1);
   });
 
   it("fails immediately when selected model is unavailable and does not fallback", async () => {
@@ -332,6 +340,8 @@ describe("executor", () => {
     expect(summary.failedSteps).toBe(1);
     expect(plan.steps[0].status).toBe("failed");
     expect(plan.steps[0].lastError).toContain("$ false");
+    expect(summary.analytics.stepPostChecks.commandsRun).toBe(1);
+    expect(summary.analytics.stepPostChecks.failed).toBe(1);
   });
 
   it("writes jsonl run log events for iterations", async () => {

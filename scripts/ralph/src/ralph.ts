@@ -1,14 +1,24 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import chalk from "chalk";
 import fs from "fs-extra";
 import ora from "ora";
 
 import { loadPreset, savePreset } from "./config/preset.js";
-import { readWorktreeState, type WorktreeState } from "./lib/git.js";
-import { fileExists, resolveAbsolutePath } from "./lib/io.js";
+import { readWorktreeState } from "./lib/git.js";
+import { bootstrapPlan } from "./lib/plan-bootstrap.js";
 import { createRunLogger, type RunLogFormat } from "./lib/run-log.js";
+import { resolveAutoCommitPolicy } from "./lib/auto-commit-policy.js";
+import {
+  coerceSessionStrategy,
+  coerceProviderId,
+  coercePostCheckProfile,
+  coerceLogFormat,
+  coerceOutputMode,
+  coerceThinkingVisibility,
+} from "./lib/coerce.js";
+import { normalizeProviderModel } from "./lib/model-normalization.js";
+import { resolvePlanTemplatePath } from "./lib/plan-utils.js";
 import { runRalphLoop } from "./loop/executor.js";
 import { createPlanFromGoal } from "./planner/planner.js";
 import { loadPlan, savePlan } from "./planner/plan-schema.js";
@@ -29,6 +39,13 @@ import {
   askThinking,
   askUsePreset,
 } from "./ui/prompts.js";
+
+export {
+  resolveAutoCommitPolicy,
+  type AutoCommitPolicyInput,
+  type AutoCommitPolicyOutput,
+} from "./lib/auto-commit-policy.js";
+export { normalizeProviderModel } from "./lib/model-normalization.js";
 
 export interface RalphCliOptions {
   provider?: ProviderId;
@@ -54,59 +71,6 @@ export interface RalphCliOptions {
 }
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
-const DEFAULT_SESSION_STRATEGY: SessionStrategy = "reset";
-const DEFAULT_POST_CHECK_PROFILE: PostCheckProfile = "fast";
-const DEFAULT_LOG_FORMAT: RunLogFormat = "text";
-const DEFAULT_OUTPUT_MODE: OutputMode = "timeline";
-const DEFAULT_THINKING_VISIBILITY: ThinkingVisibility = "summary";
-const VALID_SESSION_STRATEGIES: SessionStrategy[] = ["reset", "resume"];
-const VALID_POST_CHECK_PROFILES: PostCheckProfile[] = ["none", "fast", "governance", "full"];
-const VALID_LOG_FORMATS: RunLogFormat[] = ["text", "jsonl"];
-const VALID_OUTPUT_MODES: OutputMode[] = ["timeline", "final", "raw"];
-const VALID_THINKING_VISIBILITY: ThinkingVisibility[] = ["summary", "hidden", "full"];
-const PLAN_TEMPLATE_RELATIVE_PATH = path.join("docs", "guides", "ralph-plan-template.md");
-
-export interface AutoCommitPolicyInput {
-  requestedAutoCommit: boolean;
-  dryRun: boolean;
-  allowDirty: boolean;
-  worktree: WorktreeState;
-}
-
-export interface AutoCommitPolicyOutput {
-  autoCommit: boolean;
-  warning?: string;
-}
-
-export function normalizeProviderModel(providerId: ProviderId, model: string): string {
-  if (providerId === "google" && model === "gemini-3.0-flash-preview") {
-    return "gemini-3-flash-preview";
-  }
-  return model;
-}
-
-export function resolveAutoCommitPolicy(input: AutoCommitPolicyInput): AutoCommitPolicyOutput {
-  if (!input.requestedAutoCommit || input.dryRun) {
-    return { autoCommit: input.requestedAutoCommit };
-  }
-
-  if (!input.worktree.available) {
-    return {
-      autoCommit: false,
-      warning: `[ralph] git status fehlgeschlagen (${input.worktree.error || "unknown error"}). Auto-Commit wird deaktiviert.`,
-    };
-  }
-
-  if (input.worktree.dirty && !input.allowDirty) {
-    return {
-      autoCommit: false,
-      warning:
-        "[ralph] Working tree is dirty. Loop läuft weiter, Auto-Commit wird deaktiviert. Nutze --allow-dirty, um trotzdem automatisch zu committen.",
-    };
-  }
-
-  return { autoCommit: true };
-}
 
 export async function runRalph(options: RalphCliOptions): Promise<void> {
   const cwd = process.cwd();
@@ -130,18 +94,8 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   let model = options.model ?? "";
   let thinkingValue = options.thinking ?? "";
   let maxIterations = options.maxIterations;
-  let planPath = options.plan ? resolveAbsolutePath(options.plan, cwd) : "";
-  let goalFilePath = options.goalFile ? resolveAbsolutePath(options.goalFile, cwd) : "";
-
-  if (planPath && isGoalFilePath(planPath)) {
-    if (!goalFilePath) {
-      goalFilePath = planPath;
-    }
-    planPath = toJsonPlanPath(planPath);
-    console.log(
-      chalk.yellow(`[ralph] Markdown/TXT als Ziel erkannt. JSON-Planpfad gesetzt auf: ${planPath}`),
-    );
-  }
+  let planPath = options.plan ?? "";
+  let goalFilePath = options.goalFile ?? "";
 
   const preset = !options.noPreset ? await loadPreset() : null;
   if (preset && !providerId && !model && !thinkingValue && (await askUsePreset(preset))) {
@@ -160,13 +114,13 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
 
   const provider = getProvider(providerId);
   if (!(await provider.isInstalled())) {
-    throw new Error(`${provider.cliCommand} CLI ist nicht installiert oder nicht im PATH verfügbar.`);
+    throw new Error(`${provider.cliCommand} CLI is not installed or not available in PATH.`);
   }
 
   if (model) {
     const normalizedModel = normalizeProviderModel(providerId, model);
     if (normalizedModel !== model) {
-      console.log(chalk.yellow(`[ralph] Modell-ID korrigiert: ${model} -> ${normalizedModel}`));
+      console.log(chalk.yellow(`[ralph] Model ID corrected: ${model} -> ${normalizedModel}`));
       model = normalizedModel;
     }
   }
@@ -183,9 +137,9 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   let sessionStrategy = requestedSessionStrategy;
   if (sessionStrategy === "resume" && (!provider.supportsResume || !capabilityProbe.supportsResume)) {
     if (strictProviderCapabilities) {
-      throw new Error(`${provider.name} unterstützt Session-Resume in dieser Umgebung nicht.`);
+      throw new Error(`${provider.name} does not support session resume in this environment.`);
     }
-    console.log(chalk.yellow(`[ralph capabilities] Session-Resume deaktiviert. Fallback auf reset.`));
+    console.log(chalk.yellow(`[ralph capabilities] Session resume disabled. Falling back to reset.`));
     sessionStrategy = "reset";
   }
 
@@ -193,7 +147,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   if (providerStreamingEnabled && !capabilityProbe.supportsStreamOutput) {
     providerStreamingEnabled = false;
     console.log(
-      chalk.yellow(`[ralph capabilities] Streaming output für ${provider.name} nicht verfügbar. Fallback aktiv.`),
+      chalk.yellow(`[ralph capabilities] Streaming output for ${provider.name} not available. Fallback active.`),
     );
   }
 
@@ -201,7 +155,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     model = await askModel(provider);
     const normalizedModel = normalizeProviderModel(providerId, model);
     if (normalizedModel !== model) {
-      console.log(chalk.yellow(`[ralph] Modell-ID korrigiert: ${model} -> ${normalizedModel}`));
+      console.log(chalk.yellow(`[ralph] Model ID corrected: ${model} -> ${normalizedModel}`));
       model = normalizedModel;
     }
   }
@@ -211,7 +165,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   }
 
   const createPlan = async (goal: string, targetPlanPath: string) => {
-    const spinner = ora("Erstelle Plan...").start();
+    const spinner = ora("Creating plan...").start();
     try {
       const generatedPlan = await createPlanFromGoal({
         provider,
@@ -227,66 +181,33 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
         runtimeCapabilities: capabilityProbe,
       });
       spinner.succeed(
-        dryRun ? "Plan für Dry-Run im Speicher erzeugt" : `Plan gespeichert: ${targetPlanPath}`,
+        dryRun ? "Plan created in memory for dry run" : `Plan saved: ${targetPlanPath}`,
       );
       return generatedPlan;
     } catch (error) {
-      spinner.fail("Plan-Erstellung fehlgeschlagen");
+      spinner.fail("Plan creation failed");
       throw error;
     }
   };
 
-  let plan = null;
-  const goalFromFile = goalFilePath ? await readGoalFromFile(goalFilePath) : "";
-
-  if (!planPath) {
-    if (goalFromFile) {
-      planPath = resolveAbsolutePath(await askPlanOutputPath(cwd), cwd);
-      plan = await createPlan(goalFromFile, planPath);
-    } else {
-      const planSelection = await askPlanSelection(cwd);
-      if (planSelection.action === "load") {
-        if (!planSelection.planPath) {
-          throw new Error("Plan-Auswahl ungültig: kein Pfad für bestehenden Plan.");
-        }
-        planPath = resolveAbsolutePath(planSelection.planPath ?? "", cwd);
-      } else {
-        const goal = await askGoal();
-        planPath = resolveAbsolutePath(await askPlanOutputPath(cwd), cwd);
-        plan = await createPlan(goal, planPath);
-      }
-    }
-  }
-
-  if (!plan) {
-    if (!(await fileExists(planPath))) {
-      if (!goalFromFile) {
-        throw new Error(`Plan-Datei nicht gefunden: ${planPath}`);
-      }
-      plan = await createPlan(goalFromFile, planPath);
-    } else {
-      plan = await loadPlan(planPath);
-    }
-  }
-
-  // Sanitize stale in_progress steps from interrupted runs
-  let sanitizedCount = 0;
-  for (const step of plan.steps) {
-    if (step.status === "in_progress") {
-      step.status = "pending";
-      sanitizedCount += 1;
-    }
-  }
-  if (sanitizedCount > 0) {
-    console.log(
-      chalk.yellow(
-        `[ralph] ${sanitizedCount} step(s) were left in_progress from a previous interrupted run. Reset to pending.`,
-      ),
-    );
-    if (!dryRun) {
-      await savePlan(planPath, plan);
-    }
-  }
+  const bootstrapResult = await bootstrapPlan({
+    cwd,
+    dryRun,
+    initialPlanPath: planPath,
+    initialGoalFilePath: goalFilePath,
+    askGoal,
+    askPlanOutputPath,
+    askPlanSelection: async (selectionCwd) => {
+      const selected = await askPlanSelection(selectionCwd);
+      return { action: selected.action, planPath: selected.planPath };
+    },
+    createPlan,
+    loadPlan,
+    savePlan,
+    logWarning: (message) => console.log(chalk.yellow(message)),
+  });
+  const plan = bootstrapResult.plan;
+  planPath = bootstrapResult.planPath;
 
   if (!maxIterations) {
     maxIterations = await askMaxIterations(plan.metadata.totalIterations || 10);
@@ -346,7 +267,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
       event: "run_finished",
       details: "status=aborted_by_user",
     });
-    console.log(chalk.yellow("Abgebrochen."));
+    console.log(chalk.yellow("Aborted."));
     console.log(chalk.cyan(`Run log: ${path.relative(cwd, runLogger.filePath) || runLogger.filePath}`));
     return;
   }
@@ -369,7 +290,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     sessionId: sessionStrategy === "resume" ? plan.metadata.resumeSessionId : undefined,
   });
 
-  const spinner = ora("Starte Ralph Loop...").start();
+  const spinner = ora("Starting Ralph Loop...").start();
   spinner.stop();
 
   const summary = await runRalphLoop({
@@ -392,10 +313,37 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     runLogger,
   });
 
-  console.log(chalk.green(`\nRalph Loop abgeschlossen. Iterationen: ${summary.iterationsRun}`));
+  console.log(chalk.green(`\nRalph Loop completed. Iterations: ${summary.iterationsRun}`));
   console.log(chalk.green(`Done steps: ${summary.completedSteps}`));
+  console.log(chalk.cyan(`Provider attempts: ${summary.analytics.providerAttempts}`));
+  console.log(chalk.cyan(`Provider retries: ${summary.analytics.providerRetries}`));
+  console.log(
+    chalk.cyan(
+      `Success criteria: pass=${summary.analytics.successCriteria.passed} fail=${summary.analytics.successCriteria.failed} duration=${summary.analytics.successCriteria.totalDurationMs}ms`,
+    ),
+  );
+  console.log(
+    chalk.cyan(
+      `Step post-checks: run=${summary.analytics.stepPostChecks.commandsRun} pass=${summary.analytics.stepPostChecks.passed} fail=${summary.analytics.stepPostChecks.failed} duration=${summary.analytics.stepPostChecks.totalDurationMs}ms`,
+    ),
+  );
+  console.log(
+    chalk.cyan(
+      `Provider events: thinking=${summary.analytics.providerEvents.thinking}, tool_call=${summary.analytics.providerEvents.tool_call}, tool_result=${summary.analytics.providerEvents.tool_result}, assistant_text=${summary.analytics.providerEvents.assistant_text}, status=${summary.analytics.providerEvents.status}, error=${summary.analytics.providerEvents.error}`,
+    ),
+  );
   if (summary.failedSteps > 0) {
     console.log(chalk.red(`Failed steps: ${summary.failedSteps}`));
+    for (const step of plan.steps) {
+      if (step.status === "failed") {
+        console.log(chalk.red(`\n[${step.id}] ${step.title} failed:`));
+        if (step.lastError) {
+          console.log(chalk.redBright(step.lastError));
+        } else {
+          console.log(chalk.redBright("Unknown error."));
+        }
+      }
+    }
   }
 
   try {
@@ -424,121 +372,4 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
 
   console.log(chalk.cyan(`Plan: ${path.relative(cwd, planPath) || planPath}`));
   console.log(chalk.cyan(`Run log: ${path.relative(cwd, runLogger.filePath) || runLogger.filePath}`));
-}
-
-function coerceSessionStrategy(value?: string): SessionStrategy {
-  if (!value) {
-    return DEFAULT_SESSION_STRATEGY;
-  }
-  if (VALID_SESSION_STRATEGIES.includes(value as SessionStrategy)) {
-    return value as SessionStrategy;
-  }
-  throw new Error(`Ungültige session strategy: ${value}`);
-}
-
-function coerceProviderId(value?: string): ProviderId | null {
-  if (!value) {
-    return null;
-  }
-  if (value === "openai" || value === "anthropic" || value === "google") {
-    return value;
-  }
-  throw new Error(`Ungültiger provider: ${value}`);
-}
-
-function coercePostCheckProfile(value?: string): PostCheckProfile {
-  if (!value) {
-    return DEFAULT_POST_CHECK_PROFILE;
-  }
-  if (VALID_POST_CHECK_PROFILES.includes(value as PostCheckProfile)) {
-    return value as PostCheckProfile;
-  }
-  throw new Error(`Ungültiges post-check profile: ${value}`);
-}
-
-function coerceLogFormat(value?: string): RunLogFormat {
-  if (!value) {
-    return DEFAULT_LOG_FORMAT;
-  }
-  if (VALID_LOG_FORMATS.includes(value as RunLogFormat)) {
-    return value as RunLogFormat;
-  }
-  throw new Error(`Ungültiges log format: ${value}`);
-}
-
-function coerceOutputMode(value?: string): OutputMode {
-  if (!value) {
-    return DEFAULT_OUTPUT_MODE;
-  }
-  if (VALID_OUTPUT_MODES.includes(value as OutputMode)) {
-    return value as OutputMode;
-  }
-  throw new Error(`Ungültiger output mode: ${value}`);
-}
-
-function coerceThinkingVisibility(value?: string): ThinkingVisibility {
-  if (!value) {
-    return DEFAULT_THINKING_VISIBILITY;
-  }
-  if (VALID_THINKING_VISIBILITY.includes(value as ThinkingVisibility)) {
-    return value as ThinkingVisibility;
-  }
-  throw new Error(`Ungültige thinking visibility: ${value}`);
-}
-
-async function resolvePlanTemplatePath(cwd: string): Promise<string> {
-  const candidates = new Set<string>();
-
-  let cursor = path.resolve(cwd);
-  while (true) {
-    candidates.add(path.join(cursor, PLAN_TEMPLATE_RELATIVE_PATH));
-    const parent = path.dirname(cursor);
-    if (parent === cursor) {
-      break;
-    }
-    cursor = parent;
-  }
-
-  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  cursor = moduleDir;
-  while (true) {
-    candidates.add(path.join(cursor, PLAN_TEMPLATE_RELATIVE_PATH));
-    const parent = path.dirname(cursor);
-    if (parent === cursor) {
-      break;
-    }
-    cursor = parent;
-  }
-
-  for (const candidate of candidates) {
-    if (await fileExists(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw new Error(`Template-Datei nicht gefunden. Erwarteter Pfad: ${PLAN_TEMPLATE_RELATIVE_PATH}`);
-}
-
-function isGoalFilePath(filePath: string): boolean {
-  return /\.(md|markdown|txt)$/i.test(filePath);
-}
-
-function toJsonPlanPath(filePath: string): string {
-  if (/\.[^./\\]+$/.test(filePath)) {
-    return filePath.replace(/\.[^./\\]+$/, ".json");
-  }
-  return `${filePath}.json`;
-}
-
-async function readGoalFromFile(goalFilePath: string): Promise<string> {
-  if (!(await fileExists(goalFilePath))) {
-    throw new Error(`Goal-Datei nicht gefunden: ${goalFilePath}`);
-  }
-
-  const goal = (await fs.readFile(goalFilePath, "utf8")).trim();
-  if (!goal) {
-    throw new Error(`Goal-Datei ist leer: ${goalFilePath}`);
-  }
-
-  return goal;
 }

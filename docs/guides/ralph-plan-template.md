@@ -1,27 +1,27 @@
 # Ralph Plan Template (v1.1.0)
 
-Nutze dieses Template als verbindliche Ausgangsform für `ralph-plan.json`.
+Use this template as the canonical starting format for `ralph-plan.json`.
 
-## Regeln
-1. Ein Step beschreibt genau ein klar abgegrenztes Ergebnis.
-2. `files` enthält `Affected Paths` (glob oder konkrete Dateien).
-3. `successCriteria` ist ein ausführbarer Shell-Command.
-4. `postChecks` enthält optionale zusätzliche Commands pro Step.
-5. `rollbackHint` beschreibt den schnellsten sicheren Rückweg.
-6. `riskLevel` ist konservativ zu setzen (`high` bei Unsicherheit).
+## Rules
+1. A step must describe exactly one clearly scoped outcome.
+2. `files` contains `Affected Paths` (glob patterns or concrete files).
+3. `successCriteria` must be an executable shell command.
+4. `postChecks` contains optional additional commands per step.
+5. `rollbackHint` describes the fastest safe rollback path.
+6. Set `riskLevel` conservatively (`high` when uncertain).
 
 ## JSON Template
 
 ```json
 {
   "schemaVersion": "1.1.0",
-  "goal": "Kurzbeschreibung des Ziels",
+  "goal": "Short goal description",
   "createdAt": "2026-02-19T00:00:00.000Z",
   "steps": [
     {
       "id": "step-01",
       "title": "Titel",
-      "description": "Konkrete Umsetzung in 1-3 Sätzen",
+      "description": "Concrete implementation plan in 1-3 sentences",
       "successCriteria": "cd scripts/ralph && npm run test",
       "status": "pending",
       "attempts": 0,
@@ -49,23 +49,23 @@ Nutze dieses Template als verbindliche Ausgangsform für `ralph-plan.json`.
 }
 ```
 
-## Definition of Done pro Step
+## Definition of Done per Step
 1. `status=done`
-2. `successCriteria` erfolgreich ausgeführt
-3. falls gesetzt: `postChecks` erfolgreich ausgeführt
-4. Reviewbare Änderungen im Ziel-Scope
+2. `successCriteria` executed successfully
+3. if set: `postChecks` executed successfully
+4. reviewable changes inside the target scope
 
-## Gate-Matrix (Empfehlung)
-1. `low`: mindestens `./scripts/check_refactor_scope_allowlist.sh`
+## Gate Matrix (Recommended)
+1. `low`: at least `./scripts/check_refactor_scope_allowlist.sh`
 2. `medium`: plus `./scripts/check_file_size_limits.sh`
-3. `high`: plus `./scripts/agent_governance_check.sh` und `python3 scripts/check_provider_capabilities.py --provider all --format json`
+3. `high`: plus `./scripts/agent_governance_check.sh` and `python3 scripts/check_provider_capabilities.py --provider all --format json`
 
 ## Affected Paths (Guideline)
-1. Nutze repo-relative Pfade.
-2. Bei großem Scope lieber mehrere kleine Steps mit je engem `files`-Set.
-3. Beispiel: `backend/app/services/inventory.py` statt nur `backend/`.
+1. Use repository-relative paths.
+2. For large scope, prefer multiple small steps with narrow `files` sets.
+3. Example: `backend/app/services/inventory.py` instead of only `backend/`.
 
-## Empfohlene Risk-Class Heuristik
-1. `low`: lokale Doku/Tests, keine Verträge verändert.
-2. `medium`: mehrere Dateien, internes Refactoring ohne API-Änderung.
-3. `high`: API-/Schema-/Sicherheits-/Migrationsänderung.
+## Recommended Risk-Class Heuristic
+1. `low`: local docs/tests, no contract changes.
+2. `medium`: multiple files, internal refactor without API changes.
+3. `high`: API/schema/security/migration changes.

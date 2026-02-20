@@ -48,14 +48,6 @@
       ],
       "env": {}
     },
-    "directstock-openai-docs": {
-      "command": "bash",
-      "args": [
-        "-lc",
-        "exec \"$(git rev-parse --show-toplevel)/scripts/mcp/start_openai_docs_server.sh\""
-      ],
-      "env": {}
-    },
     "directstock-context7": {
       "command": "bash",
       "args": [
@@ -81,17 +73,9 @@
         "directstock-github",
         "directstock-playwright",
         "directstock-git",
-        "directstock-memory"
-      ]
-    },
-    "dev-full": {
-      "servers": [
-        "directstock-filesystem",
-        "directstock-postgres",
-        "directstock-github",
-        "directstock-playwright",
-        "directstock-git",
-        "directstock-memory"
+        "directstock-memory",
+        "directstock-context7",
+        "directstock-fetch"
       ]
     },
     "ci-readonly": {
@@ -130,7 +114,6 @@
         "directstock-github",
         "directstock-git",
         "directstock-memory",
-        "directstock-openai-docs",
         "directstock-context7",
         "directstock-fetch"
       ]

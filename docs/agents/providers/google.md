@@ -12,6 +12,9 @@
 4. `mcp_tooling`
 5. `gemini_cli_headless`
 6. `context_import_directives`
+7. `a2a_v0_3`
+8. `interactions_api`
+9. `adk_typescript`
 
 ## Capability To Behavior Mapping
 1. `adk_workflows` -> model multi-step autonomous work as explicit workflow state transitions.
@@ -20,6 +23,30 @@
 4. `mcp_tooling` -> prefer MCP-backed context retrieval for repo/runtime truth.
 5. `gemini_cli_headless` -> use `gemini -p "<prompt>" --output-format json --approval-mode yolo` for non-interactive automated/CI workflows.
 6. `context_import_directives` -> use `@<path>` references in `GEMINI.md` for modular context loading.
+7. `a2a_v0_3` -> Agent-to-Agent Protocol v0.3 (Linux Foundation governance) for cross-provider agent communication.
+8. `interactions_api` -> Interactions API (beta) for stateful multi-turn agent conversations.
+9. `adk_typescript` -> ADK TypeScript support for type-safe agent development.
+
+## Gemini 3.1 Pro (Feb 2026)
+Gemini 3.1 Pro Preview is the current flagship model:
+- #1 on SWE-Bench (as of 19 Feb 2026)
+- Marked as SOTA in Ralph model catalog
+- Full ADK v2 and A2A v0.3 support
+- Enhanced reasoning for complex multi-file changes
+
+## A2A v0.3 (Linux Foundation)
+Agent-to-Agent Protocol v0.3 under Linux Foundation governance:
+- Standard Agent Card format for capability advertisement
+- Capability discovery before delegation
+- Schema-disciplined payloads (maps to existing handoff-protocol.md)
+- Complementary to MCP: A2A is agent-to-agent, MCP is agent-to-tool
+- See `docs/agents/handoff-protocol.md` for A2A-compatible handoff format
+
+## ADK TypeScript Support (Feb 2026)
+Google ADK now supports TypeScript alongside Python:
+- Type-safe agent workflow definitions
+- Native integration with Node.js/TypeScript projects
+- Compatible with existing MCP server configurations
 
 ## ADK Workflow Agent Types (v2, Feb 2026)
 | Type | Use When |
@@ -41,6 +68,13 @@ Use for conditional workflows:
 ```
 CustomAgent: check file type → if backend → run pytest → if frontend → run vitest + build
 ```
+
+## Interactions API (Beta)
+Stateful multi-turn agent conversations:
+- Persistent conversation state across turns
+- Built-in context management
+- Suitable for long-running autonomous tasks
+- Complementary to ADK workflows for stateful orchestration
 
 ## Conversation Checkpointing
 For long-running tasks (30+ min), use conversation checkpointing:
@@ -68,7 +102,7 @@ For long-running tasks (30+ min), use conversation checkpointing:
 `direct ralph` must stay aligned with Gemini CLI behavior:
 1. Non-interactive execution uses `gemini -p "<prompt>" --output-format json --approval-mode yolo`.
 2. Resume mode uses `--resume <session-id>` and persists `session_id` in plan metadata.
-3. Ralph model catalog includes `gemini-3.1-pro-preview` with the same thinking profile options as 3.0 Pro.
+3. Ralph model catalog includes `gemini-3.1-pro-preview` as SOTA with the same thinking profile options as 3.0 Pro.
 4. Fallback order keeps higher-capability Gemini models before flash fallback.
 5. Capability probe runs before loop start; strict mode: `--strict-provider-capabilities`.
 

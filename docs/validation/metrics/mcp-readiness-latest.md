@@ -1,10 +1,10 @@
 # MCP Readiness Snapshot
 
-Generated at: 2026-02-19T20:56:11Z
+Generated at: 2026-02-20T05:54:01Z
 
 ## Summary
 
-- Overall status: blocked
+- Overall status: ready
 - Configuration source: .mcp.json
 - Active profile: docs-research
 - Config file: /Users/tobiasmorixbauer/.codex/config.toml
@@ -20,7 +20,7 @@ Generated at: 2026-02-19T20:56:11Z
 | playwright | no | blocked | server not configured |
 | git | yes | pass | startup probe ok; version=2026.1.14 |
 | memory | yes | pass | startup probe ok; version=2026.1.26 |
-| openai-docs | yes | blocked | [61041] Using automatically selected callback port: 14571 [61041] Discovering OAuth server configuration... [61041] [61041] Connecting to remote server: https://mcp.openai.com/mcp ; endpoint=https://mcp.openai.com/mcp; remote=0.1.38; remote auth/network prerequisite missing |
+| openai-docs | yes | pass | startup probe ok; endpoint=https://mcp.openai.com/mcp; remote=0.1.38 |
 | context7 | yes | pass | startup probe ok; version=2.1.1 |
 | fetch | yes | pass | startup probe ok; version=2025.4.7 |
 

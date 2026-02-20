@@ -46,7 +46,47 @@
       }
     },
     "next_actions": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 3 },
-    "assumptions": { "type": "array", "items": { "type": "string" } }
+    "assumptions": { "type": "array", "items": { "type": "string" } },
+    "a2a": {
+      "type": "object",
+      "required": ["protocol_version", "sender", "receiver", "interaction_id"],
+      "properties": {
+        "protocol_version": { "type": "string", "enum": ["0.3"] },
+        "sender": {
+          "type": "object",
+          "required": ["agent_id", "provider", "model"],
+          "properties": {
+            "agent_id": { "type": "string", "minLength": 1 },
+            "provider": { "type": "string", "minLength": 1 },
+            "model": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "receiver": {
+          "type": "object",
+          "required": ["agent_id", "provider", "model"],
+          "properties": {
+            "agent_id": { "type": "string", "minLength": 1 },
+            "provider": { "type": "string", "minLength": 1 },
+            "model": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "capabilities_declared": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "capabilities_required": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "interaction_id": { "type": "string", "minLength": 1 },
+        "checkpoint_id": { "type": "string", "minLength": 1 },
+        "agent_card_ref": { "type": "string", "minLength": 1 },
+        "handoff_reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

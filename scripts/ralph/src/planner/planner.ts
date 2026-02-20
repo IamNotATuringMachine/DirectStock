@@ -60,16 +60,16 @@ const PLANNER_OUTPUT_SCHEMA = {
 
 function buildPlannerPrompt(goal: string): string {
   return [
-    "Du bist ein Senior Engineer. Zerlege die folgende Aufgabe in kleine, messbare Einzelschritte.",
+    "You are a senior engineer. Break the following task into small, measurable steps.",
     "",
-    "Jeder Schritt muss:",
-    "1. Genau eine Datei oder ein klar abgegrenztes Modul betreffen",
-    "2. Ein messbares Erfolgskriterium haben",
-    "3. Unabhaengig genug sein, um in einer einzelnen Agent-Session abgeschlossen zu werden",
+    "Each step must:",
+    "1. Affect exactly one file or one clearly scoped module",
+    "2. Have measurable success criteria",
+    "3. Be independent enough to finish within a single agent session",
     "",
-    `Aufgabe: ${goal}`,
+    `Task: ${goal}`,
     "",
-    "Antworte NUR mit gueltigem JSON im Format:",
+    "Reply ONLY with valid JSON in this format:",
     "{",
     '  "goal": "string",',
     '  "steps": [',
@@ -115,7 +115,7 @@ export async function createPlanFromGoal(input: CreatePlanInput): Promise<Plan> 
 
   if (!outputSchemaPath && !capabilityState.supportsJsonSchema) {
     console.warn(
-      `[ralph planner] ${input.provider.name} hat kein natives Schema-Enforcement. Verwende Prompt+Zod-Fallback.`,
+      `[ralph planner] ${input.provider.name} has no native schema enforcement. Using prompt+Zod fallback.`,
     );
   }
 

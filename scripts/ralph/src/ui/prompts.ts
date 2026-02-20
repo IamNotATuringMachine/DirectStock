@@ -14,14 +14,14 @@ export interface PlanSelectionResult {
 
 export async function askUsePreset(preset: RalphPreset): Promise<boolean> {
   return confirm({
-    message: `Letztes Preset verwenden? (${preset.provider}, ${preset.model}, ${preset.maxIterations} Iterationen)`,
+    message: `Use last preset? (${preset.provider}, ${preset.model}, ${preset.maxIterations} iterations)`,
     default: true,
   });
 }
 
 export async function askProvider(): Promise<ProviderId> {
   return select<ProviderId>({
-    message: "Provider & Agenten-CLI auswählen:",
+    message: "Select provider and agent CLI:",
     choices: [
       { value: "anthropic", name: PROVIDER_LABELS.anthropic },
       { value: "openai", name: PROVIDER_LABELS.openai },
@@ -32,13 +32,13 @@ export async function askProvider(): Promise<ProviderId> {
 
 export async function askModel(adapter: ProviderAdapter): Promise<string> {
   const selected = await select<string>({
-    message: "Modell auswählen:",
+    message: "Select model:",
     choices: [
       ...adapter.models.map((model) => ({
         value: model.value,
         name: model.tag ? `${model.label} (${model.tag})` : model.label,
       })),
-      { value: CUSTOM_MODEL_VALUE, name: "Custom Model eingeben" },
+      { value: CUSTOM_MODEL_VALUE, name: "Enter custom model" },
     ],
     default: adapter.defaultModel,
   });
@@ -52,13 +52,13 @@ export async function askModel(adapter: ProviderAdapter): Promise<string> {
 
 export async function askThinking(adapter: ProviderAdapter): Promise<string> {
   const selected = await select<string>({
-    message: "Thinking/Reasoning Konfiguration:",
+    message: "Thinking/reasoning configuration:",
     choices: [
       ...adapter.thinkingOptions.map((option) => ({
         value: option.value,
         name: option.label,
       })),
-      { value: "__custom__", name: "Custom Wert eingeben" },
+      { value: "__custom__", name: "Enter custom value" },
     ],
     default: adapter.defaultThinking,
   });
@@ -67,7 +67,7 @@ export async function askThinking(adapter: ProviderAdapter): Promise<string> {
     return selected;
   }
 
-  return input({ message: "Custom Thinking-Wert:", validate: nonEmpty });
+  return input({ message: "Custom thinking value:", validate: nonEmpty });
 }
 
 export async function listPlanCandidates(cwd: string): Promise<string[]> {
@@ -89,15 +89,15 @@ export async function askPlanSelection(cwd: string): Promise<PlanSelectionResult
   const selected = await select<string>({
     message:
       candidates.length > 1
-        ? "Mehrere Plan-Dateien gefunden. Welche möchtest du verwenden?"
-        : "Plan-Datei gefunden. Wie möchtest du fortfahren?",
+        ? "Multiple plan files found. Which one do you want to use?"
+        : "Plan file found. How do you want to proceed?",
     choices: [
       ...candidates.map((candidate) => ({
         value: candidate,
         name: path.basename(candidate),
       })),
-      { value: "__create__", name: "Neuen Plan erstellen" },
-      { value: "__manual__", name: "Pfad manuell eingeben" },
+      { value: "__create__", name: "Create new plan" },
+      { value: "__manual__", name: "Enter path manually" },
     ],
     default: candidates[0],
   });
@@ -115,7 +115,7 @@ export async function askPlanSelection(cwd: string): Promise<PlanSelectionResult
 
 export async function askGoal(): Promise<string> {
   return input({
-    message: "Beschreibe das Ziel:",
+    message: "Describe the goal:",
     validate: nonEmpty,
   });
 }
@@ -123,7 +123,7 @@ export async function askGoal(): Promise<string> {
 export async function askPlanOutputPath(cwd: string): Promise<string> {
   const defaultPath = path.join(cwd, "ralph-plan.json");
   return input({
-    message: "Pfad für neuen Plan:",
+    message: "Path for new plan:",
     default: defaultPath,
     validate: nonEmpty,
   });
@@ -139,11 +139,11 @@ export async function askExistingPlanPath(cwd: string): Promise<string> {
 
   choices.push({
     value: "__manual__",
-    name: "Pfad manuell eingeben",
+    name: "Enter path manually",
   });
 
   const selected = await select<string>({
-    message: "Plan-Datei auswählen:",
+    message: "Select plan file:",
     choices,
   });
 
@@ -152,19 +152,19 @@ export async function askExistingPlanPath(cwd: string): Promise<string> {
   }
 
   return input({
-    message: "Plan-Pfad:",
+    message: "Plan path:",
     validate: nonEmpty,
   });
 }
 
 export async function askMaxIterations(defaultValue = 10): Promise<number> {
   const raw = await input({
-    message: "Maximale Iterationen:",
+    message: "Maximum iterations:",
     default: String(defaultValue),
     validate: (value) => {
       const num = Number(value);
       if (!Number.isInteger(num) || num < 1 || num > 100) {
-        return "Bitte eine Ganzzahl zwischen 1 und 100 eingeben.";
+        return "Please enter an integer between 1 and 100.";
       }
       return true;
     },
@@ -174,16 +174,16 @@ export async function askMaxIterations(defaultValue = 10): Promise<number> {
 }
 
 export async function askFinalConfirmation(): Promise<boolean> {
-  return confirm({ message: "Alles korrekt? Starten?", default: true });
+  return confirm({ message: "Everything correct? Start run?", default: true });
 }
 
 function nonEmpty(value: string): true | string {
-  return value.trim().length > 0 ? true : "Wert darf nicht leer sein.";
+  return value.trim().length > 0 ? true : "Value must not be empty.";
 }
 
 async function askManualPlanPath(): Promise<string> {
   return input({
-    message: "Plan-Pfad:",
+    message: "Plan path:",
     validate: nonEmpty,
   });
 }

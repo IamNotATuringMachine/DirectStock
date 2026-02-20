@@ -13,6 +13,8 @@
 5. `subagent_orchestration`
 6. `hooks_lifecycle`
 7. `skills_directory`
+8. `agent_teams`
+9. `session_memory`
 
 ## Capability To Behavior Mapping
 1. `claude_code_hooks` -> deterministic pre/post checks for lint/test/governance gates. Config: `.claude/hooks.json`.
@@ -20,8 +22,32 @@
 3. `prompt_caching` -> cache long governance/context prompts to reduce drift and latency.
 4. `mcp_connectors` -> MCP connectors are preferred for local runtime and repo context.
 5. `subagent_orchestration` -> delegate complex subtasks to scoped subagents with isolated context.
-6. `hooks_lifecycle` -> `SessionStart`, `PreToolUse`, `PostToolUse`, `SubagentStart` events for automation.
+6. `hooks_lifecycle` -> `SessionStart`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Stop`, `SubagentStop` events for automation.
 7. `skills_directory` -> reusable task recipes in `.claude/skills/` for recurring patterns.
+8. `agent_teams` -> parallel subtask execution via Claude Agent Teams (experimental, `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`).
+9. `session_memory` -> 4-layer memory architecture: CLAUDE.md → MEMORY.md → Auto Memory → Session Memory.
+
+## Agent Teams (Feb 2026)
+Claude 4.6 Opus/Sonnet support Agent Teams for parallel autonomous subtask execution:
+- Enable with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+- Each team member gets scoped context and permissions
+- Use for independent frontend/backend/governance work
+- Team results merge back to orchestrator agent
+- Handoffs follow `docs/agents/handoff-protocol.md`
+
+## Hook Types
+Claude Code supports these hook lifecycle events:
+- `SessionStart`: session initialization
+- `PreToolUse`: before tool execution
+- `PostToolUse`: after tool execution
+- `PreCompact`: before context compaction (for structured summary extraction)
+- `Stop`: session end (for governance reminders)
+- `SubagentStop`: subagent completion (for handoff validation)
+
+Hook types:
+- `command`: shell command execution
+- `prompt`: Claude decision-making at lifecycle points
+- `agent`: isolated sub-agents for multi-turn verification
 
 ## Deterministic Runtime Rules
 1. Use repository policy from `AGENTS.md`; do not mirror policy into local memory.
@@ -42,6 +68,29 @@
 3. Resume mode uses `--resume <session-id>` and persists `session_id` in plan metadata.
 4. Capability probe runs before loop start; strict mode: `--strict-provider-capabilities`.
 
+## Memory Architecture (4 Layers)
+1. `CLAUDE.md` — project-level adapter instructions (checked into repo)
+2. `MEMORY.md` — persistent auto-memory loaded into system prompt
+3. Auto Memory files — topic-specific notes in `.claude/projects/*/memory/`
+4. Session Memory — ephemeral context within a single conversation
+
+## Extended Thinking (Sonnet 4.6+)
+For complex architecture changes, multi-file refactors, or debugging:
+- Enable extended thinking for deeper reasoning chains
+- Uses `budget_tokens` parameter for thinking allocation
+- Particularly useful for cross-cutting concerns and contract synchronization
+
+## Skills Directory (Feb 2026)
+Reusable task recipes in `.claude/skills/`:
+- `backend-endpoint.md` — end-to-end API endpoint creation
+- `frontend-page.md` — frontend page creation/modernization
+- `self-check.md` — governance self-check before session end
+- `migration.md` — Alembic migration workflow
+- `debugging.md` — systematic debugging workflow
+- `performance.md` — performance audit workflow
+
+Skills provide deterministic, domain-specific expertise that improves consistency across sessions.
+
 ## Fallback Order
 1. `AGENTS.md`
 2. `docs/agents/providers/anthropic.md`
@@ -51,26 +100,7 @@
 1. If hooks or cache features are unavailable, run equivalent shell/script checks directly.
 2. Any high-risk autonomous action must write to `docs/agents/decision-log.md`.
 3. If subagent orchestration is unavailable, execute tasks sequentially in main context.
-
-## Skills Directory (Feb 2026)
-Reusable task recipes in `.claude/skills/`:
-- `backend-endpoint.md` — end-to-end API endpoint creation
-- `frontend-page.md` — frontend page creation/modernization
-- `self-check.md` — governance self-check before session end
-
-Skills provide deterministic, domain-specific expertise that improves consistency across sessions.
-
-## Agent Hook Types
-Beyond `command` hooks, Claude Code supports:
-- `agent` type: spins up isolated sub-agents for multi-turn verification
-- `prompt` type: uses Claude for decision-making at lifecycle points
-
-Current hooks config: `.claude/hooks.json`
-
-## Extended Thinking (Sonnet 4.6+)
-For complex architecture changes, multi-file refactors, or debugging:
-- Enable extended thinking for deeper reasoning chains
-- Particularly useful for cross-cutting concerns and contract synchronization
+4. If agent teams are unavailable, fall back to sequential subagent execution.
 
 ## Mandatory Verification Artifacts
 1. `python3 scripts/check_provider_capabilities.py --provider anthropic --format json`

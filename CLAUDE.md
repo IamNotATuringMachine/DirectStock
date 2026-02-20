@@ -7,6 +7,7 @@ This file is a Claude-specific adapter.
 Active repo mode: `unrestricted_senior`.
 - Anthropic provider profile: `docs/agents/providers/anthropic.md`.
 - Machine-readable contract: `docs/agents/policy.contract.yaml`.
+- Universal LLM entry point: `llms.txt`.
 
 ## How To Use With Claude Code
 - Keep this file lightweight and tool-specific.
@@ -18,6 +19,11 @@ Hooks are configured in `.claude/hooks.json` and auto-execute at lifecycle point
 - `SessionStart`: displays project mode reminder
 - `PreToolUse`: notifies on file edits
 - `PostToolUse`: checks file size limits after edits
+- `PreCompact`: structured summary extraction before context compaction
+- `Stop`: governance reminder (decision-log, incident-log check)
+- `SubagentStop`: handoff validation for subagent results
+
+Hook types: `command` (shell), `prompt` (Claude decision), `agent` (isolated sub-agent).
 
 ## Claude Code Permissions
 Permissions are configured in `.claude/settings.json`:
@@ -25,10 +31,20 @@ Permissions are configured in `.claude/settings.json`:
 - All development commands allowed (npm, python, docker, git, scripts)
 - Destructive system-level operations blocked
 
-## Claude Memory Pattern
-- You can reference files with `@path` in prompts when needed.
-- Keep reusable persistent preferences in Claude local memory, but do not duplicate repository policy there.
-- If local memory conflicts with repository instructions, repository instructions win.
+## Agent Teams (Experimental)
+Claude 4.6 supports Agent Teams for parallel subtask execution:
+- Enable with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+- Each team member gets scoped context and permissions
+- Use for independent frontend/backend/governance work
+- Handoffs follow `docs/agents/handoff-protocol.md`
+
+## Memory Architecture (4 Layers)
+1. `CLAUDE.md` — project-level adapter instructions (checked into repo)
+2. `MEMORY.md` — persistent auto-memory loaded into system prompt
+3. Auto Memory files — topic-specific notes in `.claude/projects/*/memory/`
+4. Session Memory — ephemeral context within a single conversation
+
+If local memory conflicts with repository instructions, repository instructions win.
 
 ## Subagent Orchestration
 For complex tasks, use Claude subagents with scoped instructions:
@@ -42,6 +58,9 @@ Reusable task recipes in `.claude/skills/`:
 - `backend-endpoint.md` — end-to-end API endpoint creation
 - `frontend-page.md` — frontend page creation/modernization
 - `self-check.md` — governance self-check before session end
+- `migration.md` — Alembic migration workflow
+- `debugging.md` — systematic debugging workflow
+- `performance.md` — performance audit workflow
 
 ## Prompt Caching
 For long governance contexts, use prompt caching breakpoints:

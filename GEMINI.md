@@ -7,6 +7,7 @@ This file is a Gemini CLI-specific adapter.
 Active repo mode: `unrestricted_senior`.
 - Google provider profile: `docs/agents/providers/google.md`.
 - Machine-readable contract: `docs/agents/policy.contract.yaml`.
+- Universal LLM entry point: `llms.txt`.
 
 ## Context Strategy
 - Keep project rules in `AGENTS.md`.
@@ -22,6 +23,31 @@ Load these files for full project context at session start:
 @docs/agents/repo-map.md
 @docs/agents/change-playbooks.md
 @docs/agents/patterns.md
+
+## Gemini 3.1 Pro (Feb 2026)
+Gemini 3.1 Pro Preview is the current flagship model:
+- #1 on SWE-Bench (as of 19 Feb 2026)
+- Full ADK v2 and A2A v0.3 support
+- Enhanced reasoning for complex multi-file changes
+
+## ADK TypeScript Support (Feb 2026)
+Google ADK now supports TypeScript alongside Python:
+- Type-safe agent workflow definitions
+- Native integration with Node.js/TypeScript projects
+- Compatible with existing MCP server configurations
+
+## A2A v0.3 (Linux Foundation)
+Agent-to-Agent Protocol v0.3 under Linux Foundation governance:
+- Standard Agent Card format for capability advertisement
+- Capability discovery before delegation
+- Complementary to MCP: A2A is agent-to-agent, MCP is agent-to-tool
+- See `docs/agents/handoff-protocol.md` for A2A-compatible format
+
+## Interactions API (Beta)
+Stateful multi-turn agent conversations:
+- Persistent conversation state across turns
+- Built-in context management
+- Suitable for long-running autonomous tasks
 
 ## Gemini CLI Setup Hint
 Gemini CLI can load multiple context filenames. Configure `context.fileName` so `AGENTS.md` is included:
@@ -53,8 +79,7 @@ For long-running tasks, use conversation checkpointing to preserve state:
 - Record high-risk decisions in `docs/agents/decision-log.md`.
 - Validate provider parity: `python3 scripts/agent_policy_lint.py --strict --provider google --format json`.
 - Validate Gemini runtime readiness: `./scripts/check_gemini_readiness.sh --mode runtime`.
-- Enforce runtime MCP allowlist (no extra connected servers): `./scripts/check_gemini_readiness.sh --mode runtime --enforce-allowlist`.
-- Validate Gemini static parity for CI-equivalent checks: `./scripts/check_gemini_readiness.sh --mode static` and `python3 scripts/check_mcp_profile_parity.py --strict --format json`.
+- Enforce runtime MCP allowlist: `./scripts/check_gemini_readiness.sh --mode runtime --enforce-allowlist`.
 - For frontend UI/UX changes, run desktop and mobile gates:
   - `cd frontend && npm run test:e2e:a11y -- --project=web-desktop`
   - `cd frontend && npm run test:e2e:visual -- --project=web-desktop`
@@ -67,10 +92,3 @@ When using Google ADK for multi-agent orchestration:
 2. Use sequential agent for ordered subtasks, parallel agent for independent work
 3. Package repeatable patterns as deterministic execution contracts
 4. Handoffs must follow `docs/agents/handoff-protocol.md`
-
-## A2A Interoperability
-For Agent-to-Agent communication:
-1. Use schema-disciplined payloads (see `docs/agents/handoff.schema.json`)
-2. Implement capability probing before delegation
-3. Use protocol adapters with graceful fallbacks
-4. Keep transport-agnostic — don't couple to specific MCP implementation

@@ -54,16 +54,42 @@ export interface RalphLoopSummary {
   completedSteps: number;
   failedSteps: number;
   iterationsRun: number;
+  analytics: RalphLoopAnalytics;
+}
+
+export type RalphAnalyticsEventType =
+  | "thinking"
+  | "tool_call"
+  | "tool_result"
+  | "error"
+  | "assistant_text"
+  | "status";
+
+export interface RalphLoopAnalytics {
+  providerAttempts: number;
+  providerRetries: number;
+  providerEvents: Record<RalphAnalyticsEventType, number>;
+  successCriteria: {
+    passed: number;
+    failed: number;
+    totalDurationMs: number;
+  };
+  stepPostChecks: {
+    commandsRun: number;
+    passed: number;
+    failed: number;
+    totalDurationMs: number;
+  };
 }
 
 export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): string {
-  const affectedPaths = step.files.length > 0 ? step.files.map((file) => `- ${file}`).join("\n") : "- (nicht angegeben)";
-  const postChecks = step.postChecks.length > 0 ? step.postChecks.map((command) => `- ${command}`).join("\n") : "- (keine)";
+  const affectedPaths = step.files.length > 0 ? step.files.map((file) => `- ${file}`).join("\n") : "- (not specified)";
+  const postChecks = step.postChecks.length > 0 ? step.postChecks.map((command) => `- ${command}`).join("\n") : "- (none)";
 
   return [
-    "Du bist ein Senior Engineer. Du arbeitest an einem iterativen Refactoring-Plan.",
+    "You are a senior engineer working on an iterative refactoring plan.",
     "",
-    "## Dein aktueller Task:",
+    "## Current Task:",
     `${step.id}`,
     `**${step.title}**`,
     step.description,
@@ -74,23 +100,58 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): 
     "## Risk Class:",
     step.riskLevel,
     "",
-    "## Erfolgskriterium:",
+    "## Success Criteria:",
     step.successCriteria,
     "",
     "## Step Post-Checks:",
     postChecks,
     "",
-    "## Regeln:",
-    "1. Arbeite NUR an diesem einen Step",
-    "2. Mache kleine, reviewbare Änderungen",
-    "3. Folge AGENTS.md und dem nächsten nested AGENTS.md",
-    "4. Führe das Erfolgskriterium selbst aus und prüfe das Ergebnis",
-    "5. Committe NICHT selbst - das macht der Ralph Loop",
-    "6. Wenn unklar, dokumentiere offene Punkte in .ralph-notes.md",
+    "## Rules:",
+    "1. Work ONLY on this single step",
+    "2. Make small, reviewable changes",
+    "3. Follow AGENTS.md and the nearest nested AGENTS.md",
+    "4. Execute the success criteria yourself and verify the result",
+    "5. Do NOT commit manually - Ralph Loop handles commits",
+    "6. If anything is unclear, document open points in .ralph-notes.md",
     "",
     "## Git State:",
     gitState,
   ].join("\n");
+}
+
+const ANALYTICS_EVENT_TYPES: RalphAnalyticsEventType[] = [
+  "thinking",
+  "tool_call",
+  "tool_result",
+  "error",
+  "assistant_text",
+  "status",
+];
+
+function createInitialAnalytics(): RalphLoopAnalytics {
+  return {
+    providerAttempts: 0,
+    providerRetries: 0,
+    providerEvents: {
+      thinking: 0,
+      tool_call: 0,
+      tool_result: 0,
+      error: 0,
+      assistant_text: 0,
+      status: 0,
+    },
+    successCriteria: {
+      passed: 0,
+      failed: 0,
+      totalDurationMs: 0,
+    },
+    stepPostChecks: {
+      commandsRun: 0,
+      passed: 0,
+      failed: 0,
+      totalDurationMs: 0,
+    },
+  };
 }
 
 function nextRunnableStep(plan: Plan): Step | undefined {
@@ -408,6 +469,7 @@ async function runStepPostChecks(
 export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSummary> {
   let iterationsRun = 0;
   let resumeSessionId: string | undefined = config.initialResumeSessionId;
+  const analytics = createInitialAnalytics();
 
   if (config.sessionStrategy === "resume" && resumeSessionId) {
     console.log(chalk.cyan(`Resuming provider session from plan metadata: ${resumeSessionId}`));
@@ -488,6 +550,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       streamingEnabled: config.providerStreamingEnabled,
       resumeSessionId,
       onAttemptStart: ({ model, attempt, maxAttempts, timeoutMs }) => {
+        analytics.providerAttempts += 1;
         if (attempt === 1) {
           stalledAttempts.clear();
         }
@@ -559,6 +622,11 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         result,
       }) => {
         const providerEvents = Array.isArray(result.events) ? result.events : [];
+        for (const providerEvent of providerEvents) {
+          if (ANALYTICS_EVENT_TYPES.includes(providerEvent.type as RalphAnalyticsEventType)) {
+            analytics.providerEvents[providerEvent.type as RalphAnalyticsEventType] += 1;
+          }
+        }
         printProviderAttemptDone({
           step,
           model,
@@ -595,6 +663,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         }
       },
       onRetry: async ({ model, attempt, delayMs, reason }) => {
+        analytics.providerRetries += 1;
         printRetryScheduled({
           step,
           model,
@@ -666,6 +735,12 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         passed: criteriaResult.passed,
         durationMs: criteriaResult.durationMs,
       });
+      analytics.successCriteria.totalDurationMs += criteriaResult.durationMs;
+      if (criteriaResult.passed) {
+        analytics.successCriteria.passed += 1;
+      } else {
+        analytics.successCriteria.failed += 1;
+      }
 
       const stepPostChecks =
         criteriaResult.passed
@@ -674,6 +749,13 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
               printStepPostChecksStart({ step, total: step.postChecks.length });
             }
             return runStepPostChecks(step.postChecks, config.workingDir, (postCheck) => {
+              analytics.stepPostChecks.commandsRun += 1;
+              analytics.stepPostChecks.totalDurationMs += postCheck.durationMs;
+              if (postCheck.passed) {
+                analytics.stepPostChecks.passed += 1;
+              } else {
+                analytics.stepPostChecks.failed += 1;
+              }
               printStepPostCheckResult({
                 step,
                 command: postCheck.command,
@@ -779,5 +861,6 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     completedSteps,
     failedSteps,
     iterationsRun,
+    analytics,
   };
 }

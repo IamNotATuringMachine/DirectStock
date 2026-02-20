@@ -19,7 +19,27 @@
         ],
         "SessionStart": [
             {
-                "command": "echo '🚀 DirectStock | Mode: unrestricted_senior | Policy: AGENTS.md'"
+                "command": "echo '🚀 DirectStock | Mode: unrestricted_senior | Policy: AGENTS.md | Entry: llms.txt'"
+            }
+        ],
+        "PreCompact": [
+            {
+                "command": "echo '📦 Context compaction triggered. Preserve: facts, decisions, constraints, open questions. See docs/agents/compaction-schema.md.'"
+            },
+            {
+                "type": "prompt",
+                "prompt": "Before context compaction, extract and preserve a structured summary: (1) established facts about the codebase, (2) decisions made in this session, (3) active constraints, (4) open questions. Format as YAML using the schema from docs/agents/compaction-schema.md."
+            }
+        ],
+        "Stop": [
+            {
+                "command": "echo '🏁 Session ending. Check: docs/agents/decision-log.md (if high-risk actions taken), docs/agents/incident-log.md (if failures occurred), docs/agents/patterns.md (if new patterns discovered).'"
+            }
+        ],
+        "SubagentStop": [
+            {
+                "type": "prompt",
+                "prompt": "Validate the subagent result: (1) Does it include all required handoff fields from docs/agents/handoff-protocol.md? (2) Were verification commands executed? (3) Are there unresolved risks? Flag any gaps before accepting the result."
             }
         ]
     }

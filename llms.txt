@@ -1,0 +1,54 @@
+# DirectStock
+
+> Warehouse Management System (WMS) for inventory, purchasing, shipping, and operations management.
+
+## Docs
+
+- [Architecture](ARCHITECTURE.md): System architecture with Mermaid diagrams
+- [Agent Policy](AGENTS.md): Canonical agent instructions (unrestricted_senior mode)
+- [AI Context](.ai-context.md): Ultra-compact project context for any AI agent
+- [Provider Profiles](docs/agents/providers/): Anthropic, OpenAI, Google capability profiles
+- [Policy Contract](docs/agents/policy.contract.yaml): Machine-readable policy and capability matrix
+- [Handoff Protocol](docs/agents/handoff-protocol.md): Agent-to-agent handoff format
+
+## Key Paths
+
+- Backend API: `backend/app/routers/`
+- Business Logic: `backend/app/services/`
+- API Contracts: `backend/app/schemas/`
+- Frontend Pages: `frontend/src/pages/`
+- Frontend Services: `frontend/src/services/`
+- TypeScript Types: `frontend/src/types.ts`
+- Agent Navigation: `docs/agents/entrypoints/`
+- Context Packs: `docs/agents/context-packs/`
+- Agent Workflows: `.agents/workflows/`
+- Skills (Claude): `.claude/skills/`
+- Repo Index: `docs/agents/repo-index.json`
+- Repo Map: `docs/agents/repo-map.md`
+
+## Tech Stack
+
+- **Frontend**: React 19, Vite 7, Tailwind 4, TypeScript, Zustand, TanStack Query, PWA
+- **Backend**: FastAPI, SQLAlchemy 2.x, Alembic, PostgreSQL
+- **Infra**: Docker Compose, Nginx reverse proxy
+- **Agents**: Multi-provider (Anthropic/OpenAI/Google), MCP servers, Ralph Loop CLI
+
+## Architecture
+
+```
+Browser → Nginx → FastAPI routers → services → PostgreSQL
+                   Frontend pages → services → /api/*
+```
+
+## Adapters
+
+- Claude: `CLAUDE.md`
+- Codex: `CODEX.md`
+- Gemini: `GEMINI.md`
+
+## Conventions
+
+- File size: pages <350 LOC, modules <500 LOC
+- All mutations: RBAC + audit + idempotency
+- Frontend API calls through `services/` layer only
+- Routers/pages orchestrate; logic in services/hooks

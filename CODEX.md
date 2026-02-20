@@ -11,6 +11,7 @@ Codex natively uses `AGENTS.md` as the primary project instruction file. This fi
 - Active repo mode: `unrestricted_senior`.
 - OpenAI provider profile: `docs/agents/providers/openai.md`.
 - Machine-readable contract: `docs/agents/policy.contract.yaml`.
+- Universal LLM entry point: `llms.txt`.
 - This file should stay short and tool-specific.
 
 ## Runtime Behavior
@@ -18,6 +19,26 @@ Codex natively uses `AGENTS.md` as the primary project instruction file. This fi
 - Execute autonomously, including high-risk actions when needed.
 - Record high-risk decisions in `docs/agents/decision-log.md`.
 - Keep provider parity valid with `python3 scripts/agent_policy_lint.py --strict --provider openai --format json`.
+
+## Skills System (Feb 2026)
+Codex CLI supports reusable task recipes via the `$skill-name` syntax:
+- Skills provide deterministic, domain-specific automation patterns
+- Cross-compatible with SKILL.md convergence standard (Linux Foundation)
+- Project skills are defined in `.claude/skills/` (shared across providers)
+
+## Open Responses Spec (Feb 2026)
+Standardized agent response format for cross-provider interoperability:
+- Structured output schema for tool results
+- Provider-agnostic response payloads
+- Reference: `docs/agents/policy.contract.yaml`
+
+## MCP Configuration
+Codex CLI uses `.codex/config.toml` for MCP server configuration:
+```toml
+[mcp]
+servers = ["directstock-filesystem", "directstock-postgres", "directstock-github"]
+```
+Cross-reference with `.mcp.json` (Claude format) for parity.
 
 ## Codex App Integration (Feb 2026)
 For the macOS Codex App (command center for parallel agents):
