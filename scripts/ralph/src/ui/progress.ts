@@ -340,9 +340,19 @@ export function printProviderHeartbeat(args: {
   elapsedMs: number;
   timeoutMs: number;
   thinkingChunk?: string;
+  /** Set when the loop is in a transient-retry cycle (e.g. 503) so the spinner
+   *  shows the real state instead of faking "thinking..." */
+  statusHint?: string;
 }): void {
   const elapsed = formatDuration(args.elapsedMs);
-  if (currentSpinner) {
+  if (args.statusHint) {
+    // Honest status — e.g. "⏳ waiting for capacity (503)..."
+    if (currentSpinner) {
+      currentSpinner.text = chalk.yellow(`⏳ ${args.model} ${args.statusHint} (${elapsed})`);
+    } else {
+      console.log(chalk.yellow(`  ⏳ ${args.model} ${args.statusHint} ${elapsed}`));
+    }
+  } else if (currentSpinner) {
     const thinkingText = args.thinkingChunk ? `: ${args.thinkingChunk}` : " thinking...";
     currentSpinner.text = chalk.cyan(`${ICON.thinking} ${args.model}${thinkingText} (${elapsed})`);
   } else {

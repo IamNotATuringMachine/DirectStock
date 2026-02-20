@@ -1,17 +1,17 @@
 {
   "schemaVersion": "1.1.0",
-  "goal": "Jede Frontend-Page auf SOTA UI/UX Pattern pruefen, ueberarbeiten und final via Gemini verifizieren.",
+  "goal": "Audit and modernize every frontend page to state-of-the-art UI/UX patterns, then run a final cross-page consistency pass via Gemini.",
   "createdAt": "2026-02-19T17:24:15.411Z",
+  "systemPrompt": "You are a senior frontend engineer specializing in modern React UI/UX. You are modernizing pages in a warehouse management system to a consistent Phase 5 design system. Tech stack: React 19 + Vite 7 + Tailwind 4 + TypeScript + Zustand + TanStack Query. Design language: Zinc color palette, clean typography hierarchy, subtle micro-animations, responsive layouts. Reference page for visual consistency: InventoryCountPage.tsx. Every page you touch must feel cohesive with the pages already modernized — same spacing, color usage, component patterns, and interaction style. Prefer existing shared components from frontend/src/components/. Extract complex logic into custom hooks. Keep every page file under 350 LOC.",
   "steps": [
     {
       "id": "step-01",
       "title": "UI/UX SOTA Refresh DashboardPage",
-      "description": "Pruefe DashboardPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit DashboardPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
-      "status": "failed",
-      "attempts": 3,
+      "status": "pending",
+      "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "API Error: {\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}\n> directstock-frontend@0.1.0 lint\n> eslint . --max-warnings=0\n\n\n> directstock-frontend@0.1.0 test\n> vitest run\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv4.0.18 \u001b[39m\u001b[90m/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/frontend\u001b[39m\n\n \u001b[32m✓\u001b[39m src/utils/scannerUtils.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/uiPreferencesStore.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/dashboardConfigApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/customersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/authStore.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/salesOrdersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/pricingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/offlineQueue.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/shippingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/operationsApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/interWarehouseTransfersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/components/ProtectedRoute.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/routing/accessRouting.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m45 passed\u001b[39m\u001b[22m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:24:37\n\u001b[2m   Duration \u001b[22m 2.15s\u001b[2m (transform 1.90s, setup 302ms, import 2.44s, tests 43ms, environment 8.81s)\u001b[22m\n\n\n> directstock-frontend@0.1.0 build\n> tsc --noEmit && vite build\n\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(2,15): error TS2724: '\"../../../types\"' has no exported member named 'AlertResponse'. Did you mean 'AlertListResponse'?\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(30,36): error TS7006: Parameter 'alert' implicitly has an 'any' type.\nsrc/pages/dashboard/components/DashboardStats.tsx(2,33): error TS2724: '\"../../../types\"' has no exported member named 'ReportKpiResponse'. Did you mean 'ReportAbcResponse'?",
       "type": "mixed",
       "files": [
         "frontend/src/pages/DashboardPage.tsx",
@@ -33,12 +33,11 @@
     {
       "id": "step-02",
       "title": "UI/UX SOTA Refresh ProductsPage",
-      "description": "Pruefe ProductsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit ProductsPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
-      "status": "failed",
-      "attempts": 3,
+      "status": "pending",
+      "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "API Error: {\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}\n> directstock-frontend@0.1.0 lint\n> eslint . --max-warnings=0\n\n\n> directstock-frontend@0.1.0 test\n> vitest run\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv4.0.18 \u001b[39m\u001b[90m/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/frontend\u001b[39m\n\n \u001b[32m✓\u001b[39m src/utils/scannerUtils.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/authStore.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/customersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/salesOrdersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/dashboardConfigApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/pricingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/uiPreferencesStore.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/operationsApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/offlineQueue.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/shippingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/interWarehouseTransfersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/components/ProtectedRoute.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/routing/accessRouting.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m45 passed\u001b[39m\u001b[22m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:25:03\n\u001b[2m   Duration \u001b[22m 1.88s\u001b[2m (transform 1.49s, setup 202ms, import 2.11s, tests 49ms, environment 7.73s)\u001b[22m\n\n\n> directstock-frontend@0.1.0 build\n> tsc --noEmit && vite build\n\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(2,15): error TS2724: '\"../../../types\"' has no exported member named 'AlertResponse'. Did you mean 'AlertListResponse'?\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(30,36): error TS7006: Parameter 'alert' implicitly has an 'any' type.\nsrc/pages/dashboard/components/DashboardStats.tsx(2,33): error TS2724: '\"../../../types\"' has no exported member named 'ReportKpiResponse'. Did you mean 'ReportAbcResponse'?",
       "type": "mixed",
       "files": [
         "frontend/src/pages/ProductsPage.tsx",
@@ -60,12 +59,11 @@
     {
       "id": "step-03",
       "title": "UI/UX SOTA Refresh ProductFormPage",
-      "description": "Pruefe ProductFormPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit ProductFormPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
-      "status": "failed",
-      "attempts": 3,
+      "status": "pending",
+      "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "API Error: {\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}\n> directstock-frontend@0.1.0 lint\n> eslint . --max-warnings=0\n\n\n> directstock-frontend@0.1.0 test\n> vitest run\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv4.0.18 \u001b[39m\u001b[90m/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/frontend\u001b[39m\n\n \u001b[32m✓\u001b[39m src/utils/scannerUtils.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/uiPreferencesStore.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/dashboardConfigApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/salesOrdersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/authStore.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/customersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/pricingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/operationsApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/offlineQueue.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/interWarehouseTransfersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/shippingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/components/ProtectedRoute.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/routing/accessRouting.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m45 passed\u001b[39m\u001b[22m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:27:32\n\u001b[2m   Duration \u001b[22m 1.91s\u001b[2m (transform 1.43s, setup 184ms, import 2.04s, tests 41ms, environment 8.29s)\u001b[22m\n\n\n> directstock-frontend@0.1.0 build\n> tsc --noEmit && vite build\n\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(2,15): error TS2724: '\"../../../types\"' has no exported member named 'AlertResponse'. Did you mean 'AlertListResponse'?\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(30,36): error TS7006: Parameter 'alert' implicitly has an 'any' type.\nsrc/pages/dashboard/components/DashboardStats.tsx(2,33): error TS2724: '\"../../../types\"' has no exported member named 'ReportKpiResponse'. Did you mean 'ReportAbcResponse'?",
       "type": "mixed",
       "files": [
         "frontend/src/pages/ProductFormPage.tsx",
@@ -87,12 +85,11 @@
     {
       "id": "step-04",
       "title": "UI/UX SOTA Refresh ProductDetailPage",
-      "description": "Pruefe ProductDetailPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit ProductDetailPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
-      "status": "failed",
-      "attempts": 3,
+      "status": "pending",
+      "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "API Error: {\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}\n> directstock-frontend@0.1.0 lint\n> eslint . --max-warnings=0\n\n\n> directstock-frontend@0.1.0 test\n> vitest run\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv4.0.18 \u001b[39m\u001b[90m/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/frontend\u001b[39m\n\n \u001b[32m✓\u001b[39m src/utils/scannerUtils.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/uiPreferencesStore.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/customersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/salesOrdersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/dashboardConfigApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/pricingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/authStore.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/operationsApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/offlineQueue.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/interWarehouseTransfersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/shippingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/components/ProtectedRoute.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/routing/accessRouting.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m45 passed\u001b[39m\u001b[22m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:28:49\n\u001b[2m   Duration \u001b[22m 2.39s\u001b[2m (transform 1.68s, setup 250ms, import 2.26s, tests 37ms, environment 12.05s)\u001b[22m\n\n\n> directstock-frontend@0.1.0 build\n> tsc --noEmit && vite build\n\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(2,15): error TS2724: '\"../../../types\"' has no exported member named 'AlertResponse'. Did you mean 'AlertListResponse'?\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(30,36): error TS7006: Parameter 'alert' implicitly has an 'any' type.\nsrc/pages/dashboard/components/DashboardStats.tsx(2,33): error TS2724: '\"../../../types\"' has no exported member named 'ReportKpiResponse'. Did you mean 'ReportAbcResponse'?",
       "type": "mixed",
       "files": [
         "frontend/src/pages/ProductDetailPage.tsx",
@@ -114,12 +111,11 @@
     {
       "id": "step-05",
       "title": "UI/UX SOTA Refresh InventoryPage",
-      "description": "Pruefe InventoryPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit InventoryPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
-      "status": "failed",
-      "attempts": 3,
+      "status": "pending",
+      "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "API Error: {\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}\n> directstock-frontend@0.1.0 lint\n> eslint . --max-warnings=0\n\n\n> directstock-frontend@0.1.0 test\n> vitest run\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv4.0.18 \u001b[39m\u001b[90m/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/frontend\u001b[39m\n\n \u001b[32m✓\u001b[39m src/utils/scannerUtils.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/salesOrdersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/authStore.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/stores/uiPreferencesStore.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/pricingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/customersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/dashboardConfigApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/operationsApi.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/offlineQueue.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/interWarehouseTransfersApi.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/services/shippingApi.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/routing/accessRouting.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/components/ProtectedRoute.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m45 passed\u001b[39m\u001b[22m\u001b[90m (45)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:36:44\n\u001b[2m   Duration \u001b[22m 2.01s\u001b[2m (transform 1.62s, setup 245ms, import 2.14s, tests 43ms, environment 9.04s)\u001b[22m\n\n\n> directstock-frontend@0.1.0 build\n> tsc --noEmit && vite build\n\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(2,15): error TS2724: '\"../../../types\"' has no exported member named 'AlertResponse'. Did you mean 'AlertListResponse'?\nsrc/pages/dashboard/components/DashboardCriticalAlerts.tsx(30,36): error TS7006: Parameter 'alert' implicitly has an 'any' type.\nsrc/pages/dashboard/components/DashboardStats.tsx(2,33): error TS2724: '\"../../../types\"' has no exported member named 'ReportKpiResponse'. Did you mean 'ReportAbcResponse'?",
       "type": "mixed",
       "files": [
         "frontend/src/pages/InventoryPage.tsx",
@@ -141,12 +137,11 @@
     {
       "id": "step-06",
       "title": "UI/UX SOTA Refresh InventoryCountPage",
-      "description": "Pruefe InventoryCountPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit InventoryCountPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
-      "status": "in_progress",
+      "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/InventoryCountPage.tsx",
@@ -168,12 +163,11 @@
     {
       "id": "step-07",
       "title": "UI/UX SOTA Refresh WarehousePage",
-      "description": "Pruefe WarehousePage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit WarehousePage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/WarehousePage.tsx",
@@ -195,12 +189,11 @@
     {
       "id": "step-08",
       "title": "UI/UX SOTA Refresh GoodsReceiptPage",
-      "description": "Pruefe GoodsReceiptPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit GoodsReceiptPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/GoodsReceiptPage.tsx",
@@ -222,12 +215,11 @@
     {
       "id": "step-09",
       "title": "UI/UX SOTA Refresh GoodsIssuePage",
-      "description": "Pruefe GoodsIssuePage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit GoodsIssuePage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/GoodsIssuePage.tsx",
@@ -249,12 +241,11 @@
     {
       "id": "step-10",
       "title": "UI/UX SOTA Refresh StockTransferPage",
-      "description": "Pruefe StockTransferPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit StockTransferPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/StockTransferPage.tsx",
@@ -276,12 +267,11 @@
     {
       "id": "step-11",
       "title": "UI/UX SOTA Refresh InterWarehouseTransferPage",
-      "description": "Pruefe InterWarehouseTransferPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit InterWarehouseTransferPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/InterWarehouseTransferPage.tsx",
@@ -303,12 +293,11 @@
     {
       "id": "step-12",
       "title": "UI/UX SOTA Refresh ScannerPage",
-      "description": "Pruefe ScannerPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit ScannerPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/ScannerPage.tsx",
@@ -330,12 +319,11 @@
     {
       "id": "step-13",
       "title": "UI/UX SOTA Refresh PickingPage",
-      "description": "Pruefe PickingPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit PickingPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/PickingPage.tsx",
@@ -357,12 +345,11 @@
     {
       "id": "step-14",
       "title": "UI/UX SOTA Refresh ShippingPage",
-      "description": "Pruefe ShippingPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit ShippingPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/ShippingPage.tsx",
@@ -384,12 +371,11 @@
     {
       "id": "step-15",
       "title": "UI/UX SOTA Refresh ReturnsPage",
-      "description": "Pruefe ReturnsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit ReturnsPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/ReturnsPage.tsx",
@@ -411,12 +397,11 @@
     {
       "id": "step-16",
       "title": "UI/UX SOTA Refresh PurchasingPage",
-      "description": "Pruefe PurchasingPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit PurchasingPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/PurchasingPage.tsx",
@@ -438,12 +423,11 @@
     {
       "id": "step-17",
       "title": "UI/UX SOTA Refresh SalesOrdersPage",
-      "description": "Pruefe SalesOrdersPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit SalesOrdersPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/SalesOrdersPage.tsx",
@@ -465,12 +449,11 @@
     {
       "id": "step-18",
       "title": "UI/UX SOTA Refresh InvoicesPage",
-      "description": "Pruefe InvoicesPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit InvoicesPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/InvoicesPage.tsx",
@@ -492,12 +475,11 @@
     {
       "id": "step-19",
       "title": "UI/UX SOTA Refresh CustomersPage",
-      "description": "Pruefe CustomersPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit CustomersPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/CustomersPage.tsx",
@@ -519,12 +501,11 @@
     {
       "id": "step-20",
       "title": "UI/UX SOTA Refresh DocumentsPage",
-      "description": "Pruefe DocumentsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit DocumentsPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/DocumentsPage.tsx",
@@ -546,12 +527,11 @@
     {
       "id": "step-21",
       "title": "UI/UX SOTA Refresh AlertsPage",
-      "description": "Pruefe AlertsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit AlertsPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/AlertsPage.tsx",
@@ -573,12 +553,11 @@
     {
       "id": "step-22",
       "title": "UI/UX SOTA Refresh ReportsPage",
-      "description": "Pruefe ReportsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit ReportsPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/ReportsPage.tsx",
@@ -600,12 +579,11 @@
     {
       "id": "step-23",
       "title": "UI/UX SOTA Refresh ApprovalsPage",
-      "description": "Pruefe ApprovalsPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit ApprovalsPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/ApprovalsPage.tsx",
@@ -627,12 +605,11 @@
     {
       "id": "step-24",
       "title": "UI/UX SOTA Refresh AuditTrailPage",
-      "description": "Pruefe AuditTrailPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit AuditTrailPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/AuditTrailPage.tsx",
@@ -654,12 +631,11 @@
     {
       "id": "step-25",
       "title": "UI/UX SOTA Refresh UsersPage",
-      "description": "Pruefe UsersPage auf SOTA-Pattern (Informationshierarchie, Interaktion, State-Design, A11y, Responsive, Performance) und setze die noetigen UI/UX-Verbesserungen inkl. stabiler Testbarkeit um.",
+      "description": "Audit UsersPage for SOTA patterns (information hierarchy, interaction design, state management, accessibility, responsiveness, performance) and implement necessary UI/UX improvements including stable test coverage.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build)",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "mixed",
       "files": [
         "frontend/src/pages/UsersPage.tsx",
@@ -681,12 +657,11 @@
     {
       "id": "step-26",
       "title": "Gemini Final UI/UX Consistency Pass",
-      "description": "Fuehre mit Google/Gemini einen finalen End-to-End-Konsistenzlauf ueber alle 25 Pages durch, gleiche Muster/States responsiv an und schliesse nur mit gruenen Gates ab.",
+      "description": "Run a final end-to-end consistency pass across all 25 pages using Google/Gemini. Align patterns, states, and responsive behavior across every page. Close only when all gates are green.",
       "successCriteria": "(cd frontend && npm run lint && npm run test && npm run build && npm run test:e2e:a11y -- --project=web-desktop && npm run test:e2e:visual -- --project=web-desktop && npm run test:e2e:a11y:mobile && npm run test:e2e:visual:mobile) && ./scripts/check_design_token_drift.sh",
       "status": "pending",
       "attempts": 0,
       "maxAttempts": 3,
-      "lastError": "",
       "type": "governance",
       "files": [
         "frontend/src/pages/**/*",
@@ -708,6 +683,6 @@
     "provider": "Google",
     "model": "gemini-3.1-pro-preview",
     "totalIterations": 26,
-    "completedIterations": 19
+    "completedIterations": 0
   }
 }

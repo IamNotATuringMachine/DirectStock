@@ -89,8 +89,12 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): 
   const affectedPaths = step.files.length > 0 ? step.files.map((file) => `- ${file}`).join("\n") : "- (not specified)";
   const postChecks = step.postChecks.length > 0 ? step.postChecks.map((command) => `- ${command}`).join("\n") : "- (none)";
 
-  return [
-    "You are a senior engineer working on an iterative refactoring plan.",
+  const roleLine = plan.systemPrompt
+    ? plan.systemPrompt
+    : "You are a senior engineer working on an iterative refactoring plan.";
+
+  const sections: string[] = [
+    roleLine,
     "",
     "## Current Task:",
     `${step.id}`,
@@ -109,6 +113,28 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): 
     "## Step Post-Checks:",
     postChecks,
     "",
+  ];
+
+  // Inject frontend design constraints when the step touches frontend files
+  const touchesFrontend = step.files.some((f) => f.startsWith("frontend/"));
+  if (touchesFrontend) {
+    sections.push(
+      "## Design Constraints:",
+      "- Use Tailwind 4 utility classes with the Zinc color palette",
+      "- Follow the layout and pattern established in InventoryCountPage.tsx as the reference page",
+      "- Keep each page file under 350 LOC; extract complex logic to custom hooks",
+      "- Use data-testid attributes following naming pattern: <page>-<element>-<action>",
+      "- Typography: consistent hierarchy using text-sm / text-base / text-lg",
+      "- Interactive elements must have hover states and smooth transitions",
+      "- Prefer existing shared components from frontend/src/components/",
+      "- All text content must use truncate / line-clamp for overflow prevention",
+      "- Responsive: must work on desktop and mobile viewports",
+      "- Ensure visual consistency with pages already modernized in this plan",
+      "",
+    );
+  }
+
+  sections.push(
     "## Rules:",
     "1. Work ONLY on this single step",
     "2. Make small, reviewable changes",
@@ -119,7 +145,9 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): 
     "",
     "## Git State:",
     gitState,
-  ].join("\n");
+  );
+
+  return sections.join("\n");
 }
 
 const ANALYTICS_EVENT_TYPES: RalphAnalyticsEventType[] = [
@@ -372,25 +400,29 @@ async function executeWithRetries(args: {
     }
 
     const modelUnavailable = isModelUnavailableError(result);
-    await args.onAttemptDone?.({
-      model: selectedModel,
-      attempt: logicAttempt,
-      durationMs: Date.now() - attemptStartedAt,
-      ok: result.ok,
-      exitCode: result.exitCode,
-      timedOut: result.timedOut,
-      modelUnavailable,
-      sessionId: result.sessionId,
-      result,
-    });
 
     if (result.ok) {
+      // Success — report attempt done and return
+      await args.onAttemptDone?.({
+        model: selectedModel,
+        attempt: logicAttempt,
+        durationMs: Date.now() - attemptStartedAt,
+        ok: true,
+        exitCode: result.exitCode,
+        timedOut: result.timedOut,
+        modelUnavailable: false,
+        sessionId: result.sessionId,
+        result,
+      });
       return result;
     }
 
     lastResult = result;
 
     if (isTransientError(result)) {
+      // Transient error (503, rate-limit, stream stall) — do NOT call onAttemptDone.
+      // This keeps the spinner and heartbeat timer running uninterrupted so the user
+      // sees continuous elapsed time rather than a reset counter each retry.
       transientRetryCount++;
       // Exponential backoff: 2s, 4s, 8s, 16s, 32s, 64s, 120s max
       const backoffMs = Math.min(Math.pow(2, Math.min(transientRetryCount, 7)) * 1000, 120000);
@@ -401,9 +433,22 @@ async function executeWithRetries(args: {
         reason: `[Transient] ${result.stderr || result.stdout || "connection/capacity issue"}`,
       });
       await sleep(backoffMs);
-      // We continue WITHOUT incrementing logicAttempt, effectively retrying indefinitely for transient errors
+      // Continue WITHOUT incrementing logicAttempt — infinite transient retries
       continue;
     }
+
+    // Non-transient failure — report attempt done
+    await args.onAttemptDone?.({
+      model: selectedModel,
+      attempt: logicAttempt,
+      durationMs: Date.now() - attemptStartedAt,
+      ok: false,
+      exitCode: result.exitCode,
+      timedOut: result.timedOut,
+      modelUnavailable,
+      sessionId: result.sessionId,
+      result,
+    });
 
     const thinkingUnsupported = isThinkingUnsupportedError(result);
     if (modelUnavailable || thinkingUnsupported || logicAttempt === 3) {
@@ -712,6 +757,8 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     const stalledAttempts = new Set<number>();
     let latestThinkingChunk: string = "";
     const recentThinkingChunks: string[] = [];
+    /** Set during transient-retry backoff so the spinner shows the real state. */
+    let heartbeatStatusHint: string = "";
 
     const execution = await executeWithRetries({
       provider: config.provider,
@@ -732,6 +779,10 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         if (attempt === 1) {
           stalledAttempts.clear();
         }
+        // Clear 503-waiting hint — we're now in a real attempt
+        heartbeatStatusHint = "";
+        latestThinkingChunk = "";
+        recentThinkingChunks.length = 0;
         printProviderAttemptStart({
           step,
           model,
@@ -750,6 +801,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
           elapsedMs,
           timeoutMs,
           thinkingChunk: latestThinkingChunk,
+          statusHint: heartbeatStatusHint,
         });
         if (
           config.provider.id === "anthropic" &&
@@ -847,6 +899,32 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       },
       onRetry: async ({ model, attempt, delayMs, reason }) => {
         analytics.providerRetries += 1;
+        // Update the spinner hint so the heartbeat shows the real state
+        // instead of 'thinking...' during a 503/transient backoff wait.
+        const lowReason = reason.toLowerCase();
+        if (
+          lowReason.includes("503") ||
+          lowReason.includes("capacity") ||
+          lowReason.includes("service unavailable") ||
+          lowReason.includes("high demand")
+        ) {
+          heartbeatStatusHint = "waiting for capacity (503)...";
+        } else if (
+          lowReason.includes("429") ||
+          lowReason.includes("rate limit") ||
+          lowReason.includes("ratelimit") ||
+          lowReason.includes("resource_exhausted")
+        ) {
+          heartbeatStatusHint = "rate-limited, waiting...";
+        } else if (
+          lowReason.includes("timeout") ||
+          lowReason.includes("stall") ||
+          lowReason.includes("socket") ||
+          lowReason.includes("hang up") ||
+          lowReason.includes("reset")
+        ) {
+          heartbeatStatusHint = "reconnecting...";
+        }
         printRetryScheduled({
           step,
           model,
@@ -874,42 +952,77 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     const durationMs = Date.now() - startedAt;
 
     if (!execution.ok) {
-      step.attempts += 1;
-      const modelUnavailableHint = isModelUnavailableError(execution)
-        ? `Selected model unavailable: ${config.model}. No fallback models are configured.`
-        : "";
-      const thinkingUnsupportedHint = isThinkingUnsupportedError(execution)
-        ? `Thinking/budget configuration rejected by provider. Check --thinking value "${config.thinkingValue}" compatibility with model "${config.model}".`
-        : "";
-      step.lastError = summarizeProviderFailure({
-        execution,
-        modelUnavailableHint,
-        thinkingUnsupportedHint,
-        includeRaw: config.outputMode === "raw",
-      });
-      step.status = step.attempts >= step.maxAttempts ? "failed" : "pending";
+      const wasTransient = isTransientError(execution);
 
-      printIterationResult({
-        step,
-        passed: false,
-        attempts: step.attempts,
-        maxAttempts: step.maxAttempts,
-        durationMs,
-        info: step.lastError,
-      });
+      if (wasTransient) {
+        // Transient errors (503, rate-limit, stream stall, etc.) do NOT burn a
+        // step attempt — the step goes back to pending so the next iteration
+        // can retry it with the full attempt budget intact.
+        step.lastError = summarizeProviderFailure({
+          execution,
+          includeRaw: config.outputMode === "raw",
+        });
+        step.status = "pending";
 
-      await config.runLogger?.log({
-        event: "step_failed",
-        iteration,
-        stepId: step.id,
-        stepTitle: step.title,
-        attempt: step.attempts,
-        maxAttempts: step.maxAttempts,
-        durationMs,
-        exitCode: execution.exitCode,
-        sessionId: execution.sessionId ?? resumeSessionId,
-        details: step.lastError?.slice(0, 1000),
-      });
+        printIterationResult({
+          step,
+          passed: false,
+          attempts: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          info: `[transient — attempt not counted] ${step.lastError}`,
+        });
+
+        await config.runLogger?.log({
+          event: "step_failed",
+          iteration,
+          stepId: step.id,
+          stepTitle: step.title,
+          attempt: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          exitCode: execution.exitCode,
+          sessionId: execution.sessionId ?? resumeSessionId,
+          details: `[transient] ${step.lastError?.slice(0, 1000)}`,
+        });
+      } else {
+        step.attempts += 1;
+        const modelUnavailableHint = isModelUnavailableError(execution)
+          ? `Selected model unavailable: ${config.model}. No fallback models are configured.`
+          : "";
+        const thinkingUnsupportedHint = isThinkingUnsupportedError(execution)
+          ? `Thinking/budget configuration rejected by provider. Check --thinking value "${config.thinkingValue}" compatibility with model "${config.model}".`
+          : "";
+        step.lastError = summarizeProviderFailure({
+          execution,
+          modelUnavailableHint,
+          thinkingUnsupportedHint,
+          includeRaw: config.outputMode === "raw",
+        });
+        step.status = step.attempts >= step.maxAttempts ? "failed" : "pending";
+
+        printIterationResult({
+          step,
+          passed: false,
+          attempts: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          info: step.lastError,
+        });
+
+        await config.runLogger?.log({
+          event: "step_failed",
+          iteration,
+          stepId: step.id,
+          stepTitle: step.title,
+          attempt: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          exitCode: execution.exitCode,
+          sessionId: execution.sessionId ?? resumeSessionId,
+          details: step.lastError?.slice(0, 1000),
+        });
+      }
     } else {
       printSuccessCriteriaStart({ step, command: step.successCriteria });
       const criteriaResult = await runSuccessCriteria(step.successCriteria, config.workingDir, execution);

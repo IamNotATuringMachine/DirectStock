@@ -37,6 +37,7 @@ export const PlanSchema = z.object({
   schemaVersion: z.literal(PLAN_SCHEMA_VERSION),
   goal: z.string().min(1),
   createdAt: z.string().min(1),
+  systemPrompt: z.string().min(1).optional(),
   steps: z.array(StepSchema).min(1),
   metadata: PlanMetadataSchema,
 });

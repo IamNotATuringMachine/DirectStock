@@ -9,6 +9,7 @@ Use this template as the canonical starting format for `ralph-plan.json`.
 4. `postChecks` contains optional additional commands per step.
 5. `rollbackHint` describes the fastest safe rollback path.
 6. Set `riskLevel` conservatively (`high` when uncertain).
+7. `systemPrompt` (optional) defines a plan-level role and context that is prepended to every step prompt. Use it to enforce design systems, tech stack constraints, or domain-specific behavior across all steps.
 
 ## JSON Template
 
