@@ -25,6 +25,7 @@ export interface CreatePlanInput {
   dryRun?: boolean;
   persist?: boolean;
   runtimeCapabilities?: ProviderRuntimeCapabilities;
+  env?: Record<string, string>;
 }
 
 const PLANNER_OUTPUT_SCHEMA = {
@@ -129,6 +130,7 @@ export async function createPlanFromGoal(input: CreatePlanInput): Promise<Plan> 
       dryRun: input.dryRun,
       outputSchema: capabilityState.supportsJsonSchema ? PLANNER_OUTPUT_SCHEMA : undefined,
       outputSchemaPath,
+      env: input.env,
     });
 
     if (!execution.ok) {

@@ -187,6 +187,7 @@ function buildCommand(input: ProviderExecutionInput): ProviderCommand {
   return {
     command: "claude",
     args,
+    env: input.env,
   };
 }
 

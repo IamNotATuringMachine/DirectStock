@@ -59,6 +59,11 @@ const PROBE_SPECS: Record<ProviderId, ProbeSpec> = {
     },
     helpCommand: ["--help"],
   },
+  "google-api": {
+    requiredTokens: [],
+    optional: {},
+    helpCommand: [],
+  },
 };
 
 function hasAllTokens(text: string, tokens: string[]): boolean {

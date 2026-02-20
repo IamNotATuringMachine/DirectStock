@@ -29,7 +29,7 @@ export function coerceProviderId(value?: string): ProviderId | null {
   if (!value) {
     return null;
   }
-  if (value === "openai" || value === "anthropic" || value === "google") {
+  if (value === "openai" || value === "anthropic" || value === "google" || value === "google-api") {
     return value;
   }
   throw new Error(`Invalid provider: ${value}`);

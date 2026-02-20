@@ -1,6 +1,6 @@
 import type { OutputMode, ProviderOutputEvent, ThinkingVisibility } from "./output-events.js";
 
-export type ProviderId = "anthropic" | "openai" | "google";
+export type ProviderId = "anthropic" | "openai" | "google" | "google-api";
 export type SessionStrategy = "reset" | "resume";
 
 export interface ModelOption {
@@ -30,6 +30,7 @@ export interface ProviderExecutionInput {
   attempt?: number;
   streamingEnabled?: boolean;
   onEvent?: (event: ProviderOutputEvent) => void;
+  env?: Record<string, string>;
 }
 
 export interface ProviderCommand {

@@ -183,6 +183,7 @@ declare -a ALLOWLIST_REGEX=(
   '^backend/AGENTS\.md$'
   '^frontend/AGENTS\.md$'
   '^\.agents/workflows/ralph-loop\.md$'
+  '^ui_ux_plan\.json$'
   '^backend/app/bootstrap_permissions_data\.py$'
   '^backend/app/bootstrap_permissions_seed\.py$'
   '^backend/app/services/einvoice/.*'

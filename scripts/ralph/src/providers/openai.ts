@@ -373,6 +373,7 @@ function buildCommand(input: ProviderExecutionInput): ProviderCommand {
   return {
     command: "codex",
     args,
+    env: input.env,
   };
 }
 

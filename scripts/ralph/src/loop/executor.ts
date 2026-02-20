@@ -50,6 +50,7 @@ export interface RalphLoopConfig {
   thinkingVisibility: ThinkingVisibility;
   initialResumeSessionId?: string;
   runLogger?: RalphRunLogger;
+  providerEnv?: Record<string, string>;
 }
 
 export interface RalphLoopSummary {
@@ -262,6 +263,7 @@ async function executeWithRetries(args: {
   thinkingVisibility: ThinkingVisibility;
   streamingEnabled: boolean;
   resumeSessionId?: string;
+  env?: Record<string, string>;
   onAttemptStart?: (input: {
     model: string;
     attempt: number;
@@ -343,6 +345,7 @@ async function executeWithRetries(args: {
         thinkingVisibility: args.thinkingVisibility,
         streamingEnabled: args.streamingEnabled,
         onEvent: args.onEvent,
+        env: args.env,
       });
       result.attempt = attempt;
     } catch (error) {
@@ -658,6 +661,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         outputMode: config.outputMode,
         thinkingVisibility: config.thinkingVisibility,
         streamingEnabled: config.providerStreamingEnabled,
+        env: config.providerEnv,
       });
 
       console.log(chalk.dim(`Command: ${command.command} ${command.args.join(" ")}`));
@@ -691,6 +695,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       thinkingVisibility: config.thinkingVisibility,
       streamingEnabled: config.providerStreamingEnabled,
       resumeSessionId,
+      env: config.providerEnv,
       onAttemptStart: ({ model, attempt, maxAttempts, timeoutMs }) => {
         analytics.providerAttempts += 1;
         if (attempt === 1) {

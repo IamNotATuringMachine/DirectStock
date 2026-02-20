@@ -155,6 +155,7 @@ Der Refactor-PR bleibt reviewbar, indem nur geplante Bereiche enthalten sind.
    - `backend/AGENTS.md`
    - `frontend/AGENTS.md`
    - `.agents/workflows/ralph-loop.md`
+   - `ui_ux_plan.json`
 5. E2E-Hardening + Agent Harness:
    - `frontend/package.json`
    - `frontend/src/types.ts`

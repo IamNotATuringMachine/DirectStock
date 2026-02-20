@@ -38,7 +38,10 @@ import {
   askProvider,
   askThinking,
   askUsePreset,
+  askAuthMethod,
+  askApiKey,
 } from "./ui/prompts.js";
+import { loadApiKeys, saveApiKeys } from "./config/api-keys.js";
 
 export {
   resolveAutoCommitPolicy,
@@ -46,6 +49,25 @@ export {
   type AutoCommitPolicyOutput,
 } from "./lib/auto-commit-policy.js";
 export { normalizeProviderModel } from "./lib/model-normalization.js";
+
+/**
+ * Build the environment record that is passed to the provider subprocess.
+ * Merges current process.env and injects the correct API key env var for the
+ * selected provider/key combination.
+ */
+export function resolveProviderEnv(
+  providerId: ProviderId,
+  finalApiKey: string | undefined,
+  baseEnv: Record<string, string> = process.env as Record<string, string>,
+): Record<string, string> {
+  const env: Record<string, string> = { ...baseEnv };
+  if (finalApiKey) {
+    if (providerId === "anthropic") env["ANTHROPIC_API_KEY"] = finalApiKey;
+    if (providerId === "google" || providerId === "google-api") env["GEMINI_API_KEY"] = finalApiKey;
+    if (providerId === "openai") env["OPENAI_API_KEY"] = finalApiKey;
+  }
+  return env;
+}
 
 export interface RalphCliOptions {
   provider?: ProviderId;
@@ -113,6 +135,28 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   }
 
   const provider = getProvider(providerId);
+
+  const apiKeys = await loadApiKeys();
+  const existingKey = apiKeys[providerId];
+  let authChoice: "stored" | "new" | "skip" = existingKey ? "stored" : "new";
+
+  if (!options.yes) {
+    authChoice = await askAuthMethod(provider.name, !!existingKey);
+  }
+
+  let finalApiKey: string | undefined = undefined;
+  if (authChoice === "stored") {
+    finalApiKey = existingKey;
+  } else if (authChoice === "new") {
+    finalApiKey = await askApiKey(provider.name);
+    if (!dryRun) {
+      apiKeys[providerId] = finalApiKey;
+      await saveApiKeys(apiKeys);
+    }
+  }
+
+  const providerEnv = resolveProviderEnv(providerId, finalApiKey);
+
   if (!(await provider.isInstalled())) {
     throw new Error(`${provider.cliCommand} CLI is not installed or not available in PATH.`);
   }
@@ -179,6 +223,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
         dryRun: false,
         persist: !dryRun,
         runtimeCapabilities: capabilityProbe,
+        env: providerEnv,
       });
       spinner.succeed(
         dryRun ? "Plan created in memory for dry run" : `Plan saved: ${targetPlanPath}`,
@@ -311,6 +356,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     initialResumeSessionId:
       sessionStrategy === "resume" ? plan.metadata.resumeSessionId : undefined,
     runLogger,
+    providerEnv,
   });
 
   console.log(chalk.green(`\nRalph Loop completed. Iterations: ${summary.iterationsRun}`));

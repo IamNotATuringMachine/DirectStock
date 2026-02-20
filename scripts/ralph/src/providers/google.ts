@@ -423,6 +423,7 @@ function buildCommand(input: ProviderExecutionInput): ProviderCommand {
   return {
     command: "gemini",
     args,
+    env: input.env,
   };
 }
 

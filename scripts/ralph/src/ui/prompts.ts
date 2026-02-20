@@ -21,11 +21,12 @@ export async function askUsePreset(preset: RalphPreset): Promise<boolean> {
 
 export async function askProvider(): Promise<ProviderId> {
   return select<ProviderId>({
-    message: "Select provider and agent CLI:",
+    message: "Provider:",
     choices: [
-      { value: "anthropic", name: PROVIDER_LABELS.anthropic },
-      { value: "openai", name: PROVIDER_LABELS.openai },
-      { value: "google", name: PROVIDER_LABELS.google },
+      { name: "Anthropic (Claude Code)", value: "anthropic" },
+      { name: "Google (Gemini CLI)", value: "google" },
+      { name: "Google (Native API via Key)", value: "google-api" },
+      { name: "OpenAI (Codex CLI)", value: "openai" },
     ],
   });
 }
@@ -179,6 +180,31 @@ export async function askFinalConfirmation(): Promise<boolean> {
 
 function nonEmpty(value: string): true | string {
   return value.trim().length > 0 ? true : "Value must not be empty.";
+}
+
+export async function askAuthMethod(
+  providerName: string,
+  hasStoredKey: boolean,
+): Promise<"stored" | "new" | "skip"> {
+  const choices = [];
+  if (hasStoredKey) {
+    choices.push({ value: "stored" as const, name: `Use saved API key for ${providerName}` });
+  }
+  choices.push({ value: "new" as const, name: "Enter a new API key" });
+  choices.push({ value: "skip" as const, name: "Continue without API key (use CLI login/default)" });
+
+  return select<"stored" | "new" | "skip">({
+    message: `Authentication for ${providerName}:`,
+    choices,
+    default: hasStoredKey ? "stored" : "new",
+  });
+}
+
+export async function askApiKey(providerName: string): Promise<string> {
+  return input({
+    message: `Enter API key for ${providerName}:`,
+    validate: nonEmpty,
+  });
 }
 
 async function askManualPlanPath(): Promise<string> {
