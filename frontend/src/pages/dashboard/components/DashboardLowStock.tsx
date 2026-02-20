@@ -1,0 +1,39 @@
+import type { DashboardLowStock } from "../../../types";
+
+interface DashboardLowStockProps {
+  data?: DashboardLowStock;
+  visible: boolean;
+}
+
+export function DashboardLowStock({ data, visible }: DashboardLowStockProps) {
+  if (!visible) return null;
+
+  return (
+    <article className="subpanel h-full">
+      <h3 className="text-lg font-semibold mb-4">Niedrige Bestände</h3>
+      <div className="flex flex-col gap-0">
+        {(data?.items ?? []).map((item) => (
+          <div key={`${item.product_id}-${item.warehouse_id}`} className="modern-list-item">
+            <div className="flex flex-col">
+              <strong className="text-sm">{item.product_number}</strong>
+              <span className="text-xs text-muted-foreground">{item.warehouse_code}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <span className="block text-xs text-muted-foreground">Bestand</span>
+                <strong className="text-sm text-red-600">{item.on_hand}</strong>
+              </div>
+              <div className="text-right">
+                <span className="block text-xs text-muted-foreground">Min</span>
+                <strong className="text-sm">{item.threshold}</strong>
+              </div>
+            </div>
+          </div>
+        ))}
+        {(!data?.items || data.items.length === 0) && (
+          <p className="text-sm text-muted-foreground italic p-4">Alle Bestände im Soll-Bereich.</p>
+        )}
+      </div>
+    </article>
+  );
+}
