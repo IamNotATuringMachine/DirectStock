@@ -85,7 +85,7 @@ export interface RalphLoopAnalytics {
   };
 }
 
-export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): string {
+export function buildIterationPrompt(plan: Plan, step: Step, gitState: string, baselineFailures?: string): string {
   const affectedPaths = step.files.length > 0 ? step.files.map((file) => `- ${file}`).join("\n") : "- (not specified)";
   const postChecks = step.postChecks.length > 0 ? step.postChecks.map((command) => `- ${command}`).join("\n") : "- (none)";
 
@@ -115,6 +115,18 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): 
     "",
   ];
 
+  // Inject pre-flight baseline failures so the agent knows exactly what to fix
+  if (baselineFailures) {
+    sections.push(
+      "## ⚠️ Baseline Failures (Fix These First):",
+      "The success criteria already fail BEFORE your changes. You MUST fix these errors as part of this task:",
+      "```",
+      baselineFailures.slice(0, 3000),
+      "```",
+      "",
+    );
+  }
+
   // Inject frontend design constraints when the step touches frontend files
   const touchesFrontend = step.files.some((f) => f.startsWith("frontend/"));
   if (touchesFrontend) {
@@ -142,6 +154,8 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string): 
     "4. Execute the success criteria yourself and verify the result",
     "5. Do NOT commit manually - Ralph Loop handles commits",
     "6. If anything is unclear, document open points in .ralph-notes.md",
+    "7. Before finishing, run the success criteria yourself using the bash tool and confirm it exits 0. Do NOT stop until it passes.",
+    "8. You MUST write at least one file before finishing. If you ONLY read files without writing any changes, your turn will be automatically retried — no progress is made until you write files.",
     "",
     "## Git State:",
     gitState,
@@ -487,6 +501,52 @@ async function executeWithRetries(args: {
   );
 }
 
+/**
+ * Run the step's success criteria BEFORE calling the provider.
+ * Returns whether it already passes (skip context injection) or fails (inject errors).
+ */
+async function checkBaseline(
+  criteria: string,
+  cwd: string,
+): Promise<{ passed: boolean; output: string }> {
+  const result = await runCommand({ command: "bash", args: ["-lc", criteria], cwd });
+  const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+  return { passed: result.exitCode === 0, output };
+}
+
+/**
+ * Detect whether the provider made zero file writes by comparing git diff
+ * against the step's affected file patterns. Returns true when no matching
+ * files were modified — meaning the provider is a no-op for this step.
+ */
+async function detectNoOp(stepFiles: string[], cwd: string): Promise<boolean> {
+  if (stepFiles.length === 0) {
+    // No file constraints — can't determine no-op; give the agent the benefit of the doubt
+    return false;
+  }
+  const diffResult = await runCommand({
+    command: "bash",
+    args: ["-lc", "git diff --name-only HEAD"],
+    cwd,
+  });
+  const changedFiles = (diffResult.stdout || "")
+    .split("\n")
+    .map((f) => f.trim())
+    .filter(Boolean);
+
+  if (changedFiles.length === 0) {
+    return true; // Nothing changed at all
+  }
+
+  // Check whether any changed file matches the step's affected paths
+  // We do a simple prefix / glob match: strip trailing /** globs and check prefix
+  const normalizedPatterns = stepFiles.map((p) => p.replace(/\/\*\*\/.*$/, "").replace(/\/\*$/, ""));
+  const anyMatch = changedFiles.some((changed) =>
+    normalizedPatterns.some((pattern) => changed.startsWith(pattern) || changed === pattern),
+  );
+  return !anyMatch; // no-op if nothing relevant changed
+}
+
 async function runSuccessCriteria(
   criteria: string,
   cwd: string,
@@ -753,7 +813,21 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     const startedAt = Date.now();
 
     const gitState = await captureIterationContext(config.workingDir);
-    const prompt = buildIterationPrompt(config.plan, step, gitState);
+
+    // Pre-flight: check if criteria already fail before we call the provider.
+    // Inject failure context into the prompt so the agent knows what to fix.
+    let baselineFailures: string | undefined;
+    const preFlightResult = await checkBaseline(step.successCriteria, config.workingDir);
+    if (!preFlightResult.passed) {
+      baselineFailures = preFlightResult.output;
+      console.log(
+        chalk.yellow(`[pre-flight] ${step.id} baseline is failing — injecting error context into prompt`),
+      );
+    } else {
+      console.log(chalk.dim(`[pre-flight] ${step.id} baseline passes — proceeding normally`));
+    }
+
+    const prompt = buildIterationPrompt(config.plan, step, gitState, baselineFailures);
     const stalledAttempts = new Set<number>();
     let latestThinkingChunk: string = "";
     const recentThinkingChunks: string[] = [];
@@ -950,6 +1024,36 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     }
 
     const durationMs = Date.now() - startedAt;
+
+    // No-op guard: if the provider returned ok:true but wrote no files matching
+    // the step's affected paths, treat this as a free retry — do NOT burn an attempt.
+    if (execution.ok) {
+      const noOp = await detectNoOp(step.files, config.workingDir);
+      if (noOp) {
+        step.lastError = "[no-op] Provider made 0 file writes matching step's affected paths. Retrying without burning an attempt.";
+        step.status = "pending";
+        console.log(
+          chalk.yellow(
+            `[no-op] ${step.id} provider wrote nothing relevant — retrying without burning attempt ${step.attempts + 1}/${step.maxAttempts}`,
+          ),
+        );
+        await config.runLogger?.log({
+          event: "step_failed",
+          iteration,
+          stepId: step.id,
+          stepTitle: step.title,
+          attempt: step.attempts,
+          maxAttempts: step.maxAttempts,
+          durationMs,
+          exitCode: 0,
+          sessionId: execution.sessionId ?? resumeSessionId,
+          details: step.lastError,
+        });
+        config.plan.metadata.completedIterations += 1;
+        await savePlan(config.planPath, config.plan);
+        continue;
+      }
+    }
 
     if (!execution.ok) {
       const wasTransient = isTransientError(execution);

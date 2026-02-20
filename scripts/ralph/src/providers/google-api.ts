@@ -237,6 +237,7 @@ Once you are completely done with the task, output your final response WITHOUT a
         let currentPrompt = input.prompt;
         let turnCount = 0;
         let finalText = "";
+        let writeCount = 0;
 
         pushEvent(
             createProviderEvent({
@@ -336,6 +337,7 @@ Once you are completely done with the task, output your final response WITHOUT a
                         resultText = await executeReadFile(toolArgs.path, input.cwd);
                     } else if (toolName === "write_file" && toolArgs.path && toolArgs.content !== undefined) {
                         resultText = await executeWriteFile(toolArgs.path, toolArgs.content, input.cwd);
+                        writeCount++;
                     } else {
                         resultText = `Error: Unknown tool '${toolName}' or missing required arguments.`;
                     }
@@ -371,7 +373,11 @@ Once you are completely done with the task, output your final response WITHOUT a
                 type: "status",
                 provider: "google",
                 attempt: input.attempt ?? 1,
-                payload: { status: "loop completed" },
+                payload: {
+                    status: writeCount === 0
+                        ? `loop_completed_no_writes (${turnCount} turns, 0 file writes — executor will retry without burning an attempt)`
+                        : `loop completed (${turnCount} turns, ${writeCount} file write${writeCount === 1 ? "" : "s"})`,
+                },
             })
         );
 

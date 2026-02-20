@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle, Clock, Package, Activity, TrendingUp, Truck } from "lucide-react";
-import type { DashboardSummary, ReportKpiResponse } from "../../../types";
+import type { DashboardSummary, ReportKpi } from "../../../types";
 import { Skeleton } from "../../../components/Skeleton";
 
 interface StatCardProps {
@@ -28,7 +28,7 @@ function StatCard({ title, value, icon, dataTestId, isLoading }: StatCardProps) 
 
 interface DashboardStatsProps {
   summary?: DashboardSummary;
-  kpis?: ReportKpiResponse;
+  kpis?: ReportKpi;
   visible: boolean;
   isLoading?: boolean;
 }

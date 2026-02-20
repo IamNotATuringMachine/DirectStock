@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import type { AlertResponse } from "../../../types";
+import type { AlertListResponse, AlertEvent } from "../../../types";
 import { Skeleton } from "../../../components/Skeleton";
 
 interface DashboardCriticalAlertsProps {
-  data?: AlertResponse;
+  data?: AlertListResponse;
   visible: boolean;
   isLoading?: boolean;
 }
@@ -27,7 +27,7 @@ export function DashboardCriticalAlerts({ data, visible, isLoading }: DashboardC
             <Skeleton height={48} className="rounded-lg" />
           </>
         ) : (
-          (data?.items ?? []).map((alert) => (
+          (data?.items ?? []).map((alert: AlertEvent) => (
             <div
               key={alert.id}
               className="p-3 rounded-lg bg-red-50 border border-red-100 flex justify-between items-center transition-colors hover:bg-red-100"
