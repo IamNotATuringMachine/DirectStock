@@ -167,7 +167,7 @@ function nextRunnableStep(plan: Plan): Step | undefined {
 }
 
 function isTransientError(result: ProviderExecutionResult): boolean {
-  const raw = `${result.stderr}\n${result.stdout}`.toLowerCase();
+  const raw = `${result.stderr}\n${result.stdout}\n${result.responseText || ""}`.toLowerCase();
   return (
     raw.includes("429") ||
     raw.includes("rate limit") ||
@@ -186,7 +186,7 @@ function isTransientError(result: ProviderExecutionResult): boolean {
 }
 
 function isModelUnavailableError(result: ProviderExecutionResult): boolean {
-  const raw = `${result.stderr}\n${result.stdout}`.toLowerCase();
+  const raw = `${result.stderr}\n${result.stdout}\n${result.responseText || ""}`.toLowerCase();
   return (
     raw.includes("model_unavailable") ||
     raw.includes("model unavailable") ||

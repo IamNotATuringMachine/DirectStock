@@ -90,7 +90,7 @@ export const googleApiAdapter: ProviderAdapter = {
             input.onEvent?.(event);
         };
 
-        let chatSystemInstruction = `You are a helpful senior software engineer.
+        const chatSystemInstruction = `You are a helpful senior software engineer.
 You have access to the following tools:
 1. bash (runs a bash command in the project directory)
 2. read_file (reads a file's contents)
@@ -137,13 +137,8 @@ Once you are completely done with the task, output your final response WITHOUT a
             }
         }
 
-        const chat = ai.chats.create({
-            model: input.model,
-            config: {
-                systemInstruction: chatSystemInstruction,
-                thinkingConfig,
-            }
-        });
+        // Build conversation history for multi-turn
+        const conversationHistory: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
         let currentPrompt = input.prompt;
         let turnCount = 0;
@@ -160,23 +155,88 @@ Once you are completely done with the task, output your final response WITHOUT a
 
         while (turnCount < MAX_TURNS) {
             turnCount++;
-            let response;
+
+            // Add user message to history
+            conversationHistory.push({
+                role: "user",
+                parts: [{ text: currentPrompt }],
+            });
+
+            let assistantMessage = "";
+            let thinkingBuffer = "";
+            let hadThinking = false;
+
             try {
-                response = await chat.sendMessage({ message: currentPrompt });
+                const stream = await ai.models.generateContentStream({
+                    model: input.model,
+                    contents: conversationHistory,
+                    config: {
+                        systemInstruction: chatSystemInstruction,
+                        thinkingConfig,
+                    },
+                });
+
+                for await (const chunk of stream) {
+                    if (!chunk.candidates || chunk.candidates.length === 0) continue;
+                    const candidate = chunk.candidates[0];
+                    if (!candidate.content?.parts) continue;
+
+                    for (const part of candidate.content.parts) {
+                        // Thinking parts (Gemini 3.x with thinkingConfig)
+                        if ((part as any).thought === true && (part as any).text) {
+                            const thinkingText: string = (part as any).text;
+                            thinkingBuffer += thinkingText;
+                            hadThinking = true;
+
+                            // Emit thinking event per chunk so heartbeat picks it up
+                            pushEvent(
+                                createProviderEvent({
+                                    type: "thinking",
+                                    provider: "google",
+                                    attempt: input.attempt ?? 1,
+                                    payload: {
+                                        summary: truncateText(thinkingText, 200),
+                                        text: thinkingText,
+                                    },
+                                })
+                            );
+                        } else if ((part as any).text) {
+                            // Normal text part
+                            assistantMessage += (part as any).text;
+                        }
+                    }
+                }
             } catch (error) {
+                const errorMsg = `API Error: ${error instanceof Error ? error.message : String(error)}`;
                 pushEvent(
                     createProviderEvent({
                         type: "error",
                         provider: "google",
                         attempt: input.attempt ?? 1,
-                        payload: { error: `API Error: ${error instanceof Error ? error.message : String(error)}` },
+                        payload: { error: errorMsg },
                     })
                 );
-                finalText = `API Error: ${error instanceof Error ? error.message : String(error)}`;
-                break;
+                return {
+                    ok: false,
+                    exitCode: 1,
+                    timedOut: false,
+                    stdout: "",
+                    stderr: errorMsg,
+                    responseText: errorMsg,
+                    finalText: errorMsg,
+                    events,
+                    usedModel: input.model,
+                    command,
+                    rawOutput: { stdout: "", stderr: errorMsg },
+                    attempt: input.attempt ?? 1,
+                };
             }
 
-            const assistantMessage = response.text || "";
+            // Add assistant reply to history
+            conversationHistory.push({
+                role: "model",
+                parts: [{ text: assistantMessage }],
+            });
 
             pushEvent(
                 createProviderEvent({
@@ -187,7 +247,7 @@ Once you are completely done with the task, output your final response WITHOUT a
                 })
             );
 
-            const jsonMatch = assistantMessage.match(/\`\`\`json\s*(\{[\s\S]*?\})\s*\`\`\`/);
+            const jsonMatch = assistantMessage.match(/```json\s*(\{[\s\S]*?\})\s*```/);
 
             if (jsonMatch) {
                 let toolCall: { tool?: string; args?: Record<string, string> };
