@@ -248,14 +248,10 @@ export function printProviderOutput(args: {
       if (args.thinkingVisibility === "full") {
         renderThinkingBlock(thinkingTexts.join("\n"));
       } else {
-        const summary = args.thinkingSummary ?? truncateInline(thinkingTexts.join(" | "), 200);
-        console.log(chalk.dim(`  ${ICON.thinking} ${summary}`));
-        if (thinkingTexts.length > 1) {
-          const recent = thinkingTexts.slice(-3);
-          for (const [index, text] of recent.entries()) {
-            const ordinal = thinkingTexts.length - recent.length + index + 1;
-            console.log(chalk.dim(`  ${ICON.thinking} [${ordinal}/${thinkingTexts.length}] ${truncateInline(text, 140)}`));
-          }
+        console.log(chalk.dim(`  ${ICON.thinking} Thinking chunks: ${thinkingTexts.length}`));
+        for (const [index, text] of thinkingTexts.entries()) {
+          const ordinal = index + 1;
+          console.log(chalk.dim(`  ${ICON.thinking} [${ordinal}/${thinkingTexts.length}] ${text}`));
         }
       }
     }
@@ -341,10 +337,10 @@ export function printProviderHeartbeat(args: {
 }): void {
   const elapsed = formatDuration(args.elapsedMs);
   if (currentSpinner) {
-    const thinkingText = args.thinkingChunk ? `: ${truncateInline(args.thinkingChunk, 140)}` : " thinking...";
+    const thinkingText = args.thinkingChunk ? `: ${args.thinkingChunk}` : " thinking...";
     currentSpinner.text = chalk.cyan(`${ICON.thinking} ${args.model}${thinkingText} (${elapsed})`);
   } else {
-    const thinkingText = args.thinkingChunk ? `: ${truncateInline(args.thinkingChunk, 140)}` : " thinking...";
+    const thinkingText = args.thinkingChunk ? `: ${args.thinkingChunk}` : " thinking...";
     console.log(chalk.dim(`  ${ICON.thinking} ${args.model}${thinkingText} ${elapsed}`));
   }
 }
