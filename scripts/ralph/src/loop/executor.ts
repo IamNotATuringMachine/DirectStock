@@ -173,7 +173,15 @@ function isTransientError(result: ProviderExecutionResult): boolean {
     raw.includes("rate limit") ||
     raw.includes("ratelimit") ||
     raw.includes("resource_exhausted") ||
-    raw.includes("model_capacity_exhausted")
+    raw.includes("model_capacity_exhausted") ||
+    raw.includes("503") ||
+    raw.includes("service unavailable") ||
+    raw.includes("high demand") ||
+    raw.includes("403") ||
+    raw.includes("blocked") ||
+    raw.includes("socket hang up") ||
+    raw.includes("econnreset") ||
+    raw.includes("etimedout")
   );
 }
 
@@ -291,12 +299,14 @@ async function executeWithRetries(args: {
   onEvent?: (event: ProviderOutputEvent) => Promise<void> | void;
 }): Promise<ProviderExecutionResult> {
   const selectedModel = args.model;
-
   let lastResult: ProviderExecutionResult | null = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  let logicAttempt = 1;
+  let transientRetryCount = 0;
+
+  while (logicAttempt <= 3) {
     await args.onAttemptStart?.({
       model: selectedModel,
-      attempt,
+      attempt: logicAttempt,
       maxAttempts: 3,
       timeoutMs: args.timeoutMs,
     });
@@ -308,7 +318,7 @@ async function executeWithRetries(args: {
         void Promise.resolve(
           args.onHeartbeat?.({
             model: selectedModel,
-            attempt,
+            attempt: logicAttempt,
             elapsedMs: Date.now() - attemptStartedAt,
             timeoutMs: args.timeoutMs,
           }),
@@ -328,8 +338,9 @@ async function executeWithRetries(args: {
       command: { command: args.provider.cliCommand, args: [] },
       sessionId: args.resumeSessionId,
       rawOutput: { stdout: "", stderr: "Provider execution failed unexpectedly." },
-      attempt,
+      attempt: logicAttempt,
     };
+
     try {
       result = await args.provider.execute({
         model: selectedModel,
@@ -340,14 +351,14 @@ async function executeWithRetries(args: {
         dryRun: args.dryRun,
         sessionStrategy: args.sessionStrategy,
         resumeSessionId: args.resumeSessionId,
-        attempt,
+        attempt: logicAttempt,
         outputMode: args.outputMode,
         thinkingVisibility: args.thinkingVisibility,
         streamingEnabled: args.streamingEnabled,
         onEvent: args.onEvent,
         env: args.env,
       });
-      result.attempt = attempt;
+      result.attempt = logicAttempt;
     } catch (error) {
       result = {
         ...result,
@@ -363,7 +374,7 @@ async function executeWithRetries(args: {
     const modelUnavailable = isModelUnavailableError(result);
     await args.onAttemptDone?.({
       model: selectedModel,
-      attempt,
+      attempt: logicAttempt,
       durationMs: Date.now() - attemptStartedAt,
       ok: result.ok,
       exitCode: result.exitCode,
@@ -378,17 +389,37 @@ async function executeWithRetries(args: {
     }
 
     lastResult = result;
+
+    if (isTransientError(result)) {
+      transientRetryCount++;
+      // Exponential backoff: 2s, 4s, 8s, 16s, 32s, 64s, 120s max
+      const backoffMs = Math.min(Math.pow(2, Math.min(transientRetryCount, 7)) * 1000, 120000);
+      await args.onRetry?.({
+        model: selectedModel,
+        attempt: logicAttempt,
+        delayMs: backoffMs,
+        reason: `[Transient] ${result.stderr || result.stdout || "connection/capacity issue"}`,
+      });
+      await sleep(backoffMs);
+      // We continue WITHOUT incrementing logicAttempt, effectively retrying indefinitely for transient errors
+      continue;
+    }
+
     const thinkingUnsupported = isThinkingUnsupportedError(result);
-    if (modelUnavailable || thinkingUnsupported || !isTransientError(result) || attempt === 3) {
+    if (modelUnavailable || thinkingUnsupported || logicAttempt === 3) {
       break;
     }
 
-    const backoffMs = attempt * 2000;
+    // For non-transient, non-terminal errors, we increment logicAttempt and retry (up to 3)
+    // This maintains the existing behavior for "other" failures if we choose to use it,
+    // although currently isTransientError is the main driver for retries.
+    logicAttempt++;
+    const backoffMs = logicAttempt * 2000;
     await args.onRetry?.({
       model: selectedModel,
-      attempt,
+      attempt: logicAttempt - 1,
       delayMs: backoffMs,
-      reason: result.stderr || result.stdout || "transient provider failure",
+      reason: result.stderr || result.stdout || "non-transient failure",
     });
     await sleep(backoffMs);
   }

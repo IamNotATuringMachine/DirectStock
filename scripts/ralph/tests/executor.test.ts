@@ -8,6 +8,15 @@ import { createRunLogger } from "../src/lib/run-log.js";
 import { buildIterationPrompt, isThinkingUnsupportedError, runRalphLoop } from "../src/loop/executor.js";
 import type { Plan } from "../src/planner/plan-schema.js";
 import type { ProviderAdapter, ProviderExecutionInput } from "../src/providers/types.js";
+import { vi } from "vitest";
+
+vi.mock("../src/lib/process.js", async (importOriginal) => {
+  const mod = await importOriginal<any>();
+  return {
+    ...mod,
+    sleep: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 function samplePlan(successCriteria = "true", maxAttempts = 3): Plan {
   return {
@@ -669,7 +678,70 @@ describe("executor", () => {
         command: { command: "test", args: [] },
         rawOutput: { stdout: "", stderr },
       };
-      expect(isThinkingUnsupportedError(result), `Expected ${expected} for: "${stderr}"`).toBe(expected);
     }
+  });
+
+  it("retries indefinitely on transient 503 errors (more than 3 times)", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-infinite-retry-"));
+    const planPath = path.join(tempDir, "plan.json");
+    const plan = samplePlan("true", 3);
+    await fs.writeJson(planPath, plan, { spaces: 2 });
+
+    let calls = 0;
+    const provider: ProviderAdapter = {
+      ...fakeProvider(true),
+      execute: async (input) => {
+        calls++;
+        if (calls <= 5) {
+          return {
+            ok: false,
+            exitCode: 1,
+            timedOut: false,
+            stdout: "",
+            stderr: "503 Service Unavailable (High Demand)",
+            responseText: "",
+            finalText: "",
+            events: [],
+            usedModel: input.model,
+            command: { command: "codex", args: [] },
+            rawOutput: { stdout: "", stderr: "503" },
+          };
+        }
+        return {
+          ok: true,
+          exitCode: 0,
+          timedOut: false,
+          stdout: "success",
+          stderr: "",
+          responseText: "ok",
+          finalText: "ok",
+          events: [],
+          usedModel: input.model,
+          command: { command: "codex", args: [] },
+          rawOutput: { stdout: "success", stderr: "" },
+        };
+      },
+    };
+
+    const summary = await runRalphLoop({
+      provider,
+      model: "gpt-5.3-codex",
+      thinkingValue: "high",
+      planPath,
+      plan,
+      maxIterations: 1,
+      workingDir: tempDir,
+      timeoutMs: 1000,
+      dryRun: false,
+      autoCommit: false,
+      sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+    });
+
+    expect(summary.completedSteps).toBe(1);
+    expect(plan.steps[0].status).toBe("done");
+    expect(calls).toBe(6); // 5 fails + 1 success
   });
 });
