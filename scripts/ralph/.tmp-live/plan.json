@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.1.0",
+  "goal": "Manual live google verification",
+  "createdAt": "2026-02-20T00:00:00.000Z",
+  "steps": [
+    {
+      "id": "step-01",
+      "title": "Live thinking output check",
+      "description": "Run one real provider call and inspect thinking stream",
+      "successCriteria": "true",
+      "status": "failed",
+      "attempts": 1,
+      "maxAttempts": 1,
+      "lastError": "Selected model unavailable: gemini-2.5-flash. No fallback models are configured.\nThinking/budget configuration rejected by provider. Check --thinking value \"high\" compatibility with model \"gemini-2.5-flash\".\nOkay, I understand. My task is to run a real provider call and inspect its thinking stream to check the live output. I'll focus on `src/providers/google.ts`. First, I'll list the files in `src/providers/` to get an overview, and then I'll read `src/providers/google.ts` to understand how provider calls are made and h...\npgrep: sysmon request failed with error: sysmond service not found",
+      "type": "test",
+      "files": [],
+      "riskLevel": "low",
+      "owner": "agent",
+      "postChecks": [],
+      "rollbackHint": "none"
+    }
+  ],
+  "metadata": {
+    "provider": "google",
+    "model": "gemini-2.5-flash",
+    "totalIterations": 1,
+    "completedIterations": 1
+  }
+}

@@ -1,4 +1,6 @@
 import chalk from "chalk";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 import { createStepCommit } from "../lib/git.js";
 import { runCommand, sleep } from "../lib/process.js";
@@ -203,8 +205,11 @@ export function isThinkingUnsupportedError(result: ProviderExecutionResult): boo
   return hasThinkingKeyword && hasRejection;
 }
 
-const PROVIDER_HEARTBEAT_INTERVAL_MS = 15_000;
+const PROVIDER_HEARTBEAT_INTERVAL_MS = 1_000;
 const PROVIDER_STALL_WARNING_THRESHOLD_MS = 60_000;
+const SHELL_COMMAND_NOT_FOUND_PATTERN = /(command not found|is not recognized as an internal or external command)/i;
+const SHELL_CONTROL_TOKENS_PATTERN = /(\|\||&&|[;|<>]|`\S*`|\$\()/;
+const CLI_OPTION_TOKEN_PATTERN = /(^|\s)-{1,2}[a-z0-9]/i;
 
 function summarizeProviderFailure(args: {
   execution: ProviderExecutionResult;
@@ -406,20 +411,156 @@ async function executeWithRetries(args: {
 async function runSuccessCriteria(
   criteria: string,
   cwd: string,
+  execution: ProviderExecutionResult,
 ): Promise<{ passed: boolean; output: string; durationMs: number }> {
   const startedAt = Date.now();
-  const result = await runCommand({
+  const shellResult = await runCommand({
     command: "bash",
     args: ["-lc", criteria],
     cwd,
   });
 
-  const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+  const shellOutput = [shellResult.stdout, shellResult.stderr].filter(Boolean).join("\n").trim();
+  if (
+    shellResult.exitCode === 127 &&
+    SHELL_COMMAND_NOT_FOUND_PATTERN.test(shellOutput) &&
+    isLikelyNarrativeCriteria(criteria)
+  ) {
+    const semantic = await evaluateNarrativeSuccessCriteria(criteria, cwd, execution);
+    return {
+      passed: semantic.passed,
+      output: [
+        "[ralph] successCriteria treated as narrative assertions (shell command not found fallback).",
+        shellOutput ? `shell: ${truncateText(shellOutput, 260)}` : "",
+        ...semantic.details,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      durationMs: Date.now() - startedAt,
+    };
+  }
+
   return {
-    passed: result.exitCode === 0,
-    output,
+    passed: shellResult.exitCode === 0,
+    output: shellOutput,
     durationMs: Date.now() - startedAt,
   };
+}
+
+function isLikelyNarrativeCriteria(criteria: string): boolean {
+  const normalized = normalizeInlineText(criteria);
+  if (!normalized || SHELL_CONTROL_TOKENS_PATTERN.test(normalized)) {
+    return false;
+  }
+  if (CLI_OPTION_TOKEN_PATTERN.test(normalized) || /[\\/]/.test(normalized)) {
+    return false;
+  }
+  const words = normalized.split(" ").filter(Boolean);
+  return words.length >= 5;
+}
+
+function hasToolCallRequirement(criteria: string): boolean {
+  const value = criteria.toLowerCase();
+  return /\btool[-\s_]?call\b/.test(value) || /\btool\b.*\btrigger(?:ed)?\b/.test(value);
+}
+
+function hasToolResultRequirement(criteria: string): boolean {
+  return /\btool[-\s_]?result\b/.test(criteria.toLowerCase());
+}
+
+function hasLengthRequirement(criteria: string): boolean {
+  return /\b(lengthy|long|complex|mathematically|detailed)\b/i.test(criteria);
+}
+
+function hasStreamingRequirement(criteria: string): boolean {
+  return /\bstream(?:ing)?\b/i.test(criteria);
+}
+
+function extractMentionedFiles(criteria: string): string[] {
+  const matches = criteria.match(/\b[a-z0-9_.-]+\.[a-z0-9]{1,8}\b/gi) ?? [];
+  return Array.from(new Set(matches));
+}
+
+async function evaluateNarrativeSuccessCriteria(
+  criteria: string,
+  cwd: string,
+  execution: ProviderExecutionResult,
+): Promise<{ passed: boolean; details: string[] }> {
+  const checks: Array<{ label: string; passed: boolean; detail: string }> = [];
+  const events = Array.isArray(execution.events) ? execution.events : [];
+  const toolCallCount = events.filter((event) => event.type === "tool_call").length;
+  const toolResultCount = events.filter((event) => event.type === "tool_result").length;
+  const streamSignalCount = events.filter((event) => event.type !== "error").length;
+  const assistantText = normalizeInlineText(
+    [
+      execution.finalText,
+      execution.responseText,
+      ...events
+        .filter((event) => event.type === "assistant_text")
+        .map((event) => asString(event.payload.text) ?? "")
+        .filter(Boolean),
+    ].join(" "),
+  );
+  const assistantWordCount = assistantText ? assistantText.split(/\s+/).filter(Boolean).length : 0;
+
+  checks.push({
+    label: "assistant output",
+    passed: assistantText.length > 0,
+    detail: `chars=${assistantText.length}, words=${assistantWordCount}`,
+  });
+
+  if (hasToolCallRequirement(criteria)) {
+    checks.push({
+      label: "tool call observed",
+      passed: toolCallCount > 0,
+      detail: `tool_call_events=${toolCallCount}`,
+    });
+  }
+
+  if (hasToolResultRequirement(criteria)) {
+    checks.push({
+      label: "tool result observed",
+      passed: toolResultCount > 0,
+      detail: `tool_result_events=${toolResultCount}`,
+    });
+  }
+
+  if (hasStreamingRequirement(criteria)) {
+    checks.push({
+      label: "streaming signal observed",
+      passed: streamSignalCount > 0,
+      detail: `non_error_events=${streamSignalCount}`,
+    });
+  }
+
+  if (hasLengthRequirement(criteria)) {
+    checks.push({
+      label: "long-form output",
+      passed: assistantWordCount >= 20 || assistantText.length >= 160,
+      detail: `chars=${assistantText.length}, words=${assistantWordCount} (target: >=20 words or >=160 chars)`,
+    });
+  }
+
+  const mentionedFiles = extractMentionedFiles(criteria);
+  for (const file of mentionedFiles) {
+    const absolutePath = path.join(cwd, file);
+    let exists = false;
+    try {
+      await fs.access(absolutePath);
+      exists = true;
+    } catch {
+      exists = false;
+    }
+    checks.push({
+      label: `file exists: ${file}`,
+      passed: exists,
+      detail: exists ? "present" : "missing",
+    });
+  }
+
+  const passed = checks.every((check) => check.passed);
+  const details = checks.map((check) => `${check.passed ? "PASS" : "FAIL"} ${check.label} (${check.detail})`);
+  return { passed, details };
 }
 
 async function runStepPostChecks(
@@ -535,6 +676,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     const prompt = buildIterationPrompt(config.plan, step, gitState);
     const stalledAttempts = new Set<number>();
     let latestThinkingChunk: string = "";
+    const recentThinkingChunks: string[] = [];
 
     const execution = await executeWithRetries({
       provider: config.provider,
@@ -602,10 +744,15 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         if (event.type === "thinking") {
           const text = asString(event.payload.summary);
           if (text) {
-            latestThinkingChunk += text;
-            latestThinkingChunk = latestThinkingChunk.replace(/\\r?\\n/g, " ").replace(/\\s+/g, " ");
-            if (latestThinkingChunk.length > 300) {
-              latestThinkingChunk = "..." + latestThinkingChunk.slice(-250);
+            const normalized = text.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
+            if (normalized.length > 0) {
+              if (
+                recentThinkingChunks.length === 0 ||
+                recentThinkingChunks[recentThinkingChunks.length - 1] !== normalized
+              ) {
+                recentThinkingChunks.push(normalized);
+              }
+              latestThinkingChunk = `(${recentThinkingChunks.length}) ${recentThinkingChunks.join(" | ")}`;
             }
           }
         }
@@ -729,7 +876,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       });
     } else {
       printSuccessCriteriaStart({ step, command: step.successCriteria });
-      const criteriaResult = await runSuccessCriteria(step.successCriteria, config.workingDir);
+      const criteriaResult = await runSuccessCriteria(step.successCriteria, config.workingDir, execution);
       printSuccessCriteriaDone({
         step,
         passed: criteriaResult.passed,

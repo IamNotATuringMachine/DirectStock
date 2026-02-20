@@ -1,0 +1,45 @@
+{
+  "sessionId": "face539a-32bf-4613-aa69-3105378d7f7e",
+  "projectHash": "769c17457997432637587583109eea32c55f925f99deb346a41d667f46ac12b1",
+  "startTime": "2026-02-20T07:59:19.427Z",
+  "lastUpdated": "2026-02-20T07:59:22.973Z",
+  "messages": [
+    {
+      "id": "776d4734-cb76-42f6-b695-7b1b8fc7b207",
+      "timestamp": "2026-02-20T07:59:19.427Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "Write a short poem about a mechanical butterfly. Then explain the symbolism in 3 sentences."
+        }
+      ]
+    },
+    {
+      "id": "22126cc8-f612-49e1-b0ce-ffc0ccdd0063",
+      "timestamp": "2026-02-20T07:59:22.973Z",
+      "type": "gemini",
+      "content": "Silvered wings of etched design,\nPulse with gears in perfect line.\nNo nectar sought from velvet bloom,\nBut oil and light in quiet gloom.\nA copper ghost in azure sky,\nA cold and clockwork butterfly.\n\nThe mechanical butterfly represents the intersection of organic beauty and industrial precision, suggesting that even the most delicate aspects of nature can be replicated through human engineering. Its clockwork movement symbolizes the tension between free will and predetermination, as its flight is dictated by rigid internal gears rather than instinct. Furthermore, the use of cold metals to mimic a fragile insect serves as a metaphor for the human desire to grant permanence to the ephemeral and fleeting moments of life.",
+      "thoughts": [
+        {
+          "subject": "Imagining a Mechanical Butterfly",
+          "description": "I've been occupied with the mechanical butterfly concept. Right now, I'm composing a short poem to capture its essence. The imagery is taking shape: gears, wings, metallic sheen. Then, I need to distill the symbolism into three concise sentences. The core themes seem to be artificiality, the contrast between the crafted and the natural, and a poignant silence punctuated by mechanical clicks.",
+          "timestamp": "2026-02-20T07:59:21.668Z"
+        },
+        {
+          "subject": "Revising the Poem",
+          "description": "I'm now refining the poem. It needs more directness, less ambiguity. The metallic imagery feels good, but I'm considering sharper verbs to drive home the contrast between nature and artifice. The three sentences that explain the symbolism seem solid, though, and I'm not planning any revisions there.",
+          "timestamp": "2026-02-20T07:59:22.908Z"
+        }
+      ],
+      "tokens": {
+        "input": 11989,
+        "output": 137,
+        "cached": 0,
+        "thoughts": 248,
+        "tool": 0,
+        "total": 12374
+      },
+      "model": "gemini-3-flash-preview"
+    }
+  ]
+}

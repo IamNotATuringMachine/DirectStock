@@ -1,0 +1,28 @@
+{
+  "sessionId": "92f86967-cf2e-4513-ae66-c8b44a9db873",
+  "projectHash": "769c17457997432637587583109eea32c55f925f99deb346a41d667f46ac12b1",
+  "startTime": "2026-02-20T08:43:13.757Z",
+  "lastUpdated": "2026-02-20T08:44:03.200Z",
+  "messages": [
+    {
+      "id": "806722fe-bd2b-4115-8b0f-34eaf7e6c095",
+      "timestamp": "2026-02-20T08:43:13.757Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "Your task is to answer the following question about Gemini CLI:\n<question>\nMy prompt says I should have tools like `replace`, `write_file`, and `run_shell_command`, but my `default_api` only lists `list_directory`, `read_file`, `grep_search`, `glob`, `save_memory`, `google_web_search`, `codebase_investigator`, `cli_help`, and `activate_skill`. How can I modify files and run commands?\n</question>"
+        }
+      ]
+    },
+    {
+      "id": "90e5a3d0-e5d6-47d0-8126-68aa80648f80",
+      "timestamp": "2026-02-20T08:44:03.200Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "You have exceeded the maximum number of turns. You have one final chance to complete the task with a short grace period. You MUST call `complete_task` immediately with your best answer and explain that your investigation was interrupted. Do not call any other tools."
+        }
+      ]
+    }
+  ]
+}

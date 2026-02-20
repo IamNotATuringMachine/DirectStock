@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.1.0",
+  "goal": "Local direct binary thinking visibility check",
+  "createdAt": "2026-02-20T00:00:00.000Z",
+  "steps": [
+    {
+      "id": "step-01",
+      "title": "Thinking chunk display",
+      "description": "Validate that multiple thinking chunks are displayed in timeline summary mode",
+      "successCriteria": "true",
+      "status": "done",
+      "attempts": 0,
+      "maxAttempts": 1,
+      "type": "test",
+      "files": [],
+      "riskLevel": "low",
+      "owner": "agent",
+      "postChecks": [],
+      "rollbackHint": "none"
+    }
+  ],
+  "metadata": {
+    "provider": "google",
+    "model": "gemini-3.0-flash-preview",
+    "totalIterations": 1,
+    "completedIterations": 1
+  }
+}

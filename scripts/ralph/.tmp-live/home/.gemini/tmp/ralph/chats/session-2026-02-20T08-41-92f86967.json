@@ -1,0 +1,28 @@
+{
+  "sessionId": "92f86967-cf2e-4513-ae66-c8b44a9db873",
+  "projectHash": "769c17457997432637587583109eea32c55f925f99deb346a41d667f46ac12b1",
+  "startTime": "2026-02-20T08:41:08.080Z",
+  "lastUpdated": "2026-02-20T08:41:44.385Z",
+  "messages": [
+    {
+      "id": "09cfdd2c-793d-472b-9cc1-160917481216",
+      "timestamp": "2026-02-20T08:41:08.080Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "Your task is to do a deep investigation of the codebase to find all relevant files, code locations, architectural mental map and insights to solve  for the following user objective:\n<objective>\nValidate that multiple thinking chunks are displayed in timeline summary mode. Can you run tests or verify this behavior?\n</objective>"
+        }
+      ]
+    },
+    {
+      "id": "f2763739-61c5-4735-b2c6-a1f8a33c5eae",
+      "timestamp": "2026-02-20T08:41:44.385Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "You have exceeded the maximum number of turns. You have one final chance to complete the task with a short grace period. You MUST call `complete_task` immediately with your best answer and explain that your investigation was interrupted. Do not call any other tools."
+        }
+      ]
+    }
+  ]
+}

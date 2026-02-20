@@ -74,7 +74,12 @@ function indicatesUnknownCommand(text: string): boolean {
   );
 }
 
-async function collectHelpText(command: string, args: string[], cwd: string): Promise<string> {
+interface HelpProbeResult {
+  text: string;
+  timedOut: boolean;
+}
+
+async function collectHelpText(command: string, args: string[], cwd: string): Promise<HelpProbeResult> {
   const result = await runCommand({
     command,
     args,
@@ -82,20 +87,35 @@ async function collectHelpText(command: string, args: string[], cwd: string): Pr
     timeoutMs: 10_000,
   });
 
-  return `${result.stdout}\n${result.stderr}`.toLowerCase();
+  return {
+    text: `${result.stdout}\n${result.stderr}`.toLowerCase(),
+    timedOut: result.timedOut,
+  };
 }
 
 export async function probeProviderCapabilities(
   input: ProviderCapabilityProbeInput,
 ): Promise<ProviderCapabilityProbeResult> {
   const spec = PROBE_SPECS[input.provider.id];
-  const helpText = await collectHelpText(input.provider.cliCommand, spec.helpCommand, input.cwd);
-  const resumeHelpText = spec.resumeHelpCommand
+  const helpProbe = await collectHelpText(input.provider.cliCommand, spec.helpCommand, input.cwd);
+  const resumeHelpProbe = spec.resumeHelpCommand
     ? await collectHelpText(input.provider.cliCommand, spec.resumeHelpCommand, input.cwd)
-    : helpText;
+    : helpProbe;
+  const helpText = helpProbe.text;
+  const resumeHelpText = resumeHelpProbe.text;
+  const helpUnavailable = helpProbe.timedOut || helpText.trim().length === 0;
+  const resumeHelpUnavailable = resumeHelpProbe.timedOut || resumeHelpText.trim().length === 0;
 
-  const fatalMissing = spec.requiredTokens.filter((token) => !helpText.includes(token.toLowerCase()));
+  const fatalMissing = helpUnavailable
+    ? []
+    : spec.requiredTokens.filter((token) => !helpText.includes(token.toLowerCase()));
   const warnings: string[] = [];
+
+  if (helpUnavailable) {
+    warnings.push(
+      `${input.provider.name}: capability probe help output unavailable (timeout/empty); using adapter defaults.`,
+    );
+  }
 
   if (fatalMissing.length > 0) {
     warnings.push(
@@ -104,13 +124,25 @@ export async function probeProviderCapabilities(
   }
 
   const supportsResume = spec.optional.resume
-    ? hasAllTokens(resumeHelpText, spec.optional.resume) && !indicatesUnknownCommand(resumeHelpText)
+    ? resumeHelpUnavailable
+      ? Boolean(input.provider.supportsResume)
+      : hasAllTokens(resumeHelpText, spec.optional.resume) && !indicatesUnknownCommand(resumeHelpText)
     : false;
   const supportsOutputSchemaPath = spec.optional.outputSchemaPath
-    ? hasAllTokens(helpText, spec.optional.outputSchemaPath)
+    ? helpUnavailable
+      ? Boolean(input.provider.supportsOutputSchemaPath)
+      : hasAllTokens(helpText, spec.optional.outputSchemaPath)
     : false;
-  const supportsJsonSchema = spec.optional.jsonSchema ? hasAllTokens(helpText, spec.optional.jsonSchema) : false;
-  const supportsStreamOutput = spec.optional.streamJson ? hasAllTokens(helpText, spec.optional.streamJson) : false;
+  const supportsJsonSchema = spec.optional.jsonSchema
+    ? helpUnavailable
+      ? Boolean(input.provider.supportsJsonSchema)
+      : hasAllTokens(helpText, spec.optional.jsonSchema)
+    : false;
+  const supportsStreamOutput = spec.optional.streamJson
+    ? helpUnavailable
+      ? Boolean(input.provider.supportsStreamJson)
+      : hasAllTokens(helpText, spec.optional.streamJson)
+    : false;
 
   if (input.provider.supportsResume && !supportsResume) {
     warnings.push(`${input.provider.name}: resume capability was not detected and will be disabled.`);

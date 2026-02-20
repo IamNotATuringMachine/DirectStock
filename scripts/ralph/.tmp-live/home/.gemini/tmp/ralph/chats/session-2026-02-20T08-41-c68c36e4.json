@@ -1,0 +1,18 @@
+{
+  "sessionId": "c68c36e4-4053-4a34-9f1c-33ea4267c018",
+  "projectHash": "769c17457997432637587583109eea32c55f925f99deb346a41d667f46ac12b1",
+  "startTime": "2026-02-20T08:41:59.046Z",
+  "lastUpdated": "2026-02-20T08:41:59.046Z",
+  "messages": [
+    {
+      "id": "ba434adc-eff2-4288-964d-1b76f9f107ef",
+      "timestamp": "2026-02-20T08:41:59.046Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "Your task is to answer the following question about Gemini CLI:\n<question>\nWhat tools are available to run shell commands in this session?\n</question>"
+        }
+      ]
+    }
+  ]
+}

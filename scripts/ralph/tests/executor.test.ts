@@ -170,6 +170,123 @@ describe("executor", () => {
     expect(summary.analytics.successCriteria.failed).toBe(1);
   });
 
+  it("interprets narrative success criteria via provider output and events", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-narrative-pass-"));
+    const planPath = path.join(tempDir, "plan.json");
+    const plan = samplePlan("Lengthy sentence produced and tool call triggered", 1);
+    await fs.writeJson(planPath, plan, { spaces: 2 });
+
+    const longText =
+      "Black-hole geodesics in Schwarzschild spacetime force infalling trajectories to satisfy highly nonlinear curvature constraints while tidal tensors scale rapidly near the horizon, yielding extended analytical statements that remain mathematically dense and physically explicit.";
+    const provider: ProviderAdapter = {
+      ...fakeProvider(true),
+      execute: async (input) => ({
+        ok: true,
+        exitCode: 0,
+        timedOut: false,
+        stdout: "",
+        stderr: "",
+        responseText: longText,
+        finalText: longText,
+        events: [
+          {
+            type: "assistant_text",
+            provider: "openai",
+            timestamp: new Date().toISOString(),
+            attempt: input.attempt ?? 1,
+            payload: { text: longText },
+          },
+          {
+            type: "tool_call",
+            provider: "openai",
+            timestamp: new Date().toISOString(),
+            attempt: input.attempt ?? 1,
+            payload: { name: "write_file", command: "write blackhole.txt" },
+          },
+        ],
+        usedModel: input.model,
+        command: { command: "codex", args: ["exec"] },
+        rawOutput: { stdout: "", stderr: "" },
+      }),
+    };
+
+    const summary = await runRalphLoop({
+      provider,
+      model: "gpt-5.3-codex",
+      thinkingValue: "high",
+      planPath,
+      plan,
+      maxIterations: 1,
+      workingDir: tempDir,
+      timeoutMs: 2000,
+      dryRun: false,
+      autoCommit: false,
+      sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+    });
+
+    expect(summary.completedSteps).toBe(1);
+    expect(plan.steps[0].status).toBe("done");
+    expect(summary.analytics.successCriteria.passed).toBe(1);
+  });
+
+  it("fails narrative success criteria when required tool call is missing", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-narrative-fail-"));
+    const planPath = path.join(tempDir, "plan.json");
+    const plan = samplePlan("Lengthy sentence produced and tool call triggered", 1);
+    await fs.writeJson(planPath, plan, { spaces: 2 });
+
+    const longText =
+      "Tensorial perturbation terms around compact horizons can be expressed with coupled equations whose asymptotic behavior remains long-form, mathematically detailed, and physically interpretable across multiple coordinate charts.";
+    const provider: ProviderAdapter = {
+      ...fakeProvider(true),
+      execute: async (input) => ({
+        ok: true,
+        exitCode: 0,
+        timedOut: false,
+        stdout: "",
+        stderr: "",
+        responseText: longText,
+        finalText: longText,
+        events: [
+          {
+            type: "assistant_text",
+            provider: "openai",
+            timestamp: new Date().toISOString(),
+            attempt: input.attempt ?? 1,
+            payload: { text: longText },
+          },
+        ],
+        usedModel: input.model,
+        command: { command: "codex", args: ["exec"] },
+        rawOutput: { stdout: "", stderr: "" },
+      }),
+    };
+
+    const summary = await runRalphLoop({
+      provider,
+      model: "gpt-5.3-codex",
+      thinkingValue: "high",
+      planPath,
+      plan,
+      maxIterations: 1,
+      workingDir: tempDir,
+      timeoutMs: 2000,
+      dryRun: false,
+      autoCommit: false,
+      sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+    });
+
+    expect(summary.failedSteps).toBe(1);
+    expect(plan.steps[0].status).toBe("failed");
+    expect(plan.steps[0].lastError).toContain("FAIL tool call observed");
+  });
+
   it("fails immediately when selected model is unavailable and does not fallback", async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-model-unavailable-"));
     const planPath = path.join(tempDir, "plan.json");

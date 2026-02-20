@@ -21,6 +21,7 @@ function provider(id: ProviderAdapter["id"]): ProviderAdapter {
     supportsResume: true,
     supportsOutputSchemaPath: id === "openai",
     supportsJsonSchema: id === "anthropic",
+    supportsStreamJson: true,
     isInstalled: async () => true,
     buildCommand: () => ({ command: "noop", args: [] }),
     execute: async () => ({
@@ -88,5 +89,25 @@ describe("provider capability probe", () => {
         strict: true,
       }),
     ).rejects.toThrow("capability probe failed");
+  });
+
+  it("falls back to adapter defaults when help output is unavailable", async () => {
+    mockRunCommand.mockResolvedValue({
+      exitCode: null,
+      timedOut: true,
+      stdout: "",
+      stderr: "",
+    });
+
+    const result = await probeProviderCapabilities({
+      provider: provider("google"),
+      cwd: process.cwd(),
+      strict: false,
+    });
+
+    expect(result.fatalMissing).toEqual([]);
+    expect(result.supportsResume).toBe(true);
+    expect(result.supportsStreamOutput).toBe(true);
+    expect(result.warnings.some((warning) => warning.includes("help output unavailable"))).toBe(true);
   });
 });

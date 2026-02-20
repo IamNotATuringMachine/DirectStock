@@ -1,0 +1,18 @@
+{
+  "sessionId": "0f2b9823-3dfa-4562-b794-23092ea94f9b",
+  "projectHash": "769c17457997432637587583109eea32c55f925f99deb346a41d667f46ac12b1",
+  "startTime": "2026-02-20T07:59:08.229Z",
+  "lastUpdated": "2026-02-20T07:59:08.229Z",
+  "messages": [
+    {
+      "id": "49c8c77b-7919-41cc-9b5d-3fce4b0acbb1",
+      "timestamp": "2026-02-20T07:59:08.229Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "hi"
+        }
+      ]
+    }
+  ]
+}

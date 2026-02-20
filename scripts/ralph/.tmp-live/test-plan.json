@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.1.0",
+  "goal": "Test the live thinking stream output of the Anthropic provider by analyzing and summarizing a complex problem.",
+  "createdAt": "2026-02-20T10:00:00Z",
+  "steps": [
+    {
+      "id": "step-01",
+      "title": "Analyze and summarize a complex problem",
+      "description": "Analyze the following problem and provide a detailed summary of potential solutions, explaining your reasoning process step-by-step. The problem is: 'Given a large dataset of customer transactions, how would you identify fraudulent activities using machine learning techniques? Detail the steps from data preprocessing to model deployment and monitoring.'",
+      "successCriteria": "output contains a detailed summary and step-by-step reasoning about identifying fraudulent activities in customer transactions using machine learning",
+      "status": "failed",
+      "attempts": 1,
+      "maxAttempts": 1,
+      "lastError": "",
+      "type": "code",
+      "files": [],
+      "riskLevel": "low",
+      "owner": "ralph-test-agent",
+      "postChecks": [],
+      "rollbackHint": "Revert the changes made to the problem analysis."
+    }
+  ],
+  "metadata": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "totalIterations": 1,
+    "completedIterations": 1
+  }
+}

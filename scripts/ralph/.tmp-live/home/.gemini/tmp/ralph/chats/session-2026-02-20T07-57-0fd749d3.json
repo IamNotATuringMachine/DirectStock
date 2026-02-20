@@ -1,0 +1,18 @@
+{
+  "sessionId": "0fd749d3-af8a-482e-b4a8-99dd11c1a834",
+  "projectHash": "769c17457997432637587583109eea32c55f925f99deb346a41d667f46ac12b1",
+  "startTime": "2026-02-20T07:57:03.103Z",
+  "lastUpdated": "2026-02-20T07:57:03.103Z",
+  "messages": [
+    {
+      "id": "0e0de2f0-12fd-4445-a5ce-265c3e2e17a9",
+      "timestamp": "2026-02-20T07:57:03.103Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "Write a short poem about a mechanical butterfly. Then explain the symbolism in 3 sentences."
+        }
+      ]
+    }
+  ]
+}

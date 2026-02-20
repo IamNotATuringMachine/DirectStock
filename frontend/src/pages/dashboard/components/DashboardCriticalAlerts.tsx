@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import type { AlertResponse } from "../../../types";
+import { Skeleton } from "../../../components/Skeleton";
 
 interface DashboardCriticalAlertsProps {
   data?: AlertResponse;
   visible: boolean;
+  isLoading?: boolean;
 }
 
-export function DashboardCriticalAlerts({ data, visible }: DashboardCriticalAlertsProps) {
+export function DashboardCriticalAlerts({ data, visible, isLoading }: DashboardCriticalAlertsProps) {
   if (!visible) return null;
 
   return (
@@ -18,18 +20,26 @@ export function DashboardCriticalAlerts({ data, visible }: DashboardCriticalAler
         </Link>
       </div>
       <div className="flex flex-col gap-2">
-        {(data?.items ?? []).map((alert) => (
-          <div
-            key={alert.id}
-            className="p-3 rounded-lg bg-red-50 border border-red-100 flex justify-between items-center transition-colors hover:bg-red-100"
-          >
-            <span className="text-sm font-medium text-red-900 truncate flex-1 mr-2">{alert.title}</span>
-            <span className="text-xs text-red-700 font-mono whitespace-nowrap">
-              {new Date(alert.triggered_at).toLocaleTimeString()}
-            </span>
-          </div>
-        ))}
-        {(!data?.items || data.items.length === 0) && (
+        {isLoading ? (
+          <>
+            <Skeleton height={48} className="rounded-lg" />
+            <Skeleton height={48} className="rounded-lg" />
+            <Skeleton height={48} className="rounded-lg" />
+          </>
+        ) : (
+          (data?.items ?? []).map((alert) => (
+            <div
+              key={alert.id}
+              className="p-3 rounded-lg bg-red-50 border border-red-100 flex justify-between items-center transition-colors hover:bg-red-100"
+            >
+              <span className="text-sm font-medium text-red-900 truncate flex-1 mr-2">{alert.title}</span>
+              <span className="text-xs text-red-700 font-mono whitespace-nowrap">
+                {new Date(alert.triggered_at).toLocaleTimeString()}
+              </span>
+            </div>
+          ))
+        )}
+        {!isLoading && (!data?.items || data.items.length === 0) && (
           <p className="text-sm text-gray-500 italic p-2">Keine kritischen Warnungen.</p>
         )}
       </div>

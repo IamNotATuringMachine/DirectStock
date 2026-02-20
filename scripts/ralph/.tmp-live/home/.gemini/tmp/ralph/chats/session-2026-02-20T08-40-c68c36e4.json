@@ -1,0 +1,28 @@
+{
+  "sessionId": "c68c36e4-4053-4a34-9f1c-33ea4267c018",
+  "projectHash": "769c17457997432637587583109eea32c55f925f99deb346a41d667f46ac12b1",
+  "startTime": "2026-02-20T08:40:09.336Z",
+  "lastUpdated": "2026-02-20T08:40:38.324Z",
+  "messages": [
+    {
+      "id": "1879d245-0699-4aa0-a0e0-e42c9fb03e33",
+      "timestamp": "2026-02-20T08:40:09.336Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "Your task is to do a deep investigation of the codebase to find all relevant files, code locations, architectural mental map and insights to solve  for the following user objective:\n<objective>\nFind the file scripts/test-thinking.ts and explain if thinking events are emitted from both stream output and watcher path in src/providers/google.ts. Propose one concise validation command.\n</objective>"
+        }
+      ]
+    },
+    {
+      "id": "d7548057-d8c7-4494-a64e-74c5dacdb6d4",
+      "timestamp": "2026-02-20T08:40:38.324Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "You have exceeded the maximum number of turns. You have one final chance to complete the task with a short grace period. You MUST call `complete_task` immediately with your best answer and explain that your investigation was interrupted. Do not call any other tools."
+        }
+      ]
+    }
+  ]
+}

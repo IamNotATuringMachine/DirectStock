@@ -1,0 +1,8 @@
+{
+  "provider": "google",
+  "model": "gemini-3-flash-preview",
+  "thinkingValue": "high",
+  "planPath": "/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/scripts/ralph/.tmp-live/plan-local-direct-rich.json",
+  "maxIterations": 1,
+  "savedAt": "2026-02-20T08:38:44.947Z"
+}

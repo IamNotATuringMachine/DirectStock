@@ -207,7 +207,7 @@ export function parseGeminiResponse(stdout: string, stderr = "", attempt = 1): P
 
   let extractedPayload: Record<string, unknown> | null = null;
   const jsonText = extractJsonFromText(mergedOutput);
-  if (jsonText) {
+  if (jsonText && parsedLines.length === 0) {
     try {
       extractedPayload = JSON.parse(jsonText) as Record<string, unknown>;
       const extractedAccumulator: string[] = [];
@@ -295,6 +295,29 @@ export function parseGeminiResponse(stdout: string, stderr = "", attempt = 1): P
   };
 }
 
+function mergeUniqueEvents(primary: ProviderOutputEvent[], secondary: ProviderOutputEvent[]): ProviderOutputEvent[] {
+  const seen = new Set<string>();
+  const merged: ProviderOutputEvent[] = [];
+
+  const pushUnique = (event: ProviderOutputEvent) => {
+    const key = `${event.type}|${JSON.stringify(event.payload)}`;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    merged.push(event);
+  };
+
+  for (const event of primary) {
+    pushUnique(event);
+  }
+  for (const event of secondary) {
+    pushUnique(event);
+  }
+
+  return merged;
+}
+
 async function findSessionFile(shortId: string): Promise<string | undefined> {
   const tmpDir = path.join(os.homedir(), ".gemini", "tmp");
   try {
@@ -352,7 +375,7 @@ async function watchGeminiSessionThoughts(
           for (let i = lastThoughtCount; i < currentCount; i++) {
             const thought = lastGeminiMessage.thoughts[i] as Record<string, unknown>;
             if (thought && (thought.subject || thought.description)) {
-              const text = [asString(thought.subject), asString(thought.description)].filter(Boolean).join("\\n");
+              const text = [asString(thought.subject), asString(thought.description)].filter(Boolean).join("\n");
               if (text) {
                 onEvent(
                   createProviderEvent({
@@ -386,7 +409,7 @@ function buildCommand(input: ProviderExecutionInput): ProviderCommand {
     "--output-format",
     outputFormat,
     "--approval-mode",
-    "yolo",
+    "default", // Note: yolo + stream-json currently crashes CLI v0.29.5 in some environments
   ];
 
   if (input.sessionStrategy === "resume" && input.resumeSessionId) {
@@ -439,6 +462,13 @@ export const googleAdapter: ProviderAdapter = {
     const abortController = new AbortController();
     let watcherStartedForSessionId: string | undefined;
     let stdoutBuffer = "";
+    const streamedEvents: ProviderOutputEvent[] = [];
+    const emitEvent = (event: ProviderOutputEvent) => {
+      streamedEvents.push(event);
+      if (input.onEvent) {
+        void input.onEvent(event);
+      }
+    };
 
     const result = await runCommand({
       command: command.command,
@@ -447,10 +477,9 @@ export const googleAdapter: ProviderAdapter = {
       timeoutMs: input.timeoutMs,
       env: command.env,
       onStdout: (chunk) => {
-        if (!input.onEvent) return;
         stdoutBuffer += chunk;
         let newlineIndex;
-        while ((newlineIndex = stdoutBuffer.indexOf("\\n")) !== -1) {
+        while ((newlineIndex = stdoutBuffer.indexOf("\n")) !== -1) {
           const line = stdoutBuffer.slice(0, newlineIndex);
           stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
 
@@ -462,22 +491,27 @@ export const googleAdapter: ProviderAdapter = {
             watcherStartedForSessionId = parsedChunk.sessionId;
             void watchGeminiSessionThoughts(
               watcherStartedForSessionId,
-              input.onEvent,
+              emitEvent,
               input.attempt ?? 1,
               abortController.signal,
             );
           }
 
           for (const event of parsedChunk.events) {
-            void input.onEvent(event);
+            emitEvent(event);
           }
         }
       },
     });
 
+    // Small grace period for the file watcher to pick up final thoughts
+    if (watcherStartedForSessionId) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
     abortController.abort();
 
     const parsed = parseGeminiResponse(result.stdout, result.stderr, input.attempt ?? 1);
+    const mergedEvents = mergeUniqueEvents(streamedEvents, parsed.events);
 
     return {
       ok: result.exitCode === 0 && !result.timedOut,
@@ -487,8 +521,8 @@ export const googleAdapter: ProviderAdapter = {
       stderr: result.stderr,
       responseText: parsed.text,
       finalText: parsed.text,
-      events: parsed.events,
-      thinkingSummary: parsed.thinkingSummary,
+      events: mergedEvents,
+      thinkingSummary: summarizeThinking(mergedEvents),
       usedModel: input.model,
       command,
       sessionId: parsed.sessionId,
