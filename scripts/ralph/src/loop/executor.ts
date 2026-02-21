@@ -1218,6 +1218,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     }
 
     const durationMs = Date.now() - startedAt;
+    let criteriaResultOverride: { passed: boolean; output: string; durationMs: number } | undefined;
 
     // No-op guard:
     // - If baseline already passes, allow no-change attempts to continue to criteria.
@@ -1242,28 +1243,51 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
             preview: "no-op accepted (baseline already passed)",
           });
         } else {
-        step.lastError = "[no-op] Provider made 0 file writes matching step's affected paths. Retrying without burning an attempt.";
-        step.status = "pending";
-        console.log(
-          chalk.yellow(
-            `[no-op] ${step.id} provider wrote nothing relevant — retrying without burning attempt ${step.attempts + 1}/${step.maxAttempts}`,
-          ),
-        );
-        await config.runLogger?.log({
-          event: "step_failed",
-          iteration,
-          stepId: step.id,
-          stepTitle: step.title,
-          attempt: step.attempts,
-          maxAttempts: step.maxAttempts,
-          durationMs,
-          exitCode: 0,
-          sessionId: execution.sessionId ?? resumeSessionId,
-          details: step.lastError,
-        });
-        config.plan.metadata.completedIterations += 1;
-        await savePlan(config.planPath, config.plan);
-        continue;
+          // Guard against false negatives from the affected-path matcher:
+          // if criteria now pass, accept completion even without a matched write.
+          const criteriaAfterNoOp = await runSuccessCriteria(step.successCriteria, config.workingDir, execution);
+          if (criteriaAfterNoOp.passed) {
+            criteriaResultOverride = criteriaAfterNoOp;
+            console.log(
+              chalk.dim(
+                `[no-op] ${step.id} unmatched writes detected, but success criteria now pass — accepting completion.`,
+              ),
+            );
+            await config.runLogger?.log({
+              event: "provider_event",
+              iteration,
+              stepId: step.id,
+              stepTitle: step.title,
+              attempt: step.attempts + 1,
+              sessionId: execution.sessionId ?? resumeSessionId,
+              providerEventType: "status",
+              preview: "no-op accepted (criteria passed after execution)",
+            });
+          } else {
+            step.lastError =
+              "[no-op] Provider made 0 file writes matching step's affected paths. Retrying without burning an attempt.";
+            step.status = "pending";
+            console.log(
+              chalk.yellow(
+                `[no-op] ${step.id} provider wrote nothing relevant — retrying without burning attempt ${step.attempts + 1}/${step.maxAttempts}`,
+              ),
+            );
+            await config.runLogger?.log({
+              event: "step_failed",
+              iteration,
+              stepId: step.id,
+              stepTitle: step.title,
+              attempt: step.attempts,
+              maxAttempts: step.maxAttempts,
+              durationMs,
+              exitCode: 0,
+              sessionId: execution.sessionId ?? resumeSessionId,
+              details: step.lastError,
+            });
+            config.plan.metadata.completedIterations += 1;
+            await savePlan(config.planPath, config.plan);
+            continue;
+          }
         }
       }
     }
@@ -1342,7 +1366,8 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       }
     } else {
       printSuccessCriteriaStart({ step, command: step.successCriteria });
-      const criteriaResult = await runSuccessCriteria(step.successCriteria, config.workingDir, execution);
+      const criteriaResult =
+        criteriaResultOverride ?? (await runSuccessCriteria(step.successCriteria, config.workingDir, execution));
       printSuccessCriteriaDone({
         step,
         passed: criteriaResult.passed,

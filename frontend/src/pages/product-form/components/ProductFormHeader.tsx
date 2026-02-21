@@ -18,16 +18,14 @@ export function ProductFormHeader({ title, isEditMode, isCreateWizardFlow, produ
         </Link>
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-[var(--ink)] tracking-tight">
-              {isEditMode && productId !== null ? `${title} #${productId}` : title}
-            </h1>
+            <h1 className="page-title">{isEditMode && productId !== null ? `${title} #${productId}` : title}</h1>
             {isEditMode ? (
               <span className="px-2.5 py-0.5 rounded-md bg-[var(--panel-strong)] border border-[var(--line)] text-xs font-mono text-[var(--muted)]">
                 ID: {productId}
               </span>
             ) : null}
           </div>
-          <p className="text-[var(--muted)] mt-1.5">
+          <p className="section-subtitle mt-1">
             {isCreateWizardFlow
               ? "Der Artikel wurde angelegt. Ergänzen Sie jetzt optional Preise, Lagerdaten und Lieferanten."
               : isEditMode

@@ -186,6 +186,67 @@ describe("executor", () => {
     expect(plan.steps[0].attempts).toBe(0);
   });
 
+  it("accepts completion when criteria pass after unmatched writes", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-noop-criteria-recover-"));
+    const planPath = path.join(tempDir, "plan.json");
+    const markerPath = path.join(tempDir, "frontend/src/pages/dashboard/components", ".ralph-marker");
+    await fs.ensureDir(path.dirname(markerPath));
+
+    const plan = samplePlan("test -f frontend/src/pages/dashboard/components/.ralph-marker");
+    plan.steps[0].files = ["frontend/src/pages/DashboardPage.tsx"];
+    await fs.writeJson(planPath, plan, { spaces: 2 });
+
+    const provider: ProviderAdapter = {
+      ...fakeProvider(true),
+      execute: async (input) => {
+        await fs.writeFile(markerPath, "ok\n");
+        return {
+          ok: true,
+          exitCode: 0,
+          timedOut: false,
+          stdout: "",
+          stderr: "",
+          responseText: "updated nested dashboard components",
+          finalText: "updated nested dashboard components",
+          events: [
+            {
+              type: "assistant_text",
+              provider: "openai",
+              timestamp: new Date().toISOString(),
+              attempt: input.attempt ?? 1,
+              payload: { text: "updated nested dashboard components" },
+            },
+          ],
+          usedModel: input.model,
+          command: { command: "codex", args: ["exec"] },
+          sessionId: input.resumeSessionId ?? "session-1",
+          rawOutput: { stdout: "", stderr: "" },
+        };
+      },
+    };
+
+    const summary = await runRalphLoop({
+      provider,
+      model: "gpt-5.3-codex",
+      thinkingValue: "high",
+      planPath,
+      plan,
+      maxIterations: 1,
+      workingDir: tempDir,
+      timeoutMs: 2000,
+      dryRun: false,
+      autoCommit: false,
+      sessionStrategy: "reset",
+      providerStreamingEnabled: true,
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+    });
+
+    expect(summary.completedSteps).toBe(1);
+    expect(plan.steps[0].status).toBe("done");
+    expect(plan.steps[0].attempts).toBe(0);
+  });
+
   it("increments attempts and fails step when criteria fail", async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ralph-exec-fail-"));
     const planPath = path.join(tempDir, "plan.json");
