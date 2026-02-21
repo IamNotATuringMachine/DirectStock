@@ -18,12 +18,18 @@ describe("cli", () => {
     expect(optionFlags).toContain("--model");
     expect(optionFlags).toContain("--thinking");
     expect(optionFlags).toContain("--max-iterations");
+    expect(optionFlags).toContain("--provider-max-turns");
     expect(optionFlags).toContain("--plan");
     expect(optionFlags).toContain("--session-strategy");
+    expect(optionFlags).toContain("--efficiency-mode");
     expect(optionFlags).toContain("--post-check-profile");
     expect(optionFlags).toContain("--log-format");
     expect(optionFlags).toContain("--run-log-path");
+    expect(optionFlags).toContain("--log-redact-secrets");
+    expect(optionFlags).toContain("--log-retention-days");
+    expect(optionFlags).toContain("--skip-context-pipeline-check");
     expect(optionFlags).toContain("--output-mode");
+    expect(optionFlags).toContain("--live-provider-events");
     expect(optionFlags).toContain("--thinking-visibility");
     expect(optionFlags).toContain("--yes");
     expect(optionFlags).toContain("--strict-provider-capabilities");

@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log*
+.DS_Store
+
+dist
+coverage
+
+playwright-report
+blob-report
+test-results
+
+.vite
+.vite-temp
+
+tests/e2e/__screenshots__

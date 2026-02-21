@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { runCommand } from "./process.js";
 
 export interface WorktreeState {
@@ -6,10 +8,39 @@ export interface WorktreeState {
   error?: string;
 }
 
-export async function captureGitState(cwd: string): Promise<string> {
+export interface GitWorktreeFingerprint {
+  head: string;
+  statusShort: string;
+  worktreeHash: string;
+}
+
+export async function readGitWorktreeFingerprint(cwd: string): Promise<GitWorktreeFingerprint> {
+  const [headResult, statusResult] = await Promise.all([
+    runCommand({ command: "git", args: ["rev-parse", "--verify", "HEAD"], cwd }),
+    runCommand({ command: "git", args: ["status", "--short"], cwd }),
+  ]);
+
+  const head = (headResult.stdout || "(no-head)").trim() || "(no-head)";
+  const statusShort = (statusResult.stdout || "").trim();
+  const hashInput = `${head}\n${statusShort}`;
+  const worktreeHash = createHash("sha256").update(hashInput).digest("hex");
+
+  return {
+    head,
+    statusShort,
+    worktreeHash,
+  };
+}
+
+export async function captureGitState(
+  cwd: string,
+  snapshot?: Pick<GitWorktreeFingerprint, "statusShort">,
+): Promise<string> {
   const [logResult, statusResult] = await Promise.all([
     runCommand({ command: "git", args: ["log", "--oneline", "-10"], cwd }),
-    runCommand({ command: "git", args: ["status", "--short"], cwd }),
+    snapshot
+      ? Promise.resolve({ stdout: snapshot.statusShort, stderr: "", exitCode: 0, timedOut: false })
+      : runCommand({ command: "git", args: ["status", "--short"], cwd }),
   ]);
 
   const log = (logResult.stdout || "(no commits)").trim();

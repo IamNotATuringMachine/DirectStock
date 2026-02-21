@@ -72,7 +72,7 @@ export function PurchasingOrderDetails({
               </span>
             </div>
             <h2 className="text-2xl font-bold text-[var(--ink)]" data-testid="purchase-order-selected-status">
-              {selectedOrder.order_number}
+              {selectedOrder.order_number} ({selectedOrder.status})
             </h2>
           </div>
 

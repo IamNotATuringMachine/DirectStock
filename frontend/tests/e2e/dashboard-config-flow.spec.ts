@@ -12,8 +12,11 @@ test("dashboard config flow toggles summary card visibility", async ({ page, req
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByTestId("dashboard-page")).toBeVisible();
 
+  await page.getByRole("button", { name: /anpassen/i }).click();
+
   const toggle = page.getByTestId("dashboard-card-toggle-summary");
-  const kpi = page.getByTestId("dashboard-kpi-total-products");
+  const kpi = page.getByTestId("dashboard-stat-total-products");
+  await expect(toggle).toBeVisible();
   await expect(kpi).toBeVisible();
 
   await toggle.click();

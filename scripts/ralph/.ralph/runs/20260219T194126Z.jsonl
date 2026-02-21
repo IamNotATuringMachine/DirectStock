@@ -1,3 +1,0 @@
-{"event":"run_started","details":"plan=/Users/tobiasmorixbauer/Documents/GitHub/DirectStock/scripts/ralph/dummy.plan.json;dryRun=true;postCheckProfile=fast;sessionStrategy=reset;autoCommit=true;outputMode=timeline;thinkingVisibility=summary","maxIterations":1,"timestamp":"2026-02-19T19:41:26.103Z","provider":"Google","model":"gemini-3.0-flash-preview"}
-{"event":"iteration_started","iteration":1,"maxIterations":1,"stepId":"step-01","stepTitle":"Demonstrate the Ora spinner","attempt":1,"maxAttempts":1,"timestamp":"2026-02-19T19:41:26.106Z","provider":"Google","model":"gemini-3.0-flash-preview"}
-{"event":"run_finished","details":"status=success;completed=0;failed=0;iterations=1","timestamp":"2026-02-19T19:41:26.107Z","provider":"Google","model":"gemini-3.0-flash-preview"}

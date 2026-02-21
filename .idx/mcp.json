@@ -81,8 +81,24 @@
         "directstock-github",
         "directstock-playwright",
         "directstock-git",
-        "directstock-memory"
+        "directstock-memory",
+        "directstock-openai-docs",
+        "directstock-context7",
+        "directstock-fetch"
       ]
+    },
+    "ci-readonly": {
+      "servers": [
+        "directstock-filesystem",
+        "directstock-postgres",
+        "directstock-github",
+        "directstock-playwright",
+        "directstock-git",
+        "directstock-memory"
+      ],
+      "env": {
+        "MCP_REQUIRE_POSTGRES_READONLY": "1"
+      }
     },
     "triage-readonly": {
       "servers": [

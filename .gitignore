@@ -36,6 +36,23 @@ backend/app/**/__pycache__/
 .gemini/*
 !.gemini/settings.json
 
+# Agent Artifacts
+approval*.png
+approval*.jpg
+approval*.webp
+before_after_*.png
+before_after_*.jpg
+before_after_*.webp
+recording_*.webp
+screenshot_*.png
+screenshot_*.jpg
+**/*-before*.png
+**/*-after*.png
+**/*-before*.webp
+**/*-after*.webp
+**/*-before*.jpg
+**/*-after*.jpg
+
 # Editors
 .DS_Store
 .vscode/

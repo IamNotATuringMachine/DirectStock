@@ -8,6 +8,7 @@ export type ProviderOutputEventType =
 
 export type OutputMode = "timeline" | "final" | "raw";
 export type ThinkingVisibility = "summary" | "hidden" | "full";
+export type LiveProviderEventsMode = "auto" | "on" | "off";
 
 export interface ProviderOutputEvent {
   type: ProviderOutputEventType;

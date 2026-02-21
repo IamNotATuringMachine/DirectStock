@@ -89,6 +89,7 @@ async function seedReportsData(request: APIRequestContext): Promise<ReportsSeed>
 }
 
 test("reports business flow: type switching, filters, recompute, csv contract", async ({ page, request }) => {
+  test.slow();
   const seed = await seedReportsData(request);
 
   await loginUi(page);
@@ -135,19 +136,19 @@ test("reports business flow: type switching, filters, recompute, csv contract", 
   await page.getByTestId("reports-date-from").fill(seed.dateFrom);
   await page.getByTestId("reports-date-to").fill(seed.dateTo);
   await expect
-    .poll(async () => page.getByTestId("reports-movements-table").locator("tbody tr").count())
+    .poll(async () => page.getByTestId("reports-movements-table").locator("tbody tr").count(), { timeout: 30_000 })
     .toBeGreaterThan(0);
 
   await page.getByTestId("reports-date-from").fill("2099-01-01");
   await page.getByTestId("reports-date-to").fill("2099-01-02");
   await expect
-    .poll(async () => page.getByTestId("reports-movements-table").locator("tbody tr").count())
+    .poll(async () => page.getByTestId("reports-movements-table").locator("tbody tr").count(), { timeout: 30_000 })
     .toBe(0);
 
   await page.getByTestId("reports-date-from").fill(seed.dateFrom);
   await page.getByTestId("reports-date-to").fill(seed.dateTo);
   await expect
-    .poll(async () => page.getByTestId("reports-movements-table").locator("tbody tr").count())
+    .poll(async () => page.getByTestId("reports-movements-table").locator("tbody tr").count(), { timeout: 30_000 })
     .toBeGreaterThan(0);
 
   const csvResponse = await request.get(

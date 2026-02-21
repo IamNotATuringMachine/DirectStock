@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { loginAsAdminApi } from "./helpers/api";
+import { loginAndOpenRoute, waitForApiCondition, waitForApiResponseJson } from "./helpers/ui";
 
 test("audit log page shows phase-3 mutating endpoint entries", async ({ page, request }) => {
   const token = await loginAsAdminApi(request);
@@ -11,22 +12,45 @@ test("audit log page shows phase-3 mutating endpoint entries", async ({ page, re
     data: { notes: `audit-e2e-${Date.now()}` },
   });
   expect(create.ok()).toBeTruthy();
+  const created = (await create.json()) as { id: number };
 
-  await page.goto("/login");
-  await page.getByTestId("login-username").fill(process.env.E2E_ADMIN_USERNAME ?? "admin");
-  await page.getByTestId("login-password").fill(process.env.E2E_ADMIN_PASSWORD ?? "DirectStock2026!");
-  await page.getByTestId("login-submit").click();
+  await waitForApiCondition({
+    description: "audit log entries for POST /api/return-orders",
+    timeoutMs: 20_000,
+    intervalMs: 350,
+    fetchValue: async () =>
+      await waitForApiResponseJson<{
+        items: Array<{
+          entity: string;
+          action: string;
+          endpoint: string;
+          entity_id: string | null;
+        }>;
+      }>({
+        request,
+        url: "/api/audit-log?entity=return-orders&action=POST&page_size=50",
+        headers,
+        description: "poll audit log list",
+      }),
+    predicate: (payload) =>
+      payload.items.some(
+        (item) =>
+          item.entity === "return-orders" &&
+          item.action === "POST" &&
+          item.endpoint === "/api/return-orders" &&
+          item.entity_id === String(created.id),
+      ),
+  });
 
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await page.goto("/audit-trail");
-  await expect(page.getByTestId("audit-trail-page")).toBeVisible();
+  await loginAndOpenRoute(page, "/audit-trail", { rootTestId: "audit-trail-page" });
 
   await page.getByTestId("audit-filter-entity").fill("return-orders");
   await page.getByTestId("audit-filter-action").fill("POST");
 
   await expect
-    .poll(async () => await page.getByTestId("audit-table").locator("tbody tr").count())
-    .toBeGreaterThan(0);
+    .poll(async () => await page.getByTestId("audit-table").innerText(), { timeout: 20_000 })
+    .toContain("/api/return-orders");
   await expect(page.getByTestId("audit-table")).toContainText("/api/return-orders");
   await expect(page.getByTestId("audit-table")).toContainText("POST");
+  await expect(page.getByTestId("audit-table")).toContainText(`#${created.id}`);
 });

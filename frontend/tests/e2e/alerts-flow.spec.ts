@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { ensureE2EInventoryStock, loginAsAdminApi } from "./helpers/api";
+import { loginAndOpenRoute } from "./helpers/ui";
 
 test("alerts page shows and acknowledges generated alerts", async ({ page, request }) => {
   const token = await loginAsAdminApi(request);
@@ -69,14 +70,9 @@ test("alerts page shows and acknowledges generated alerts", async ({ page, reque
   });
   expect(completeIssue.ok()).toBeTruthy();
 
-  await page.goto("/login");
-  await page.getByTestId("login-username").fill(process.env.E2E_ADMIN_USERNAME ?? "admin");
-  await page.getByTestId("login-password").fill(process.env.E2E_ADMIN_PASSWORD ?? "DirectStock2026!");
-  await page.getByTestId("login-submit").click();
-
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await page.goto("/alerts");
-  await expect(page.getByTestId("alerts-page")).toBeVisible();
+  await loginAndOpenRoute(page, "/alerts", {
+    rootTestId: "alerts-page",
+  });
 
   const openRow = page.locator("#root tr", { hasText: seeded.productNumber }).first();
   await expect(openRow).toBeVisible();

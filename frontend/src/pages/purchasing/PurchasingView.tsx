@@ -26,7 +26,7 @@ export function PurchasingView({
 }: PurchasingViewProps) {
   return (
     <div className="page space-y-6" data-testid="purchasing-page">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[var(--line)] pb-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[var(--line)] pb-4" data-testid="purchasing-page-header">
         <div>
           <h1 className="page-title flex items-center gap-2">
             <ShoppingCart className="w-6 h-6 text-[var(--accent)]" />
@@ -41,7 +41,7 @@ export function PurchasingView({
       <PurchasingTabs tab={tab} onTabChange={onTabChange} />
 
       {tab === "orders" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" data-testid="purchasing-orders-grid">
           <PurchasingOrdersSidebar {...ordersSidebarProps} />
           <div className="lg:col-span-8 space-y-6">
             <PurchasingOrderDetails {...orderDetailsProps} />

@@ -142,10 +142,13 @@ describe("ralph e2e output matrix (hermetic)", () => {
         "--no-auto-commit",
         "--output-mode",
         "timeline",
+        "--live-provider-events",
+        "on",
         "--thinking-visibility",
         "summary",
         "--run-log-path",
         runLogPath,
+        "--skip-context-pipeline-check",
         "--strict-provider-capabilities",
         "--yes",
       ],
@@ -183,5 +186,5 @@ describe("ralph e2e output matrix (hermetic)", () => {
     expect(events.some((event) => event.event === "provider_event")).toBe(true);
     expect(events.some((event) => event.providerEventType === "assistant_text")).toBe(true);
     expect(events.some((event) => event.event === "step_done")).toBe(true);
-  });
+  }, 20_000);
 });

@@ -1,43 +1,36 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-test("capture approvals page after modernization", async ({ page, request }) => {
-    // Login
-    await page.goto("/login");
-    await page.getByTestId("login-username").fill("admin");
-    await page.getByTestId("login-password").fill("DirectStock2026!");
-    await page.getByTestId("login-submit").click();
-    await expect(page).toHaveURL(/\/dashboard$/);
+import { createE2EPurchaseOrder, loginAsAdminApi } from "./helpers/api";
+import { loginAndOpenRoute, saveProjectScopedScreenshot } from "./helpers/ui";
 
-    // Seed data
-    const tokenResp = await request.post("/api/login/access-token", { form: { username: "admin", password: "DirectStock2026!" } });
-    const token = (await tokenResp.json()).access_token;
-    const headers = { Authorization: `Bearer ${token}` };
+test("capture approvals page after modernization", async ({ page, request }, testInfo) => {
+  test.slow();
+  const token = await loginAsAdminApi(request);
+  const purchaseOrder = await createE2EPurchaseOrder(request, token);
+  const headers = { Authorization: `Bearer ${token}` };
 
-    // Seed a long item to test truncation/break
-    await request.post("/api/approvals", {
-        headers,
-        data: {
-            entity_type: "purchase_order",
-            entity_id: 8888,
-            amount: "9999.99",
-            reason: "This is a very long reason text to test if the layout breaks or if it wraps correctly as expected in a modern UI.",
-        },
-    });
+  await request.post("/api/approvals", {
+    headers,
+    data: {
+      entity_type: "purchase_order",
+      entity_id: purchaseOrder.id,
+      amount: "9999.99",
+      reason:
+        "This is a very long reason text to test if the layout breaks or if it wraps correctly as expected in a modern UI.",
+    },
+  });
 
-    // Navigate to Approvals
-    await page.goto("/approvals");
-    await expect(page.getByTestId("approvals-page")).toBeVisible();
+  await loginAndOpenRoute(page, "/approvals", { rootTestId: "approvals-page" });
 
-    // 1. Desktop Light
-    await page.setViewportSize({ width: 1400, height: 900 });
-    await page.screenshot({ path: "approvals-after-desktop-light.png", fullPage: true });
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect(page.getByTestId("approvals-page")).toBeVisible();
+  await saveProjectScopedScreenshot(page, testInfo, "approvals-after-desktop-light");
 
-    // 2. Mobile Light
-    await page.setViewportSize({ width: 375, height: 800 });
-    await page.screenshot({ path: "approvals-after-mobile-light.png", fullPage: true });
+  await page.setViewportSize({ width: 375, height: 800 });
+  await expect(page.getByTestId("approvals-page")).toBeVisible();
+  await saveProjectScopedScreenshot(page, testInfo, "approvals-after-mobile-light");
 
-    // 3. Desktop Dark
-    await page.setViewportSize({ width: 1400, height: 900 });
-    await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
-    await page.screenshot({ path: "approvals-after-desktop-dark.png", fullPage: true });
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await saveProjectScopedScreenshot(page, testInfo, "approvals-after-desktop-dark");
 });

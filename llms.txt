@@ -51,4 +51,5 @@ Browser → Nginx → FastAPI routers → services → PostgreSQL
 - File size: pages <350 LOC, modules <500 LOC
 - All mutations: RBAC + audit + idempotency
 - Frontend API calls through `services/` layer only
+- Playwright E2E default is dockerized isolation: `cd frontend && npm run test:e2e` (`test:e2e:raw` is non-hermetic fallback)
 - Routers/pages orchestrate; logic in services/hooks

@@ -1,9 +1,11 @@
 import chalk from "chalk";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 
-import { createStepCommit } from "../lib/git.js";
+import { createStepCommit, readGitWorktreeFingerprint } from "../lib/git.js";
 import { runCommand, sleep } from "../lib/process.js";
+import type { EfficiencyMode } from "../lib/coerce.js";
 import type { RalphRunLogger } from "../lib/run-log.js";
 import type { Plan, Step } from "../planner/plan-schema.js";
 import { savePlan } from "../planner/plan-schema.js";
@@ -23,6 +25,7 @@ import {
   printPlanProgress,
   printProviderAttemptDone,
   printProviderAttemptStart,
+  printProviderEventLive,
   printProviderHeartbeat,
   printProviderOutput,
   printRetryScheduled,
@@ -37,6 +40,8 @@ export interface RalphLoopConfig {
   provider: ProviderAdapter;
   model: string;
   thinkingValue: string;
+  contextFiles?: string[];
+  providerMaxTurns?: number;
   planPath: string;
   plan: Plan;
   maxIterations: number;
@@ -47,10 +52,13 @@ export interface RalphLoopConfig {
   sessionStrategy: SessionStrategy;
   providerStreamingEnabled: boolean;
   outputMode: OutputMode;
+  liveProviderEvents?: boolean;
   thinkingVisibility: ThinkingVisibility;
   initialResumeSessionId?: string;
   runLogger?: RalphRunLogger;
   providerEnv?: Record<string, string>;
+  efficiencyMode?: EfficiencyMode;
+  iterationCache?: RalphIterationCache;
 }
 
 export interface RalphLoopSummary {
@@ -83,9 +91,34 @@ export interface RalphLoopAnalytics {
     failed: number;
     totalDurationMs: number;
   };
+  cache: {
+    cache_hits_preflight: number;
+    cache_misses_preflight: number;
+    gitstate_cache_hits: number;
+  };
 }
 
-export function buildIterationPrompt(plan: Plan, step: Step, gitState: string, baselineFailures?: string): string {
+export interface StepExecutionFingerprint {
+  stepId: string;
+  criteriaHash: string;
+  worktreeHash: string;
+  filesHash: string;
+}
+
+export interface RalphIterationCache {
+  preflightByFingerprint: Map<string, { passed: boolean; output: string }>;
+  gitStateByWorktreeHash: Map<string, string>;
+}
+
+export function buildIterationPrompt(
+  plan: Plan,
+  step: Step,
+  gitState: string,
+  baselineFailures?: string,
+  contextFiles: string[] = [],
+): string {
+  const contextFileLines =
+    contextFiles.length > 0 ? contextFiles.map((file) => `- ${file}`).join("\n") : "- (none)";
   const affectedPaths = step.files.length > 0 ? step.files.map((file) => `- ${file}`).join("\n") : "- (not specified)";
   const postChecks = step.postChecks.length > 0 ? step.postChecks.map((command) => `- ${command}`).join("\n") : "- (none)";
 
@@ -100,6 +133,9 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string, b
     `${step.id}`,
     `**${step.title}**`,
     step.description,
+    "",
+    "## Context Files (Read First):",
+    contextFileLines,
     "",
     "## Affected Paths:",
     affectedPaths,
@@ -155,7 +191,7 @@ export function buildIterationPrompt(plan: Plan, step: Step, gitState: string, b
     "5. Do NOT commit manually - Ralph Loop handles commits",
     "6. If anything is unclear, document open points in .ralph-notes.md",
     "7. Before finishing, run the success criteria yourself using the bash tool and confirm it exits 0. Do NOT stop until it passes.",
-    "8. You MUST write at least one file before finishing. If you ONLY read files without writing any changes, your turn will be automatically retried — no progress is made until you write files.",
+    "8. If the step is already complete, explicitly say so and explain why. Otherwise, write the minimal relevant file changes required to satisfy success criteria.",
     "",
     "## Git State:",
     gitState,
@@ -196,6 +232,11 @@ function createInitialAnalytics(): RalphLoopAnalytics {
       failed: 0,
       totalDurationMs: 0,
     },
+    cache: {
+      cache_hits_preflight: 0,
+      cache_misses_preflight: 0,
+      gitstate_cache_hits: 0,
+    },
   };
 }
 
@@ -206,6 +247,40 @@ function nextRunnableStep(plan: Plan): Step | undefined {
       step.status === "in_progress" ||
       (step.status === "failed" && step.attempts < step.maxAttempts),
   );
+}
+
+function createIterationCache(): RalphIterationCache {
+  return {
+    preflightByFingerprint: new Map<string, { passed: boolean; output: string }>(),
+    gitStateByWorktreeHash: new Map<string, string>(),
+  };
+}
+
+function hashString(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function buildStepExecutionFingerprint(input: {
+  step: Step;
+  criteria: string;
+  worktreeHash: string;
+}): StepExecutionFingerprint {
+  const normalizedFiles = [...input.step.files].sort().join("\n");
+  return {
+    stepId: input.step.id,
+    criteriaHash: hashString(input.criteria),
+    worktreeHash: input.worktreeHash,
+    filesHash: hashString(normalizedFiles),
+  };
+}
+
+function fingerprintKey(fingerprint: StepExecutionFingerprint): string {
+  return [
+    fingerprint.stepId,
+    fingerprint.criteriaHash,
+    fingerprint.worktreeHash,
+    fingerprint.filesHash,
+  ].join(":");
 }
 
 function isTransientError(result: ProviderExecutionResult): boolean {
@@ -304,6 +379,7 @@ async function executeWithRetries(args: {
   provider: ProviderAdapter;
   model: string;
   thinkingValue: string;
+  providerMaxTurns?: number;
   prompt: string;
   cwd: string;
   timeoutMs: number;
@@ -387,6 +463,7 @@ async function executeWithRetries(args: {
       result = await args.provider.execute({
         model: selectedModel,
         thinkingValue: args.thinkingValue,
+        providerMaxTurns: args.providerMaxTurns,
         prompt: args.prompt,
         cwd: args.cwd,
         timeoutMs: args.timeoutMs,
@@ -750,6 +827,9 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
   let iterationsRun = 0;
   let resumeSessionId: string | undefined = config.initialResumeSessionId;
   const analytics = createInitialAnalytics();
+  const efficiencyMode: EfficiencyMode = config.efficiencyMode ?? "balanced";
+  const cacheEnabled = efficiencyMode !== "forensic";
+  const iterationCache = config.iterationCache ?? createIterationCache();
 
   if (config.sessionStrategy === "resume" && resumeSessionId) {
     console.log(chalk.cyan(`Resuming provider session from plan metadata: ${resumeSessionId}`));
@@ -784,10 +864,17 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     printPlanProgress(config.plan, step.id);
 
     if (config.dryRun) {
-      const dryPrompt = buildIterationPrompt(config.plan, step, "[dry-run git state]");
+      const dryPrompt = buildIterationPrompt(
+        config.plan,
+        step,
+        "[dry-run git state]",
+        undefined,
+        config.contextFiles ?? [],
+      );
       const command = config.provider.buildCommand({
         model: config.model,
         thinkingValue: config.thinkingValue,
+        providerMaxTurns: config.providerMaxTurns,
         prompt: dryPrompt,
         cwd: config.workingDir,
         timeoutMs: config.timeoutMs,
@@ -801,6 +888,9 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       });
 
       console.log(chalk.dim(`Command: ${command.command} ${command.args.join(" ")}`));
+      if ((config.contextFiles ?? []).length > 0) {
+        console.log(chalk.dim(`Context files: ${(config.contextFiles ?? []).join(", ")}`));
+      }
       console.log(chalk.dim(`Success criteria: ${step.successCriteria}`));
       if (step.postChecks.length > 0) {
         console.log(chalk.dim(`Step post-checks: ${step.postChecks.join(" | ")}`));
@@ -812,12 +902,47 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
     await savePlan(config.planPath, config.plan);
     const startedAt = Date.now();
 
-    const gitState = await captureIterationContext(config.workingDir);
+    const worktreeFingerprint = await readGitWorktreeFingerprint(config.workingDir);
+    const cachedGitState = cacheEnabled
+      ? iterationCache.gitStateByWorktreeHash.get(worktreeFingerprint.worktreeHash)
+      : undefined;
+    let gitState: string;
+    if (cachedGitState) {
+      analytics.cache.gitstate_cache_hits += 1;
+      gitState = cachedGitState;
+    } else {
+      gitState = await captureIterationContext(config.workingDir, {
+        statusShort: worktreeFingerprint.statusShort,
+      });
+      if (cacheEnabled) {
+        iterationCache.gitStateByWorktreeHash.set(worktreeFingerprint.worktreeHash, gitState);
+      }
+    }
 
     // Pre-flight: check if criteria already fail before we call the provider.
     // Inject failure context into the prompt so the agent knows what to fix.
     let baselineFailures: string | undefined;
-    const preFlightResult = await checkBaseline(step.successCriteria, config.workingDir);
+    const stepFingerprint = buildStepExecutionFingerprint({
+      step,
+      criteria: step.successCriteria,
+      worktreeHash: worktreeFingerprint.worktreeHash,
+    });
+    const preFlightCacheKey = fingerprintKey(stepFingerprint);
+    const cachedPreFlight = cacheEnabled
+      ? iterationCache.preflightByFingerprint.get(preFlightCacheKey)
+      : undefined;
+    let preFlightResult: { passed: boolean; output: string };
+    if (cachedPreFlight) {
+      analytics.cache.cache_hits_preflight += 1;
+      preFlightResult = cachedPreFlight;
+      console.log(chalk.dim(`[cache] pre-flight hit for ${step.id}`));
+    } else {
+      analytics.cache.cache_misses_preflight += 1;
+      preFlightResult = await checkBaseline(step.successCriteria, config.workingDir);
+      if (cacheEnabled) {
+        iterationCache.preflightByFingerprint.set(preFlightCacheKey, preFlightResult);
+      }
+    }
     if (!preFlightResult.passed) {
       baselineFailures = preFlightResult.output;
       console.log(
@@ -827,17 +952,54 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
       console.log(chalk.dim(`[pre-flight] ${step.id} baseline passes — proceeding normally`));
     }
 
-    const prompt = buildIterationPrompt(config.plan, step, gitState, baselineFailures);
+    const prompt = buildIterationPrompt(
+      config.plan,
+      step,
+      gitState,
+      baselineFailures,
+      config.contextFiles ?? [],
+    );
     const stalledAttempts = new Set<number>();
     let latestThinkingChunk: string = "";
     const recentThinkingChunks: string[] = [];
+    let liveRenderedEventCount = 0;
+    const seenLiveEventKeys = new Set<string>();
+    const loggedProviderEventKeys = new Set<string>();
+    const countedToolCallEventKeys = new Set<string>();
+    const countedToolResultEventKeys = new Set<string>();
+    let liveToolCallCount = 0;
+    let liveToolResultCount = 0;
     /** Set during transient-retry backoff so the spinner shows the real state. */
     let heartbeatStatusHint: string = "";
+
+    const providerEventKey = (event: ProviderOutputEvent): string => {
+      const payload = typeof event.payload === "object" && event.payload !== null ? JSON.stringify(event.payload) : "";
+      return `${event.type}|${event.attempt}|${event.provider}|${payload}`;
+    };
+
+    const logProviderEvent = async (input: { event: ProviderOutputEvent; attempt: number; sessionId?: string }): Promise<void> => {
+      const key = providerEventKey(input.event);
+      if (loggedProviderEventKeys.has(key)) {
+        return;
+      }
+      loggedProviderEventKeys.add(key);
+      await config.runLogger?.log({
+        event: "provider_event",
+        iteration,
+        stepId: step.id,
+        stepTitle: step.title,
+        attempt: input.attempt,
+        sessionId: input.sessionId ?? resumeSessionId,
+        providerEventType: input.event.type,
+        preview: eventPreview(input.event, 220),
+      });
+    };
 
     const execution = await executeWithRetries({
       provider: config.provider,
       model: config.model,
       thinkingValue: config.thinkingValue,
+      providerMaxTurns: config.providerMaxTurns,
       prompt,
       cwd: config.workingDir,
       timeoutMs: config.timeoutMs,
@@ -857,6 +1019,13 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         heartbeatStatusHint = "";
         latestThinkingChunk = "";
         recentThinkingChunks.length = 0;
+        liveRenderedEventCount = 0;
+        seenLiveEventKeys.clear();
+        loggedProviderEventKeys.clear();
+        countedToolCallEventKeys.clear();
+        countedToolResultEventKeys.clear();
+        liveToolCallCount = 0;
+        liveToolResultCount = 0;
         printProviderAttemptStart({
           step,
           model,
@@ -875,6 +1044,8 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
           elapsedMs,
           timeoutMs,
           thinkingChunk: latestThinkingChunk,
+          toolCallCount: liveToolCallCount,
+          toolResultCount: liveToolResultCount,
           statusHint: heartbeatStatusHint,
         });
         if (
@@ -903,6 +1074,32 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         }
       },
       onEvent: (event) => {
+        const eventKey = providerEventKey(event);
+        const eventSessionId = asString(event.payload.sessionId) ?? resumeSessionId;
+        void logProviderEvent({ event, attempt: event.attempt ?? 1, sessionId: eventSessionId });
+
+        if (event.type === "tool_call" && !countedToolCallEventKeys.has(eventKey)) {
+          countedToolCallEventKeys.add(eventKey);
+          liveToolCallCount += 1;
+        }
+        if (event.type === "tool_result" && !countedToolResultEventKeys.has(eventKey)) {
+          countedToolResultEventKeys.add(eventKey);
+          liveToolResultCount += 1;
+        }
+
+        if (Boolean(config.liveProviderEvents) && !seenLiveEventKeys.has(eventKey)) {
+          const rendered = printProviderEventLive({
+            event,
+            thinkingVisibility: config.thinkingVisibility,
+            toolCallCount: liveToolCallCount,
+            toolResultCount: liveToolResultCount,
+          });
+          if (rendered) {
+            seenLiveEventKeys.add(eventKey);
+            liveRenderedEventCount += 1;
+          }
+        }
+
         if (event.type === "thinking") {
           const text = asString(event.payload.summary);
           if (text) {
@@ -914,7 +1111,8 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
               ) {
                 recentThinkingChunks.push(normalized);
               }
-              latestThinkingChunk = `(${recentThinkingChunks.length}) ${recentThinkingChunks.join(" | ")}`;
+              // Only display the most recent thought in the spinner so it isn't pushed off-screen
+              latestThinkingChunk = `(${recentThinkingChunks.length}) ${normalized}`;
             }
           }
         }
@@ -953,21 +1151,17 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
           outputMode: config.outputMode,
           thinkingVisibility: config.thinkingVisibility,
           events: providerEvents,
+          suppressEventTimeline: Boolean(config.liveProviderEvents) && liveRenderedEventCount > 0,
           finalText: result.finalText || result.responseText,
           thinkingSummary: result.thinkingSummary,
           rawOutput: result.rawOutput ?? { stdout: result.stdout, stderr: result.stderr },
         });
 
         for (const providerEvent of providerEvents) {
-          await config.runLogger?.log({
-            event: "provider_event",
-            iteration,
-            stepId: step.id,
-            stepTitle: step.title,
+          await logProviderEvent({
+            event: providerEvent,
             attempt,
             sessionId: result.sessionId ?? resumeSessionId,
-            providerEventType: providerEvent.type,
-            preview: eventPreview(providerEvent, 220),
           });
         }
       },
@@ -1025,11 +1219,29 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
 
     const durationMs = Date.now() - startedAt;
 
-    // No-op guard: if the provider returned ok:true but wrote no files matching
-    // the step's affected paths, treat this as a free retry — do NOT burn an attempt.
+    // No-op guard:
+    // - If baseline already passes, allow no-change attempts to continue to criteria.
+    // - If baseline fails, require relevant file writes and retry without burning attempt.
     if (execution.ok) {
       const noOp = await detectNoOp(step.files, config.workingDir);
       if (noOp) {
+        if (preFlightResult.passed) {
+          console.log(
+            chalk.dim(
+              `[no-op] ${step.id} baseline already passed and provider made no relevant writes — validating criteria as-is.`,
+            ),
+          );
+          await config.runLogger?.log({
+            event: "provider_event",
+            iteration,
+            stepId: step.id,
+            stepTitle: step.title,
+            attempt: step.attempts + 1,
+            sessionId: execution.sessionId ?? resumeSessionId,
+            providerEventType: "status",
+            preview: "no-op accepted (baseline already passed)",
+          });
+        } else {
         step.lastError = "[no-op] Provider made 0 file writes matching step's affected paths. Retrying without burning an attempt.";
         step.status = "pending";
         console.log(
@@ -1052,6 +1264,7 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         config.plan.metadata.completedIterations += 1;
         await savePlan(config.planPath, config.plan);
         continue;
+        }
       }
     }
 
@@ -1206,10 +1419,20 @@ export async function runRalphLoop(config: RalphLoopConfig): Promise<RalphLoopSu
         });
       } else {
         step.attempts += 1;
-        step.lastError = [truncateText(execution.finalText ?? "", 320), criteriaResult.output, stepPostChecks.output]
-          .filter(Boolean)
-          .join("\n")
-          .slice(0, 4000);
+        if (!criteriaResult.passed) {
+          step.lastError = [truncateText(execution.finalText ?? "", 320), criteriaResult.output, stepPostChecks.output]
+            .filter(Boolean)
+            .join("\n")
+            .slice(0, 4000);
+        } else {
+          step.lastError = [
+            stepPostChecks.failedCommand ? `[post-check failed] ${stepPostChecks.failedCommand}` : "[post-check failed]",
+            stepPostChecks.output,
+          ]
+            .filter(Boolean)
+            .join("\n")
+            .slice(0, 4000);
+        }
         step.status = step.attempts >= step.maxAttempts ? "failed" : "pending";
 
         printIterationResult({

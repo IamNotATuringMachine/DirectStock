@@ -118,6 +118,7 @@ async function loginAndOpenProductDetail(page: Page, username: string, password:
 
 test.describe("product detail pricing summary", () => {
   test("shows resolved base price and fallback when no price exists", async ({ page, request }) => {
+    test.slow();
     const errors = collectClientErrors(page);
     const user = await createE2EUserWithRoles(request, ["admin"]);
     const token = await loginApi(request, user.username, user.password);

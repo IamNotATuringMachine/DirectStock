@@ -14,6 +14,7 @@ describe("post-check profiles", () => {
   it("returns governance profile commands", () => {
     const commands = commandsForPostCheckProfile("governance");
     expect(commands).toContain("./scripts/agent_governance_check.sh");
+    expect(commands).toContain("python3 scripts/check_mcp_profile_parity.py --strict --format json");
     expect(commands).toContain("python3 scripts/check_provider_capabilities.py --provider all --format json");
   });
 

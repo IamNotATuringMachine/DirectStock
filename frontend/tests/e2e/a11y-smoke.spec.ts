@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+import { loginViaUi } from "./helpers/ui";
+
 const UI_A11Y_ROUTES: Array<{ path: string; testId: string }> = [
   { path: "/dashboard", testId: "dashboard-page" },
   { path: "/products", testId: "products-page" },
@@ -15,11 +17,7 @@ const UI_A11Y_ROUTES: Array<{ path: string; testId: string }> = [
 ];
 
 async function login(page: Page): Promise<void> {
-  await page.goto("/login");
-  await page.getByTestId("login-username").fill(process.env.E2E_ADMIN_USERNAME ?? "admin");
-  await page.getByTestId("login-password").fill(process.env.E2E_ADMIN_PASSWORD ?? "DirectStock2026!");
-  await page.getByTestId("login-submit").click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await loginViaUi(page);
 }
 
 function formatViolations(route: string, violations: Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"]): string {
@@ -31,11 +29,11 @@ function formatViolations(route: string, violations: Awaited<ReturnType<AxeBuild
 
 test.describe("a11y smoke gate", () => {
   test("core UI pages have no critical accessibility violations", async ({ page }) => {
+    test.slow();
     await login(page);
 
     for (const route of UI_A11Y_ROUTES) {
-      await page.goto(route.path);
-      await page.waitForLoadState("networkidle");
+      await page.goto(route.path, { waitUntil: "domcontentloaded" });
       await page.evaluate(async () => {
         await document.fonts.ready;
       });

@@ -1,19 +1,25 @@
 import type { ProviderId, SessionStrategy } from "../providers/types.js";
-import type { OutputMode, ThinkingVisibility } from "../providers/output-events.js";
+import type { LiveProviderEventsMode, OutputMode, ThinkingVisibility } from "../providers/output-events.js";
 import type { PostCheckProfile } from "../post-checks.js";
 import type { RunLogFormat } from "./run-log.js";
+
+export type EfficiencyMode = "forensic" | "balanced" | "performance";
 
 const DEFAULT_SESSION_STRATEGY: SessionStrategy = "reset";
 const DEFAULT_POST_CHECK_PROFILE: PostCheckProfile = "fast";
 const DEFAULT_LOG_FORMAT: RunLogFormat = "text";
 const DEFAULT_OUTPUT_MODE: OutputMode = "timeline";
-const DEFAULT_THINKING_VISIBILITY: ThinkingVisibility = "summary";
+const DEFAULT_THINKING_VISIBILITY: ThinkingVisibility = "full";
+const DEFAULT_LIVE_PROVIDER_EVENTS: LiveProviderEventsMode = "auto";
+const DEFAULT_EFFICIENCY_MODE: EfficiencyMode = "balanced";
 
 const VALID_SESSION_STRATEGIES: SessionStrategy[] = ["reset", "resume"];
 const VALID_POST_CHECK_PROFILES: PostCheckProfile[] = ["none", "fast", "governance", "full"];
 const VALID_LOG_FORMATS: RunLogFormat[] = ["text", "jsonl"];
 const VALID_OUTPUT_MODES: OutputMode[] = ["timeline", "final", "raw"];
 const VALID_THINKING_VISIBILITY: ThinkingVisibility[] = ["summary", "hidden", "full"];
+const VALID_LIVE_PROVIDER_EVENTS: LiveProviderEventsMode[] = ["auto", "on", "off"];
+const VALID_EFFICIENCY_MODES: EfficiencyMode[] = ["forensic", "balanced", "performance"];
 
 export function coerceSessionStrategy(value?: string): SessionStrategy {
   if (!value) {
@@ -73,4 +79,24 @@ export function coerceThinkingVisibility(value?: string): ThinkingVisibility {
     return value as ThinkingVisibility;
   }
   throw new Error(`Invalid thinking visibility: ${value}`);
+}
+
+export function coerceLiveProviderEventsMode(value?: string): LiveProviderEventsMode {
+  if (!value) {
+    return DEFAULT_LIVE_PROVIDER_EVENTS;
+  }
+  if (VALID_LIVE_PROVIDER_EVENTS.includes(value as LiveProviderEventsMode)) {
+    return value as LiveProviderEventsMode;
+  }
+  throw new Error(`Invalid live provider events mode: ${value}`);
+}
+
+export function coerceEfficiencyMode(value?: string): EfficiencyMode {
+  if (!value) {
+    return DEFAULT_EFFICIENCY_MODE;
+  }
+  if (VALID_EFFICIENCY_MODES.includes(value as EfficiencyMode)) {
+    return value as EfficiencyMode;
+  }
+  throw new Error(`Invalid efficiency mode: ${value}`);
 }

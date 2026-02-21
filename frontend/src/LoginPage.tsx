@@ -56,7 +56,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-[var(--bg)] font-sans text-[var(--ink)]">
+    <div className="min-h-screen w-full flex bg-[var(--bg)] font-sans text-[var(--ink)]" data-testid="login-page">
       {/* Left Side - Visual / Brand */}
       <div className="hidden lg:flex w-1/2 relative overflow-hidden items-center justify-center p-12 bg-gray-900">
         {/* Dynamic Background */}

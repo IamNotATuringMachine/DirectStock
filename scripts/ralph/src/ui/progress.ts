@@ -183,35 +183,140 @@ function renderThinkingBlock(text: string): void {
 }
 
 function renderToolCall(event: ProviderOutputEvent): void {
+  console.log(toolCallLine(event));
+}
+
+function toolCallLine(event: ProviderOutputEvent, count?: number): string {
   const name = asString(event.payload.name) ?? asString(event.payload.command) ?? "tool";
   const command = asString(event.payload.command);
+  const badge = count && count > 0 ? chalk.dim(` [call #${count}]`) : "";
   const detail = command ? chalk.dim(` ${truncateInline(command, 60)}`) : "";
-  console.log(`  ${chalk.yellow(ICON.tool)} ${chalk.bold(name)}${detail}`);
+  return `  ${chalk.yellow(ICON.tool)} ${chalk.bold(name)}${badge}${detail}`;
 }
 
 function renderToolResult(event: ProviderOutputEvent): void {
+  console.log(toolResultLine(event));
+}
+
+function toolResultLine(event: ProviderOutputEvent, count?: number): string {
   const name = asString(event.payload.name) ?? "tool";
   const status = asString(event.payload.status) ?? "ok";
+  const badge = count && count > 0 ? chalk.dim(` [result #${count}]`) : "";
   const icon = status === "error" || status === "fail" ? chalk.red(ICON.toolFail) : chalk.green(ICON.toolOk);
-  console.log(`  ${icon} ${chalk.dim(name)} ${chalk.dim(status)}`);
+  return `  ${icon} ${chalk.dim(name)}${badge} ${chalk.dim(status)}`;
 }
 
 function renderErrorEvent(event: ProviderOutputEvent): void {
+  console.log(errorLine(event));
+}
+
+function errorLine(event: ProviderOutputEvent): string {
   const message = asString(event.payload.error) ?? asString(event.payload.message) ?? eventPreview(event, 200);
-  console.log(`  ${chalk.red(ICON.error)} ${chalk.red(truncateInline(message, 120))}`);
+  return `  ${chalk.red(ICON.error)} ${chalk.red(truncateInline(message, 120))}`;
 }
 
 function renderAssistantText(text: string): void {
-  console.log(chalk.dim(`  ${ICON.arrow} ${truncateInline(text, 120)}`));
+  console.log(assistantTextLine(text));
 }
 
-const MAX_TIMELINE_EVENTS = 16;
+function assistantTextLine(text: string): string {
+  return chalk.dim(`  ${ICON.arrow} ${truncateInline(text, 120)}`);
+}
+
+function statusLine(status: string): string {
+  return chalk.dim(`  ${ICON.pending} ${truncateInline(status, 120)}`);
+}
+
+function withSpinnerLineFlush(render: () => void): void {
+  if (!currentSpinner || process.env.RALPH_NO_SPINNER === "1") {
+    render();
+    return;
+  }
+  const spinnerText = currentSpinner.text;
+  currentSpinner.stop();
+  render();
+  currentSpinner.start();
+  currentSpinner.text = spinnerText;
+}
+
+function shouldRenderLiveStatus(status: string): boolean {
+  const normalized = status.toLowerCase();
+  return (
+    normalized.includes("retry") ||
+    normalized.includes("start") ||
+    normalized.includes("complete") ||
+    normalized.includes("stall") ||
+    normalized.includes("capacity") ||
+    normalized.includes("rate") ||
+    normalized.includes("waiting")
+  );
+}
+
+export function printProviderEventLive(args: {
+  event: ProviderOutputEvent;
+  thinkingVisibility: ThinkingVisibility;
+  toolCallCount?: number;
+  toolResultCount?: number;
+}): boolean {
+  let line: string | null = null;
+  switch (args.event.type) {
+    case "tool_call":
+      line = toolCallLine(args.event, args.toolCallCount);
+      break;
+    case "tool_result":
+      line = toolResultLine(args.event, args.toolResultCount);
+      break;
+    case "error":
+      line = errorLine(args.event);
+      break;
+    case "assistant_text": {
+      const text = asString(args.event.payload.text) ?? "";
+      if (!text.trim()) {
+        return false;
+      }
+      line = assistantTextLine(text);
+      break;
+    }
+    case "thinking": {
+      if (args.thinkingVisibility === "hidden") {
+        return false;
+      }
+      const text = asString(args.event.payload.text) ?? asString(args.event.payload.summary) ?? "";
+      if (!text.trim()) {
+        return false;
+      }
+      if (args.thinkingVisibility === "full") {
+        withSpinnerLineFlush(() => renderThinkingBlock(text));
+        return true;
+      }
+      line = chalk.dim(`  ${ICON.thinking} ${truncateInline(text, 120)}`);
+      break;
+    }
+    case "status": {
+      const status = asString(args.event.payload.status) ?? "";
+      if (!status.trim() || !shouldRenderLiveStatus(status)) {
+        return false;
+      }
+      line = statusLine(status);
+      break;
+    }
+    default:
+      return false;
+  }
+
+  if (!line) {
+    return false;
+  }
+  withSpinnerLineFlush(() => console.log(line));
+  return true;
+}
 
 export function printProviderOutput(args: {
   step: Step;
   outputMode: OutputMode;
   thinkingVisibility: ThinkingVisibility;
   events: ProviderOutputEvent[];
+  suppressEventTimeline?: boolean;
   finalText: string;
   thinkingSummary?: string;
   rawOutput?: { stdout: string; stderr: string };
@@ -225,6 +330,27 @@ export function printProviderOutput(args: {
   }
 
   if (args.outputMode === "timeline") {
+    if (args.suppressEventTimeline) {
+      const counts = args.events.reduce<Record<string, number>>((acc, event) => {
+        acc[event.type] = (acc[event.type] ?? 0) + 1;
+        return acc;
+      }, {});
+      if (args.thinkingVisibility !== "hidden" && (counts.thinking ?? 0) > 0) {
+        console.log(chalk.dim(`  ${ICON.thinking} Thinking chunks: ${counts.thinking}`));
+      }
+      const summary = [
+        (counts.tool_call ?? 0) > 0 ? `tool_call=${counts.tool_call}` : "",
+        (counts.tool_result ?? 0) > 0 ? `tool_result=${counts.tool_result}` : "",
+        (counts.assistant_text ?? 0) > 0 ? `assistant_text=${counts.assistant_text}` : "",
+        (counts.status ?? 0) > 0 ? `status=${counts.status}` : "",
+        (counts.error ?? 0) > 0 ? `error=${counts.error}` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      if (summary) {
+        console.log(chalk.dim(`  ${ICON.pending} live-events ${summary}`));
+      }
+    } else {
     // Group thinking events
     const thinkingTexts: string[] = [];
     const nonThinkingEvents: ProviderOutputEvent[] = [];
@@ -245,57 +371,99 @@ export function printProviderOutput(args: {
 
     // Render thinking block
     if (thinkingTexts.length > 0) {
+      const maxThinkingChunks = 8;
       if (args.thinkingVisibility === "full") {
-        renderThinkingBlock(thinkingTexts.join("\n"));
+        renderThinkingBlock(thinkingTexts.slice(0, maxThinkingChunks).join("\n"));
+        if (thinkingTexts.length > maxThinkingChunks) {
+          console.log(chalk.dim(`  ... ${thinkingTexts.length - maxThinkingChunks} more thinking chunks`));
+        }
       } else {
         console.log(chalk.dim(`  ${ICON.thinking} Thinking chunks: ${thinkingTexts.length}`));
-        for (const [index, text] of thinkingTexts.entries()) {
+        for (const [index, text] of thinkingTexts.slice(0, maxThinkingChunks).entries()) {
           const ordinal = index + 1;
           console.log(chalk.dim(`  ${ICON.thinking} [${ordinal}/${thinkingTexts.length}] ${text}`));
+        }
+        if (thinkingTexts.length > maxThinkingChunks) {
+          console.log(chalk.dim(`  ... ${thinkingTexts.length - maxThinkingChunks} more thinking chunks`));
         }
       }
     }
 
-    // Render tool/assistant/error events
-    let rendered = 0;
-    for (const event of nonThinkingEvents) {
-      if (rendered >= MAX_TIMELINE_EVENTS) {
-        console.log(chalk.dim(`  ... ${nonThinkingEvents.length - rendered} more events`));
-        break;
-      }
+    // Tool events are always rendered; only repetitive event types are capped.
+    const cappedLimits: Record<"assistant_text" | "status" | "error", number> = {
+      assistant_text: 8,
+      status: 8,
+      error: 8,
+    };
+    const cappedRendered: Record<"assistant_text" | "status" | "error", number> = {
+      assistant_text: 0,
+      status: 0,
+      error: 0,
+    };
+    const cappedHidden: Record<"assistant_text" | "status" | "error", number> = {
+      assistant_text: 0,
+      status: 0,
+      error: 0,
+    };
 
+    for (const event of nonThinkingEvents) {
       switch (event.type) {
         case "tool_call":
           renderToolCall(event);
-          rendered++;
           break;
         case "tool_result":
           renderToolResult(event);
-          rendered++;
           break;
         case "error":
-          renderErrorEvent(event);
-          rendered++;
+          if (cappedRendered.error < cappedLimits.error) {
+            renderErrorEvent(event);
+            cappedRendered.error += 1;
+          } else {
+            cappedHidden.error += 1;
+          }
           break;
         case "assistant_text": {
           const text = asString(event.payload.text) ?? "";
           if (text.trim()) {
-            renderAssistantText(text);
-            rendered++;
+            if (cappedRendered.assistant_text < cappedLimits.assistant_text) {
+              renderAssistantText(text);
+              cappedRendered.assistant_text += 1;
+            } else {
+              cappedHidden.assistant_text += 1;
+            }
           }
           break;
         }
         case "status": {
           const status = asString(event.payload.status) ?? "";
           if (status.trim()) {
-            console.log(chalk.dim(`  ${ICON.pending} ${truncateInline(status, 120)}`));
-            rendered++;
+            if (cappedRendered.status < cappedLimits.status) {
+              console.log(statusLine(status));
+              cappedRendered.status += 1;
+            } else {
+              cappedHidden.status += 1;
+            }
           }
           break;
         }
         default:
           break;
       }
+    }
+
+    const hiddenEntries: string[] = [];
+    if (cappedHidden.assistant_text > 0) {
+      hiddenEntries.push(`${cappedHidden.assistant_text} assistant_text`);
+    }
+    if (cappedHidden.status > 0) {
+      hiddenEntries.push(`${cappedHidden.status} status`);
+    }
+    if (cappedHidden.error > 0) {
+      hiddenEntries.push(`${cappedHidden.error} error`);
+    }
+    if (hiddenEntries.length > 0) {
+      console.log(chalk.dim(`  ... ${hiddenEntries.join(", ")} event(s) omitted`));
+    }
     }
   }
 
@@ -340,24 +508,30 @@ export function printProviderHeartbeat(args: {
   elapsedMs: number;
   timeoutMs: number;
   thinkingChunk?: string;
+  toolCallCount?: number;
+  toolResultCount?: number;
   /** Set when the loop is in a transient-retry cycle (e.g. 503) so the spinner
    *  shows the real state instead of faking "thinking..." */
   statusHint?: string;
 }): void {
   const elapsed = formatDuration(args.elapsedMs);
+  const liveCounter = args.toolCallCount && args.toolCallCount > 0
+    ? ` [tools calls=${args.toolCallCount}${args.toolResultCount && args.toolResultCount > 0 ? ` results=${args.toolResultCount}` : ""}]`
+    : "";
   if (args.statusHint) {
     // Honest status — e.g. "⏳ waiting for capacity (503)..."
+    const cleanHint = args.statusHint.replace(/\\n/g, " ").replace(/\\"/g, "'").replace(/\s+/g, " ");
     if (currentSpinner) {
-      currentSpinner.text = chalk.yellow(`⏳ ${args.model} ${args.statusHint} (${elapsed})`);
+      currentSpinner.text = chalk.yellow(`⏳ ${args.model} ${cleanHint}${liveCounter} (${elapsed})`);
     } else {
-      console.log(chalk.yellow(`  ⏳ ${args.model} ${args.statusHint} ${elapsed}`));
+      console.log(chalk.yellow(`  ⏳ ${args.model} ${cleanHint}${liveCounter} ${elapsed}`));
     }
   } else if (currentSpinner) {
     const thinkingText = args.thinkingChunk ? `: ${args.thinkingChunk}` : " thinking...";
-    currentSpinner.text = chalk.cyan(`${ICON.thinking} ${args.model}${thinkingText} (${elapsed})`);
+    currentSpinner.text = chalk.cyan(`${ICON.thinking} ${args.model}${thinkingText}${liveCounter} (${elapsed})`);
   } else {
     const thinkingText = args.thinkingChunk ? `: ${args.thinkingChunk}` : " thinking...";
-    console.log(chalk.dim(`  ${ICON.thinking} ${args.model}${thinkingText} ${elapsed}`));
+    console.log(chalk.dim(`  ${ICON.thinking} ${args.model}${thinkingText}${liveCounter} ${elapsed}`));
   }
 }
 
@@ -404,9 +578,15 @@ export function printRetryScheduled(args: {
   delayMs: number;
   reason: string;
 }): void {
+  // Clean up double-encoded JSON errors (like Gemini 429s) for cleaner display
+  const cleanReason = args.reason
+    .replace(/\\n/g, " ")
+    .replace(/\\"/g, "'")
+    .replace(/\s+/g, " ");
+
   console.log(
     chalk.yellow(
-      `  ↻ Retry ${args.model} in ${formatDuration(args.delayMs)} (attempt ${args.attempt}) reason=${truncateInline(args.reason, 100)}`,
+      `  ↻ Retry ${args.model} in ${formatDuration(args.delayMs)} (attempt ${args.attempt}) reason=${truncateInline(cleanReason, 250)}`,
     ),
   );
 }

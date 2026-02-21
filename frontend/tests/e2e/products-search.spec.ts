@@ -19,7 +19,7 @@ test("product search returns expected product", async ({ page, request }) => {
 
   await expect(page.getByTestId("products-table")).toContainText(productNumber);
 
-  await page.locator('[data-testid^="products-row-"] a', { hasText: "Details" }).first().click();
+  await page.locator('[data-testid^="products-row-"]').first().getByRole("link", { name: "Details" }).click();
   await expect(page).toHaveURL(/\/products\/\d+$/);
   await expect(page.getByTestId("product-detail-page")).toBeVisible();
   await expect(page.getByTestId("product-detail-page")).toContainText(productNumber);

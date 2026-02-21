@@ -7,15 +7,19 @@ import ora from "ora";
 import { loadPreset, savePreset } from "./config/preset.js";
 import { readWorktreeState } from "./lib/git.js";
 import { bootstrapPlan } from "./lib/plan-bootstrap.js";
+import { assertContextPipeline, resolveContextFilesForPlan } from "./lib/context-pipeline.js";
 import { createRunLogger, type RunLogFormat } from "./lib/run-log.js";
 import { resolveAutoCommitPolicy } from "./lib/auto-commit-policy.js";
 import {
   coerceSessionStrategy,
+  coerceEfficiencyMode,
   coerceProviderId,
   coercePostCheckProfile,
   coerceLogFormat,
+  coerceLiveProviderEventsMode,
   coerceOutputMode,
   coerceThinkingVisibility,
+  type EfficiencyMode,
 } from "./lib/coerce.js";
 import { normalizeProviderModel } from "./lib/model-normalization.js";
 import { resolvePlanTemplatePath } from "./lib/plan-utils.js";
@@ -23,7 +27,7 @@ import { runRalphLoop } from "./loop/executor.js";
 import { createPlanFromGoal } from "./planner/planner.js";
 import { loadPlan, savePlan } from "./planner/plan-schema.js";
 import { runPostChecks, type PostCheckProfile } from "./post-checks.js";
-import { type OutputMode, type ThinkingVisibility } from "./providers/output-events.js";
+import { type LiveProviderEventsMode, type OutputMode, type ThinkingVisibility } from "./providers/output-events.js";
 import { probeProviderCapabilities } from "./providers/capabilities.js";
 import { getProvider } from "./providers/index.js";
 import type { ProviderId, SessionStrategy } from "./providers/types.js";
@@ -73,6 +77,8 @@ export interface RalphCliOptions {
   provider?: ProviderId;
   model?: string;
   thinking?: string;
+  providerMaxTurns?: number;
+  liveProviderEvents?: LiveProviderEventsMode;
   yes?: boolean;
   noPreset?: boolean;
   dryRun?: boolean;
@@ -83,10 +89,14 @@ export interface RalphCliOptions {
   plan?: string;
   goalFile?: string;
   sessionStrategy?: SessionStrategy;
+  efficiencyMode?: EfficiencyMode;
   postCheckProfile?: PostCheckProfile;
   planTemplate?: boolean;
   logFormat?: RunLogFormat;
   runLogPath?: string;
+  logRedactSecrets?: boolean;
+  logRetentionDays?: number;
+  skipContextPipelineCheck?: boolean;
   strictProviderCapabilities?: boolean;
   outputMode?: OutputMode;
   thinkingVisibility?: ThinkingVisibility;
@@ -94,17 +104,85 @@ export interface RalphCliOptions {
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 
+function coerceProviderMaxTurns(value: number | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`Invalid provider max turns: ${value}. Expected a positive integer.`);
+  }
+  return value;
+}
+
+function coerceLogRetentionDays(value: number | undefined): number {
+  if (value === undefined) {
+    return 14;
+  }
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`Invalid log retention days: ${value}. Expected a non-negative integer.`);
+  }
+  return value;
+}
+
+function resolveSessionStrategy(args: {
+  override?: SessionStrategy;
+  efficiencyMode: EfficiencyMode;
+  providerSupportsResume: boolean;
+}): SessionStrategy {
+  if (args.override) {
+    return args.override;
+  }
+  if ((args.efficiencyMode === "balanced" || args.efficiencyMode === "performance") && args.providerSupportsResume) {
+    return "resume";
+  }
+  return "reset";
+}
+
+function resolveLiveProviderEventsMode(
+  optionValue: string | undefined,
+  env: Record<string, string | undefined>,
+): LiveProviderEventsMode {
+  if (optionValue) {
+    return coerceLiveProviderEventsMode(optionValue);
+  }
+  const envValue = env.RALPH_LIVE_PROVIDER_EVENTS;
+  if (envValue === "1" || envValue?.toLowerCase() === "true") {
+    return "on";
+  }
+  if (envValue === "0" || envValue?.toLowerCase() === "false") {
+    return "off";
+  }
+  return "auto";
+}
+
+function liveProviderEventsEnabled(mode: LiveProviderEventsMode, outputMode: OutputMode): boolean {
+  if (mode === "on") {
+    return true;
+  }
+  if (mode === "off") {
+    return false;
+  }
+  return outputMode === "timeline";
+}
+
 export async function runRalph(options: RalphCliOptions): Promise<void> {
   const cwd = process.cwd();
   const dryRun = Boolean(options.dryRun);
   const allowDirty = Boolean(options.allowDirty);
   const autoCommit = options.autoCommit === false ? false : !options.noAutoCommit;
-  const requestedSessionStrategy = coerceSessionStrategy(options.sessionStrategy);
+  const requestedSessionStrategy = options.sessionStrategy ? coerceSessionStrategy(options.sessionStrategy) : undefined;
+  const efficiencyMode = coerceEfficiencyMode(options.efficiencyMode);
   const postCheckProfile = coercePostCheckProfile(options.postCheckProfile);
   const logFormat = coerceLogFormat(options.logFormat);
+  const logRedactSecrets = options.logRedactSecrets !== false;
+  const logRetentionDays = coerceLogRetentionDays(options.logRetentionDays);
   const outputMode = coerceOutputMode(options.outputMode);
   const thinkingVisibility = coerceThinkingVisibility(options.thinkingVisibility);
+  const liveProviderEvents = resolveLiveProviderEventsMode(options.liveProviderEvents, process.env);
+  const enableLiveProviderEvents = liveProviderEventsEnabled(liveProviderEvents, outputMode);
+  const providerMaxTurns = coerceProviderMaxTurns(options.providerMaxTurns);
   const strictProviderCapabilities = Boolean(options.strictProviderCapabilities);
+  const skipContextPipelineCheck = Boolean(options.skipContextPipelineCheck);
 
   if (options.planTemplate) {
     const templatePath = await resolvePlanTemplatePath(cwd);
@@ -138,7 +216,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
 
   const apiKeys = await loadApiKeys();
   const existingKey = apiKeys[providerId];
-  let authChoice: "stored" | "new" | "skip" = existingKey ? "stored" : "new";
+  let authChoice: "stored" | "new" | "skip" = existingKey ? "stored" : (options.yes ? "skip" : "new");
 
   if (!options.yes) {
     authChoice = await askAuthMethod(provider.name, !!existingKey);
@@ -178,7 +256,11 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     console.log(chalk.yellow(`[ralph capabilities] ${warning}`));
   }
 
-  let sessionStrategy = requestedSessionStrategy;
+  let sessionStrategy = resolveSessionStrategy({
+    override: requestedSessionStrategy,
+    efficiencyMode,
+    providerSupportsResume: provider.supportsResume && capabilityProbe.supportsResume,
+  });
   if (sessionStrategy === "resume" && (!provider.supportsResume || !capabilityProbe.supportsResume)) {
     if (strictProviderCapabilities) {
       throw new Error(`${provider.name} does not support session resume in this environment.`);
@@ -253,6 +335,14 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   });
   const plan = bootstrapResult.plan;
   planPath = bootstrapResult.planPath;
+  const contextFiles = resolveContextFilesForPlan({ providerId, plan });
+
+  await assertContextPipeline({
+    cwd,
+    contextFiles,
+    skipCheck: skipContextPipelineCheck,
+    logWarning: (message) => console.log(chalk.yellow(message)),
+  });
 
   if (!maxIterations) {
     maxIterations = await askMaxIterations(plan.metadata.totalIterations || 10);
@@ -269,6 +359,8 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     model,
     format: logFormat,
     runLogPath: options.runLogPath,
+    redactSecrets: logRedactSecrets,
+    retentionDays: logRetentionDays,
   });
 
   let effectiveAutoCommit = autoCommit;
@@ -297,11 +389,13 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
       dryRun,
       autoCommit: effectiveAutoCommit,
       sessionStrategy,
+      efficiencyMode,
       postCheckProfile,
       logFormat,
       runLogPath: runLogger.filePath,
       strictProviderCapabilities,
       outputMode,
+      liveProviderEvents,
       thinkingVisibility,
     }),
   );
@@ -330,7 +424,7 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
 
   await runLogger.log({
     event: "run_started",
-    details: `plan=${planPath};dryRun=${dryRun};postCheckProfile=${postCheckProfile};sessionStrategy=${sessionStrategy};autoCommit=${effectiveAutoCommit};outputMode=${outputMode};thinkingVisibility=${thinkingVisibility}`,
+    details: `plan=${planPath};dryRun=${dryRun};postCheckProfile=${postCheckProfile};sessionStrategy=${sessionStrategy};efficiencyMode=${efficiencyMode};autoCommit=${effectiveAutoCommit};outputMode=${outputMode};thinkingVisibility=${thinkingVisibility};liveProviderEvents=${liveProviderEvents};providerMaxTurns=${providerMaxTurns ?? "default"};contextFiles=${contextFiles.length};skipContextPipelineCheck=${skipContextPipelineCheck};logRedactSecrets=${logRedactSecrets};logRetentionDays=${logRetentionDays}`,
     maxIterations,
     sessionId: sessionStrategy === "resume" ? plan.metadata.resumeSessionId : undefined,
   });
@@ -351,12 +445,16 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
     autoCommit: effectiveAutoCommit,
     sessionStrategy,
     providerStreamingEnabled,
+    contextFiles,
     outputMode,
+    liveProviderEvents: enableLiveProviderEvents,
     thinkingVisibility,
+    providerMaxTurns,
     initialResumeSessionId:
       sessionStrategy === "resume" ? plan.metadata.resumeSessionId : undefined,
     runLogger,
     providerEnv,
+    efficiencyMode,
   });
 
   console.log(chalk.green(`\nRalph Loop completed. Iterations: ${summary.iterationsRun}`));
@@ -376,6 +474,11 @@ export async function runRalph(options: RalphCliOptions): Promise<void> {
   console.log(
     chalk.cyan(
       `Provider events: thinking=${summary.analytics.providerEvents.thinking}, tool_call=${summary.analytics.providerEvents.tool_call}, tool_result=${summary.analytics.providerEvents.tool_result}, assistant_text=${summary.analytics.providerEvents.assistant_text}, status=${summary.analytics.providerEvents.status}, error=${summary.analytics.providerEvents.error}`,
+    ),
+  );
+  console.log(
+    chalk.cyan(
+      `Cache: preflight_hit=${summary.analytics.cache.cache_hits_preflight} preflight_miss=${summary.analytics.cache.cache_misses_preflight} gitstate_hit=${summary.analytics.cache.gitstate_cache_hits}`,
     ),
   );
   if (summary.failedSteps > 0) {

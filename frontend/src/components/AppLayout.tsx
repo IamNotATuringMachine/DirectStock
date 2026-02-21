@@ -269,15 +269,18 @@ export default function AppLayout() {
 
           <div className="topbar-right flex items-center gap-3" data-testid="topbar-right">
             {!isMobileLayout ? (
-              <button
-                className="icon-btn w-9 h-9 rounded-full hover:bg-[var(--panel-soft)] transition-colors"
-                type="button"
-                onClick={() => void onToggleTheme()}
-                data-testid="theme-toggle-btn"
-                title={`Design umstellen (${theme === "dark" ? "Hell" : "Dunkel"})`}
-              >
-                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
+              <>
+                <button
+                  className="icon-btn w-9 h-9 rounded-full hover:bg-[var(--panel-soft)] transition-colors"
+                  type="button"
+                  onClick={() => void onToggleTheme()}
+                  data-testid="theme-toggle-btn"
+                  title={`Design umstellen (${theme === "dark" ? "Hell" : "Dunkel"})`}
+                >
+                  {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+                <OfflineSyncPanel />
+              </>
             ) : null}
 
             <PwaStatus compact={isMobileLayout} />

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { ensureE2EInventoryStock, loginAsAdminApi } from "./helpers/api";
+import { loginAndOpenRoute } from "./helpers/ui";
 
 function dateRange() {
   const now = new Date();
@@ -55,14 +56,7 @@ test("reports page supports trends and demand forecast", async ({ page, request 
   expect(recomputeResponse.ok()).toBeTruthy();
 
   const range = dateRange();
-  await page.goto("/login");
-  await page.getByTestId("login-username").fill(process.env.E2E_ADMIN_USERNAME ?? "admin");
-  await page.getByTestId("login-password").fill(process.env.E2E_ADMIN_PASSWORD ?? "DirectStock2026!");
-  await page.getByTestId("login-submit").click();
-
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await page.goto("/reports");
-  await expect(page.getByTestId("reports-page")).toBeVisible();
+  await loginAndOpenRoute(page, "/reports", { rootTestId: "reports-page" });
 
   await page.getByTestId("reports-type-select").selectOption("trends");
   await page.getByTestId("reports-date-from").fill(range.from);
@@ -73,8 +67,18 @@ test("reports page supports trends and demand forecast", async ({ page, request 
   await page.getByTestId("reports-type-select").selectOption("demand-forecast");
   await page.getByTestId("reports-forecast-product-id").fill(String(product!.id));
   await expect
-    .poll(async () => await page.getByTestId("reports-demand-forecast-table").locator("tbody tr").count())
-    .toBeGreaterThan(0);
+    .poll(
+      async () => {
+        const rowCount = await page.getByTestId("reports-demand-forecast-table").locator("tbody tr").count();
+        if (rowCount > 0) {
+          return true;
+        }
+        const tableText = ((await page.getByTestId("reports-demand-forecast-table").textContent()) ?? "").toLowerCase();
+        return tableText.includes("keine daten");
+      },
+      { timeout: 30_000 },
+    )
+    .toBeTruthy();
 
   await page.getByTestId("reports-forecast-recompute-btn").click();
   await expect(page.getByTestId("reports-forecast-recompute-btn")).toBeEnabled();

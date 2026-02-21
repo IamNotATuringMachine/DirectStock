@@ -60,8 +60,7 @@ async function collectLayoutMetrics(page: Page): Promise<BoxMetrics> {
 
 async function assertLoginBaseVisible(page: Page) {
   await expect(page.getByTestId("login-page")).toBeVisible();
-  await expect(page.locator("section.login-card")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "DirectStock Login" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Willkommen zurück" })).toBeVisible();
   await expect(page.getByTestId("login-form")).toBeVisible();
   await expect(page.getByTestId("login-username")).toBeVisible();
   await expect(page.getByTestId("login-password")).toBeVisible();
@@ -90,7 +89,7 @@ test.describe("login page ui and functional regression", () => {
     await page.getByTestId("login-submit").click();
 
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByTestId("login-error")).toHaveText("Login fehlgeschlagen");
+    await expect(page.getByTestId("login-error")).toContainText("Anmeldung fehlgeschlagen");
     await expect(pageErrors, `Unexpected page errors: ${pageErrors.join(" | ")}`).toEqual([]);
 
     const unexpectedConsoleErrors = consoleErrors.filter(

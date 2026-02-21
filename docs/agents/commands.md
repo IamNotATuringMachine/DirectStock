@@ -14,7 +14,10 @@ cd backend && python -m pytest -q
 ## Frontend Tests
 ```bash
 cd frontend && npm run test
+# Playwright E2E runs dockerized/isolation-first via ../scripts/run_e2e_isolated.sh
 cd frontend && npm run test:e2e
+cd frontend && npm run test:e2e:smoke
+# local/non-hermetic fallback only:
 cd frontend && npm run test:e2e:raw
 ```
 

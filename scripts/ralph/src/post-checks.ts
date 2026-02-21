@@ -18,6 +18,7 @@ const FAST_CHECKS = [
 const GOVERNANCE_CHECKS = [
   ...FAST_CHECKS,
   "./scripts/agent_governance_check.sh",
+  "python3 scripts/check_mcp_profile_parity.py --strict --format json",
   "python3 scripts/check_provider_capabilities.py --provider all --format json",
 ];
 

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { ensureE2EInventoryStock, loginAsAdminApi } from "./helpers/api";
 
 test("inventory count flow creates session, counts item and completes", async ({ page, request }) => {
+  test.slow();
   const token = await loginAsAdminApi(request);
   const seeded = await ensureE2EInventoryStock(request, token, `E2E-IC-${Date.now()}`);
 

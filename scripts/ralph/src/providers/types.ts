@@ -20,6 +20,7 @@ export interface ProviderExecutionInput {
   prompt: string;
   cwd: string;
   timeoutMs: number;
+  providerMaxTurns?: number;
   dryRun?: boolean;
   sessionStrategy?: SessionStrategy;
   resumeSessionId?: string;

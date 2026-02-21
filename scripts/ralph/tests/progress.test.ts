@@ -4,6 +4,7 @@ import {
   printIterationHeader,
   printIterationResult,
   printProviderAttemptDone,
+  printProviderEventLive,
   printProviderHeartbeat,
   printProviderOutput,
   printRetryScheduled,
@@ -81,6 +82,22 @@ describe("progress output", () => {
     const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
     expect(output).toContain("💭");
     expect(output).toContain("15s");
+  });
+
+  it("prints provider heartbeat with live tool counters", () => {
+    printProviderHeartbeat({
+      step: { ...step },
+      model: "gemini-3-flash-preview",
+      attempt: 1,
+      elapsedMs: 12_000,
+      timeoutMs: 20 * 60 * 1000,
+      toolCallCount: 7,
+      toolResultCount: 6,
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("tools calls=7");
+    expect(output).toContain("results=6");
   });
 
   it("prints retry reason for transient failures", () => {
@@ -206,5 +223,95 @@ describe("progress output", () => {
 
     const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
     expect(output).toContain("thinking_unsupported");
+  });
+
+  it("prints live tool event lines immediately", () => {
+    const rendered = printProviderEventLive({
+      thinkingVisibility: "summary",
+      toolCallCount: 3,
+      event: {
+        type: "tool_call",
+        provider: "openai",
+        timestamp: new Date().toISOString(),
+        attempt: 1,
+        payload: { name: "ReadLive", command: "cat live.ts" },
+      },
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(rendered).toBe(true);
+    expect(output).toContain("⚡");
+    expect(output).toContain("ReadLive");
+    expect(output).toContain("call #3");
+  });
+
+  it("filters noisy live status events", () => {
+    const rendered = printProviderEventLive({
+      thinkingVisibility: "summary",
+      event: {
+        type: "status",
+        provider: "openai",
+        timestamp: new Date().toISOString(),
+        attempt: 1,
+        payload: { status: "thread heartbeat line" },
+      },
+    });
+
+    expect(rendered).toBe(false);
+    expect(logSpy.mock.calls).toHaveLength(0);
+  });
+
+  it("does not drop tool events when timeline output is truncated", () => {
+    const events = [
+      ...Array.from({ length: 20 }, (_, index) => ({
+        type: "assistant_text" as const,
+        provider: "openai",
+        timestamp: new Date().toISOString(),
+        attempt: 1,
+        payload: { text: `assistant ${index}` },
+      })),
+      {
+        type: "tool_call" as const,
+        provider: "openai",
+        timestamp: new Date().toISOString(),
+        attempt: 1,
+        payload: { name: "ToolA", command: "cmd-a" },
+      },
+      {
+        type: "tool_result" as const,
+        provider: "openai",
+        timestamp: new Date().toISOString(),
+        attempt: 1,
+        payload: { name: "ToolA", status: "ok" },
+      },
+      ...Array.from({ length: 20 }, (_, index) => ({
+        type: "status" as const,
+        provider: "openai",
+        timestamp: new Date().toISOString(),
+        attempt: 1,
+        payload: { status: `status ${index}` },
+      })),
+      {
+        type: "tool_call" as const,
+        provider: "openai",
+        timestamp: new Date().toISOString(),
+        attempt: 1,
+        payload: { name: "ToolB", command: "cmd-b" },
+      },
+    ];
+
+    printProviderOutput({
+      step: { ...step },
+      outputMode: "timeline",
+      thinkingVisibility: "summary",
+      events,
+      finalText: "",
+      rawOutput: { stdout: "", stderr: "" },
+    });
+
+    const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("ToolA");
+    expect(output).toContain("ToolB");
+    expect(output).toContain("event(s) omitted");
   });
 });

@@ -93,6 +93,11 @@ Wichtige Flags:
 Run-Log:
 - Standardpfad: `.ralph/runs/<timestamp>.jsonl`
 - Enthält strukturierte Events (`run_started`, `iteration_started`, `provider_retry`, `step_done`, `post_check_failed`, `run_finished`)
+- Enthält Korrelationsfelder pro Event: `trace_id`, `group_id`, `span_id`
+- Optionaler OTLP-Export (nicht-blockierend) via Env:
+  - `RALPH_OTEL_EXPORT=1`
+  - `RALPH_OTEL_ENDPOINT=https://collector.example/v1/logs` (oder `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`)
+  - Optional: `RALPH_OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_HEADERS`, `RALPH_OTEL_TIMEOUT_MS`
 
 Plan-Referenzen:
 - Template: `docs/guides/ralph-plan-template.md`
@@ -383,9 +388,10 @@ Frontend E2E (isolierter Standardlauf mit eigenem Compose-Project + automatische
 
 ```bash
 cd frontend
-npx playwright install
 npm run test:e2e
 ```
+
+Hinweis: `npm run test:e2e` fuehrt Playwright im Docker-Container aus. Das Image-Tag wird automatisch aus `frontend/package-lock.json` (Version `@playwright/test`) abgeleitet, damit Browser und Runner-Version immer zusammenpassen.
 
 Frontend E2E Smoke (isoliert, Desktop + Mobile):
 

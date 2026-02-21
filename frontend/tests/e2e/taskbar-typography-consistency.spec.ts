@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+import { loginViaUi } from "./helpers/ui";
 
 type RouteConfig = {
   path: string;
@@ -32,12 +34,25 @@ const ROUTES: RouteConfig[] = [
 
 const ROLE_CLASSES = ["section-title", "form-label-standard", "table-head-standard"] as const;
 
+async function openRouteAndEnsureVisible(page: Page, route: RouteConfig): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.goto(route.path, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      await expect(page.getByTestId(route.testId)).toBeVisible({ timeout: 45_000 });
+      return;
+    } catch (error) {
+      if (attempt === 1) {
+        throw error;
+      }
+      await loginViaUi(page);
+    }
+  }
+}
+
 test.describe("Taskbar Typography Consistency", () => {
   test("uses dashboard-aligned page frame and heading typography", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByTestId("login-username").fill("admin");
-    await page.getByTestId("login-password").fill("DirectStock2026!");
-    await page.getByTestId("login-submit").click();
+    test.slow();
+    await loginViaUi(page);
 
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.locator('[data-testid="dashboard-page"] .page-title')).toBeVisible();
@@ -53,12 +68,8 @@ test.describe("Taskbar Typography Consistency", () => {
     const seenRoleClass = new Set<(typeof ROLE_CLASSES)[number]>();
 
     for (const route of ROUTES) {
-      await page.goto(route.path);
-      await page.waitForLoadState("networkidle");
-
-      const root = page.getByTestId(route.testId);
-      await expect(root).toBeVisible();
-      await expect(root).toHaveClass(/\bpage\b/);
+      await openRouteAndEnsureVisible(page, route);
+      await expect(page.getByTestId(route.testId)).toHaveClass(/\bpage\b/);
 
       const headingSize = await page.evaluate((testId) => {
         const heading = document.querySelector(`[data-testid="${testId}"] .page-title`) as HTMLElement | null;

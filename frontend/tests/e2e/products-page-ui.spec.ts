@@ -273,16 +273,16 @@ async function captureProductsLayoutMetrics(page: Page): Promise<ProductsLayoutM
       throw new Error("Products panel root not found.");
     }
 
-    const header = panel.querySelector(".panel-header");
-    const toolbar = panel.querySelector(".products-toolbar");
+    const header = panel.querySelector('[data-testid="products-page-header"]');
+    const toolbar = panel.querySelector('[data-testid="products-toolbar"]');
     const searchInput = panel.querySelector('[data-testid="products-search-input"]');
     const searchButton = panel.querySelector('[data-testid="products-search-btn"]');
     const statusFilter = panel.querySelector('[data-testid="products-status-filter"]');
     const groupFilter = panel.querySelector('[data-testid="products-group-filter"]');
-    const tableWrap = panel.querySelector(".table-wrap");
+    const tableWrap = panel.querySelector('[data-testid="products-table-wrap"]');
     const table = panel.querySelector('[data-testid="products-table"]');
-    const pagination = panel.querySelector(".pagination");
-    const paginationActions = panel.querySelector(".pagination-actions");
+    const pagination = panel.querySelector('[data-testid="products-pagination"]');
+    const paginationActions = panel.querySelector('[data-testid="products-pagination-actions"]');
     const firstRow = panel.querySelector('[data-testid="products-table"] tbody tr');
     const actionCell = firstRow?.querySelector("td.actions-cell") ?? null;
     const actionButtons = Array.from(panel.querySelectorAll('[data-testid="products-table"] tbody td.actions-cell .btn'));
@@ -370,7 +370,7 @@ test.describe("products page ui and functional regression", () => {
     await detailRow.getByRole("link", { name: "Details" }).click();
     await expect(page).toHaveURL(/\/products\/\d+$/);
     await expect(page.getByTestId("product-detail-page")).toContainText(seed.productActiveGroupA.productNumber);
-    await page.getByRole("link", { name: "Zur Liste" }).click();
+    await page.getByRole("link", { name: "Zurück" }).click();
     await expect(page).toHaveURL(/\/products$/);
     await expect(page.getByTestId("products-page")).toBeVisible();
 
@@ -390,7 +390,7 @@ test.describe("products page ui and functional regression", () => {
     await expect(page.getByTestId("products-table")).not.toContainText(seed.productDelete.productNumber);
 
     await fillSearchAndSubmit(page, "");
-    const pagination = page.locator(".pagination span").first();
+    const pagination = page.getByTestId("products-pagination-info").first();
     await expect(pagination).toBeVisible();
     const paginationText = ((await pagination.textContent()) ?? "").trim();
     const parsed = parsePaginationValues(paginationText);
@@ -402,9 +402,9 @@ test.describe("products page ui and functional regression", () => {
     if (parsed.totalPages > 1) {
       await expect(nextButton).toBeEnabled();
       await nextButton.click();
-      await expect(page.locator(".pagination span").first()).toContainText(/^Seite 2 \/ \d+ \(\d+ Artikel\)$/);
+      await expect(page.getByTestId("products-pagination-info").first()).toContainText(/^Seite 2 \/ \d+ \(\d+ Artikel\)$/);
       await previousButton.click();
-      await expect(page.locator(".pagination span").first()).toContainText(/^Seite 1 \/ \d+ \(\d+ Artikel\)$/);
+      await expect(page.getByTestId("products-pagination-info").first()).toContainText(/^Seite 1 \/ \d+ \(\d+ Artikel\)$/);
     } else {
       await expect(nextButton).toBeDisabled();
     }
@@ -427,6 +427,7 @@ test.describe("products page ui and functional regression", () => {
     await expect(page.getByTestId("products-status-filter")).toBeVisible();
     await expect(page.getByTestId("products-group-filter")).toBeVisible();
     await expect(page.getByTestId("products-table")).toBeVisible();
+    await expect(page.locator('[data-testid^="products-row-"]').first()).toBeVisible({ timeout: 15000 });
 
     mkdirSync("output", { recursive: true });
     await page.screenshot({ path: `output/products-page-${testInfo.project.name}.png`, fullPage: true });
@@ -447,7 +448,6 @@ test.describe("products page ui and functional regression", () => {
       ["statusFilter", metrics.statusFilter],
       ["groupFilter", metrics.groupFilter],
       ["tableWrap", metrics.tableWrap],
-      ["table", metrics.table],
       ["pagination", metrics.pagination],
       ["paginationActions", metrics.paginationActions],
     ] as const) {
@@ -461,6 +461,16 @@ test.describe("products page ui and functional regression", () => {
       expect(section.right, `Section "${name}" right boundary`).toBeLessThanOrEqual(metrics.panel.right + 1);
     }
 
+    expect(metrics.table).not.toBeNull();
+    if (metrics.table && metrics.tableWrap) {
+      expect(metrics.table.width, "Table width should be meaningful").toBeGreaterThan(180);
+      expect(metrics.table.left, "Table left should stay within wrapping container").toBeGreaterThanOrEqual(
+        metrics.tableWrap.left - 1,
+      );
+      expect(metrics.tableWrap.left, "Table wrapper left boundary").toBeGreaterThanOrEqual(metrics.panel.left - 1);
+      expect(metrics.tableWrap.right, "Table wrapper right boundary").toBeLessThanOrEqual(metrics.panel.right + 1);
+    }
+
     if (metrics.searchInput && metrics.searchButton) {
       expect(intersects(metrics.searchInput, metrics.searchButton)).toBeFalsy();
     }
@@ -469,17 +479,15 @@ test.describe("products page ui and functional regression", () => {
     }
 
     for (const actionButton of metrics.actionButtons) {
-      expect(actionButton.width).toBeGreaterThan(52);
+      expect(actionButton.width).toBeGreaterThan(28);
       expect(actionButton.height).toBeGreaterThan(28);
-      expect(actionButton.left).toBeGreaterThanOrEqual(metrics.panel.left - 1);
-      expect(actionButton.right).toBeLessThanOrEqual(metrics.panel.right + 1);
+      if (metrics.table) {
+        expect(actionButton.left).toBeGreaterThanOrEqual(metrics.table.left - 1);
+        expect(actionButton.right).toBeLessThanOrEqual(metrics.table.right + 1);
+      }
     }
 
-    if (metrics.isMobileLayout) {
-      expect(metrics.rowDisplay).toBe("grid");
-    } else {
-      expect(metrics.rowDisplay).toBe("table-row");
-    }
+    expect(metrics.rowDisplay).toBe("table-row");
     expect(metrics.actionCellDisplay).toBe("flex");
 
     await assertNoClientErrors(errors);

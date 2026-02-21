@@ -154,7 +154,7 @@ export function PickingView({
               <div className="bg-[var(--panel)] rounded-[var(--radius-lg)] shadow-sm border border-[var(--line)] p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <div>
-                    <h2 className="text-xl font-bold text-[var(--ink)] flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-[var(--ink)] flex items-center gap-3" data-testid="pick-wave-selected-status">
                       {selectedWave.wave_number}
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(selectedWave.status)}`}>
                         {selectedWave.status}
@@ -287,7 +287,7 @@ export function PickingView({
                     </thead>
                     <tbody className="bg-[var(--panel)] divide-y divide-[var(--line)]">
                       {tasks.map((task) => (
-                        <tr key={task.id} className="hover:bg-[var(--panel-soft)] transition-colors">
+                        <tr key={task.id} data-testid={`pick-task-row-${task.id}`} className="hover:bg-[var(--panel-soft)] transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--muted)]">{task.sequence_no}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--ink)]">{task.source_bin_code ?? "-"}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--ink)]">

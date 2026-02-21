@@ -11,11 +11,39 @@ import {
 } from "./output-events.js";
 import type { ProviderAdapter, ProviderCommand, ProviderExecutionInput, ProviderExecutionResult } from "./types.js";
 
-const MAX_TURNS = 25;
+const DEFAULT_MAX_TURNS = 120;
 /** Timeout for the sendMessageStream() Promise itself (connection + first byte) */
 const STREAM_CONNECT_TIMEOUT_MS = 120_000;
 /** Abort the stream if no chunk arrives within this window (subsequent chunks) */
 const STREAM_CHUNK_TIMEOUT_MS = 90_000;
+
+function parsePositiveInt(value: string | undefined): number | undefined {
+    if (!value) return undefined;
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+    return parsed;
+}
+
+function resolveMaxTurns(input: ProviderExecutionInput): number {
+    if (input.providerMaxTurns && Number.isInteger(input.providerMaxTurns) && input.providerMaxTurns > 0) {
+        return input.providerMaxTurns;
+    }
+    const envOverride =
+        parsePositiveInt(input.env?.RALPH_GOOGLE_API_MAX_TURNS) ??
+        parsePositiveInt(input.env?.RALPH_PROVIDER_MAX_TURNS) ??
+        parsePositiveInt(process.env.RALPH_GOOGLE_API_MAX_TURNS) ??
+        parsePositiveInt(process.env.RALPH_PROVIDER_MAX_TURNS);
+    return envOverride ?? DEFAULT_MAX_TURNS;
+}
+
+function remainingTurnsHint(turnCount: number, maxTurns: number, writeCount: number): string {
+    const remaining = maxTurns - turnCount;
+    if (remaining > 8) {
+        return "";
+    }
+    const writeState = writeCount === 0 ? "No files have been written yet." : `File writes so far: ${writeCount}.`;
+    return `\n\nTurn budget is nearly exhausted (${remaining} turns remaining). ${writeState} If the task is done, stop calling tools and return the final response now.`;
+}
 
 function buildCommand(input: ProviderExecutionInput): ProviderCommand {
     return {
@@ -145,6 +173,7 @@ export const googleApiAdapter: ProviderAdapter = {
     buildCommand,
     async execute(input: ProviderExecutionInput): Promise<ProviderExecutionResult> {
         const command = buildCommand(input);
+        const maxTurns = resolveMaxTurns(input);
 
         if (input.dryRun) {
             return {
@@ -248,7 +277,7 @@ Once you are completely done with the task, output your final response WITHOUT a
             })
         );
 
-        while (turnCount < MAX_TURNS) {
+        while (turnCount < maxTurns) {
             turnCount++;
             let assistantMessage = "";
 
@@ -356,7 +385,12 @@ Once you are completely done with the task, output your final response WITHOUT a
                     })
                 );
 
-                currentPrompt = `Tool Result for ${toolName}:\n${stringifiedResult}`;
+                currentPrompt = `Tool Result for ${toolName}:\n${stringifiedResult}${remainingTurnsHint(turnCount, maxTurns, writeCount)}`;
+            } else if (assistantMessage.trim() === "") {
+                // The model generated ONLY thoughts (or just stopped) without outputting any text.
+                // Prod it to continue instead of breaking the loop.
+                currentPrompt = `You did not provide any text or tool call. Please continue and provide a tool call using the JSON format, or your final response if you are completely done.${remainingTurnsHint(turnCount, maxTurns, writeCount)}`;
+                continue;
             } else {
                 // No tool call — model is done
                 finalText = assistantMessage;
@@ -364,8 +398,8 @@ Once you are completely done with the task, output your final response WITHOUT a
             }
         }
 
-        if (turnCount >= MAX_TURNS) {
-            finalText += "\n[Terminated: Reached maximum tool call turns]";
+        if (turnCount >= maxTurns) {
+            finalText += `\n[Terminated: Reached maximum tool call turns (${maxTurns}). Increase with --provider-max-turns <n> or RALPH_PROVIDER_MAX_TURNS.]`;
         }
 
         pushEvent(

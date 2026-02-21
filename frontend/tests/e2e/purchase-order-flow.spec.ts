@@ -32,7 +32,7 @@ test("purchase order flow creates order, item and status transition", async ({ p
   await page.getByTestId("purchase-order-item-quantity-input").fill("4");
   await page.getByTestId("purchase-order-item-add-btn").click();
 
-  await expect(page.getByTestId("purchase-order-items-list")).toContainText("Menge: 4");
+  await expect(page.getByTestId("purchase-order-items-list")).toContainText("4.000");
 
   await page.getByTestId("purchase-order-status-approved").click();
   await expect(page.getByTestId("purchase-order-selected-status")).toContainText("(approved)");

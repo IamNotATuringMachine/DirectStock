@@ -34,7 +34,7 @@ export function ShippingShipmentDetails({
     <div className="bg-[var(--panel)] rounded-[var(--radius-lg)] border border-[var(--line)] p-6 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 border-b border-[var(--line)] pb-6">
         <div className="space-y-1 min-w-0">
-          <h2 className="text-lg font-semibold text-[var(--ink)] truncate" data-testid="shipping-selected-status">
+          <h2 className="text-lg font-semibold text-[var(--ink)] truncate">
             {selectedShipment.shipment_number}
           </h2>
           <p className="text-sm text-[var(--muted)] break-words">
@@ -42,7 +42,7 @@ export function ShippingShipmentDetails({
             <span className="font-mono text-[var(--ink)] select-all ml-1">{selectedShipment.tracking_number ?? "-"}</span>
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${shipmentStatusBadgeClass(selectedShipment.status)}`}>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${shipmentStatusBadgeClass(selectedShipment.status)}`} data-testid="shipping-selected-status">
               Status: {selectedShipment.status}
             </span>
           </div>

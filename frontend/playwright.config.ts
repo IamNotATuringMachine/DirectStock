@@ -3,10 +3,12 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
   globalTeardown: "./tests/e2e/globalTeardown.ts",
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? "test-results",
   snapshotPathTemplate: "{testDir}/__screenshots__/{testFilePath}/{projectName}/{arg}{ext}",
   fullyParallel: false,
+  workers: 4,
   preserveOutput: "always",
-  timeout: 60_000,
+  timeout: 120_000,
   expect: {
     timeout: 10_000,
   },

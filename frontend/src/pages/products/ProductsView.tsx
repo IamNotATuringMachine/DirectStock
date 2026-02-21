@@ -81,7 +81,7 @@ export function ProductsView({
 }: ProductsViewProps) {
   return (
     <section className="page flex flex-col gap-6" data-testid="products-page">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4" data-testid="products-page-header">
         <div>
           <h2 className="page-title">Artikelstamm</h2>
           <p className="section-subtitle mt-1">
@@ -100,7 +100,7 @@ export function ProductsView({
         )}
       </header>
 
-      <div className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] p-4 shadow-sm">
+      <div className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] p-4 shadow-sm" data-testid="products-toolbar">
         <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-4 items-center">
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" />
@@ -174,7 +174,7 @@ export function ProductsView({
         </div>
       ) : (
         <div className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" data-testid="products-table-wrap">
             <table className="w-full text-left border-collapse" data-testid="products-table">
               <thead>
                 <tr className="border-b border-[var(--line)] bg-[var(--panel-soft)] text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
@@ -249,6 +249,7 @@ export function ProductsView({
                           <Link
                             to={`/products/${product.id}`}
                             className="btn p-2 text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--bg)] rounded-md transition-colors"
+                            aria-label="Details"
                             title="Details ansehen"
                           >
                             <Eye className="w-4 h-4" />
@@ -278,19 +279,20 @@ export function ProductsView({
           </div>
 
           {productRows.length > 0 && (
-            <div className="border-t border-[var(--line)] p-4 flex items-center justify-between bg-[var(--panel-soft)]">
-              <div className="text-sm text-[var(--muted)]">
-                Zeige <span className="font-medium text-[var(--ink)]">{page}</span> von{" "}
-                <span className="font-medium text-[var(--ink)]">{totalPages}</span> Seiten ({total} Artikel)
+            <div className="border-t border-[var(--line)] p-4 flex items-center justify-between bg-[var(--panel-soft)]" data-testid="products-pagination">
+              <div className="text-sm text-[var(--muted)]" data-testid="products-pagination-info">
+                Seite <span className="font-medium text-[var(--ink)]">{page}</span> /{" "}
+                <span className="font-medium text-[var(--ink)]">{totalPages}</span> ({total} Artikel)
               </div>
-              <div className="flex gap-2">
-                <button className="btn px-3 disabled:opacity-50" disabled={page <= 1} onClick={onPrevPage} title="Vorherige Seite">
+              <div className="flex gap-2" data-testid="products-pagination-actions">
+                <button className="btn px-3 disabled:opacity-50" disabled={page <= 1} onClick={onPrevPage} aria-label="Zurück" title="Vorherige Seite">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   className="btn px-3 disabled:opacity-50"
                   disabled={page >= totalPages}
                   onClick={onNextPage}
+                  aria-label="Weiter"
                   title="Nächste Seite"
                 >
                   <ChevronRight className="w-4 h-4" />

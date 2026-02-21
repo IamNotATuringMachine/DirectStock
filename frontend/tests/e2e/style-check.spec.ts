@@ -1,36 +1,27 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
+import { loginViaUi, saveProjectScopedScreenshot } from "./helpers/ui";
 
 test.describe("Style Consistency Check", () => {
-  test("visually capture dashboard, products, warehouse, and inventory pages", async ({ page }) => {
-    // Login
-    await page.goto("/login");
-    await page.getByTestId("login-username").fill("admin");
-    await page.getByTestId("login-password").fill("DirectStock2026!");
-    await page.getByTestId("login-submit").click();
-    await expect(page).toHaveURL(/\/dashboard$/);
+  test("visually capture dashboard, products, warehouse, and inventory pages", async ({ page }, testInfo) => {
+    test.slow();
+    await loginViaUi(page);
 
-    // Dashboard
-    await page.waitForLoadState("networkidle");
-    await page.screenshot({ path: "frontend/output/style-check/dashboard.png", fullPage: true });
+    const routes: Array<{ path: string; rootTestId: string; screenshotName: string }> = [
+      { path: "/dashboard", rootTestId: "dashboard-page", screenshotName: "style-check-dashboard" },
+      { path: "/products", rootTestId: "products-page", screenshotName: "style-check-products" },
+      { path: "/warehouse", rootTestId: "warehouse-page", screenshotName: "style-check-warehouse" },
+      { path: "/inventory", rootTestId: "inventory-page", screenshotName: "style-check-inventory" },
+      { path: "/picking", rootTestId: "picking-page", screenshotName: "style-check-picking" },
+    ];
 
-    // Products
-    await page.goto("/products");
-    await page.waitForLoadState("networkidle");
-    await page.screenshot({ path: "frontend/output/style-check/products.png", fullPage: true });
-
-    // Warehouse
-    await page.goto("/warehouse");
-    await page.waitForLoadState("networkidle");
-    await page.screenshot({ path: "frontend/output/style-check/warehouse.png", fullPage: true });
-
-    // Inventory
-    await page.goto("/inventory");
-    await page.waitForLoadState("networkidle");
-    await page.screenshot({ path: "frontend/output/style-check/inventory.png", fullPage: true });
-
-    // Picking
-    await page.goto("/picking");
-    await page.waitForLoadState("networkidle");
-    await page.screenshot({ path: "frontend/output/style-check/picking.png", fullPage: true });
+    for (const route of routes) {
+      await page.goto(route.path, { waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId(route.rootTestId)).toBeVisible();
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+      await saveProjectScopedScreenshot(page, testInfo, route.screenshotName);
+    }
   });
 });

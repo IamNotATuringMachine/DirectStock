@@ -113,10 +113,13 @@ if (!LIVE_ENABLED) {
           "--no-auto-commit",
           "--output-mode",
           "timeline",
+          "--live-provider-events",
+          "on",
           "--thinking-visibility",
           "summary",
           "--run-log-path",
           runLogPath,
+          "--skip-context-pipeline-check",
           "--yes",
         ],
         {

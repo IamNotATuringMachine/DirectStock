@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { createE2EUserWithRoles } from "./helpers/api";
 
 test("darkmode persistence flow keeps theme preference across reload", async ({ page, request }) => {
+  test.slow();
   const user = await createE2EUserWithRoles(request, ["admin"]);
 
   await page.goto("/login");
@@ -17,20 +18,20 @@ test("darkmode persistence flow keeps theme preference across reload", async ({ 
 
   const themeButton = page.getByTestId("theme-toggle-btn");
   await expect(themeButton).toBeVisible();
-  const before = (await themeButton.textContent())?.trim() ?? "";
-  let after = before;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await themeButton.click();
-    await page.waitForTimeout(250);
-    after = (await themeButton.textContent())?.trim() ?? "";
-    if (after !== before) {
-      break;
-    }
-  }
+  const before = await page.evaluate(() => document.documentElement.getAttribute("data-theme") ?? "light");
+  await themeButton.click();
+  await page.waitForTimeout(250);
+  const after = await page.evaluate(() => document.documentElement.getAttribute("data-theme") ?? "light");
   expect(after).not.toBe(before);
   await page.reload();
   if (isMobileLayout) {
     await page.getByTestId("sidebar-toggle").click();
   }
-  await expect(themeButton).toHaveText(after);
+  await expect(page.getByTestId("theme-toggle-btn")).toBeVisible();
+  await expect
+    .poll(
+      async () => await page.evaluate(() => document.documentElement.getAttribute("data-theme") ?? "light"),
+      { timeout: 5000 }
+    )
+    .toBe(after);
 });

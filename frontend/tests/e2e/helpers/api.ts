@@ -317,3 +317,93 @@ export async function ensureE2EInventoryStock(
 
   return { productNumber: ensuredProductNumber, binId: bin.id, warehouseId: warehouse!.id };
 }
+
+export async function seedWarehouseZoneBin(
+  request: APIRequestContext,
+  token: string,
+  markerPrefix = "E2E-LOC",
+): Promise<{
+  warehouseId: number;
+  warehouseCode: string;
+  zoneId: number;
+  zoneCode: string;
+  binId: number;
+  binCode: string;
+}> {
+  const headers = { Authorization: `Bearer ${token}` };
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const marker = `${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 10_000)
+      .toString()
+      .padStart(4, "0")}${attempt}`;
+    const warehouseCode = `${markerPrefix.slice(0, 4).toUpperCase()}${marker}`.slice(0, 10);
+    const zoneCode = `Z${marker}`.slice(0, 10);
+    const binCode = `B${marker}`.slice(0, 10);
+
+    const createWarehouse = await request.post("/api/warehouses", {
+      headers,
+      data: {
+        code: warehouseCode,
+        name: `${markerPrefix} Warehouse ${marker}`,
+        is_active: true,
+      },
+    });
+    if (!has2xxStatus(createWarehouse)) {
+      if (createWarehouse.status() === 409) {
+        continue;
+      }
+      await assertOkJson(createWarehouse, "create e2e warehouse location unexpected status");
+    }
+    const warehouse = await assertOkJson<{ id: number; code: string }>(
+      createWarehouse,
+      "create e2e warehouse location",
+    );
+
+    const createZone = await request.post(`/api/warehouses/${warehouse.id}/zones`, {
+      headers,
+      data: {
+        code: zoneCode,
+        name: `${markerPrefix} Zone ${marker}`,
+        zone_type: "storage",
+        is_active: true,
+      },
+    });
+    const zone = await assertOkJson<{ id: number; code: string }>(createZone, "create e2e zone location");
+
+    const createBin = await request.post(`/api/zones/${zone.id}/bins`, {
+      headers,
+      data: {
+        code: binCode,
+        bin_type: "storage",
+        is_active: true,
+      },
+    });
+    const bin = await assertOkJson<{ id: number; code: string }>(createBin, "create e2e bin location");
+
+    return {
+      warehouseId: warehouse.id,
+      warehouseCode: warehouse.code,
+      zoneId: zone.id,
+      zoneCode: zone.code,
+      binId: bin.id,
+      binCode: bin.code,
+    };
+  }
+
+  throw new Error("Could not seed warehouse/zone/bin after retries");
+}
+
+export async function createE2EPurchaseOrder(
+  request: APIRequestContext,
+  token: string,
+  supplierId?: number,
+): Promise<{ id: number; order_number: string }> {
+  const response = await request.post("/api/purchase-orders", {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      supplier_id: supplierId,
+      notes: `E2E purchase order ${Date.now()}`,
+    },
+  });
+  return assertOkJson<{ id: number; order_number: string }>(response, "create e2e purchase order");
+}

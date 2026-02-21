@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import { ensureE2EInventoryStock, loginAsAdminApi } from "./helpers/api";
+import { loginAndOpenRoute } from "./helpers/ui";
 
 test("picking wave flow supports scanner-based task completion", async ({ page, request }) => {
+  test.slow();
   const token = await loginAsAdminApi(request);
   const seeded = await ensureE2EInventoryStock(request, token, `E2E-PK-${Date.now()}`);
   const headers = { Authorization: `Bearer ${token}` };
@@ -52,14 +54,7 @@ test("picking wave flow supports scanner-based task completion", async ({ page, 
   const task = wavePayload.tasks[0];
   expect(task).toBeTruthy();
 
-  await page.goto("/login");
-  await page.getByTestId("login-username").fill(process.env.E2E_ADMIN_USERNAME ?? "admin");
-  await page.getByTestId("login-password").fill(process.env.E2E_ADMIN_PASSWORD ?? "DirectStock2026!");
-  await page.getByTestId("login-submit").click();
-
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await page.goto("/picking");
-  await expect(page.getByTestId("picking-page")).toBeVisible();
+  await loginAndOpenRoute(page, "/picking", { rootTestId: "picking-page" });
 
   await expect(page.getByTestId(`pick-wave-item-${waveId}`)).toBeVisible();
   await page.getByTestId(`pick-wave-item-${waveId}`).click();
@@ -77,8 +72,8 @@ test("picking wave flow supports scanner-based task completion", async ({ page, 
 
   await page.getByTestId("pick-scan-input").fill(task.product_number);
   await page.getByTestId("pick-scan-submit").click();
-  const taskRow = page.getByTestId(`pick-task-picked-${task.id}`).locator("xpath=ancestor::tr");
-  await expect(taskRow).toContainText("picked");
+  await expect(page.getByTestId("pick-scan-status")).toContainText("bestätigt");
+  await expect(page.getByTestId(`pick-task-row-${task.id}`)).toContainText("picked");
 
   const pickButtons = page.locator('[data-testid^="pick-task-picked-"]');
   const totalTasks = await pickButtons.count();
