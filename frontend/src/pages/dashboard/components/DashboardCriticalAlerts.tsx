@@ -30,17 +30,17 @@ export function DashboardCriticalAlerts({ data, visible, isLoading }: DashboardC
           (data?.items ?? []).map((alert: AlertEvent) => (
             <div
               key={alert.id}
-              className="p-3 rounded-lg bg-red-50 border border-red-100 flex justify-between items-center transition-colors hover:bg-red-100"
+              className="p-3 rounded-lg bg-red-50 border border-red-100 flex justify-between items-center transition-colors hover:bg-red-100 hover:border-red-200"
             >
               <span className="text-sm font-medium text-red-900 truncate flex-1 mr-2">{alert.title}</span>
-              <span className="text-xs text-red-700 font-mono whitespace-nowrap">
+              <span className="text-xs text-red-700 font-mono whitespace-nowrap bg-red-100/50 px-2 py-0.5 rounded">
                 {new Date(alert.triggered_at).toLocaleTimeString()}
               </span>
             </div>
           ))
         )}
         {!isLoading && (!data?.items || data.items.length === 0) && (
-          <p className="text-sm text-gray-500 italic p-2">Keine kritischen Warnungen.</p>
+          <p className="text-sm text-zinc-500 italic p-2">Keine kritischen Warnungen.</p>
         )}
       </div>
     </article>

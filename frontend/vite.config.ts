@@ -4,6 +4,17 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 import { VitePWA } from "vite-plugin-pwa";
 
+const DEFAULT_VITEST_MAX_WORKERS = process.env.CI === "true" ? 2 : 4;
+const requestedVitestMaxWorkers = Number.parseInt(
+  process.env.VITEST_MAX_WORKERS ?? `${DEFAULT_VITEST_MAX_WORKERS}`,
+  10
+);
+const vitestMaxWorkers =
+  Number.isFinite(requestedVitestMaxWorkers) && requestedVitestMaxWorkers > 0
+    ? requestedVitestMaxWorkers
+    : DEFAULT_VITEST_MAX_WORKERS;
+const vitestPool = process.env.VITEST_POOL === "threads" ? "threads" : "forks";
+
 export default defineConfig({
   plugins: [
     react(),
@@ -119,6 +130,8 @@ export default defineConfig({
     },
   },
   test: {
+    pool: vitestPool,
+    maxWorkers: vitestMaxWorkers,
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
     clearMocks: true,

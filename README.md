@@ -248,7 +248,7 @@ Details und Nachweise:
 
 - Docker + Docker Compose
 - Python 3.12+ (lokal für Backend-Tests/Skripte)
-- Node.js 20+ (lokal für Frontend-Tests)
+- Node.js 22 LTS empfohlen (Frontend unterstützt `>=20 <23`, siehe `.nvmrc`)
 
 ## Umgebungsvariablen
 

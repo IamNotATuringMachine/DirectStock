@@ -3,9 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20 <23"
+  },
   "scripts": {
+    "predev": "node ./scripts/check-node-version.mjs",
+    "prebuild": "node ./scripts/check-node-version.mjs",
+    "pretest": "node ./scripts/check-node-version.mjs",
+    "prelint": "node ./scripts/check-node-version.mjs",
+    "prepreview": "node ./scripts/check-node-version.mjs",
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build --configLoader runner",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e:hermetic": "../scripts/check_e2e_hermetic.sh",

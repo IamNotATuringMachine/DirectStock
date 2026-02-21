@@ -12,16 +12,19 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, dataTestId, isLoading }: StatCardProps) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center gap-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-zinc-300" data-testid={dataTestId}>
-      <div className="w-12 h-12 rounded-lg bg-zinc-50 text-zinc-900 flex items-center justify-center shrink-0">
+    <div
+      className="bg-white border border-zinc-200 rounded-xl p-5 flex items-center gap-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-zinc-300"
+      data-testid={dataTestId}
+    >
+      <div className="w-12 h-12 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center shrink-0">
         {icon}
       </div>
       <div className="flex flex-col w-full overflow-hidden">
         <span className="text-sm text-zinc-500 font-medium truncate">{title}</span>
         {isLoading ? (
-          <Skeleton height={24} width="60%" className="mt-1" />
+          <Skeleton height={28} width="60%" className="mt-1" />
         ) : (
-          <span className="text-2xl font-bold text-zinc-900 leading-tight truncate">{value}</span>
+          <span className="text-2xl font-bold text-zinc-900 leading-tight truncate mt-0.5">{value}</span>
         )}
       </div>
     </div>
