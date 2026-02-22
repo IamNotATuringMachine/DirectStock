@@ -41,7 +41,7 @@ description: End-to-end feature implementation workflow — from branch to PR
 
 5. **Run backend tests**:
    ```bash
-   cd backend && python -m pytest -q
+   ./scripts/run_backend_pytest.sh -q
    ```
 
 6. **Run frontend tests**:

@@ -17,6 +17,7 @@ from app.models.inventory import (
     GoodsReceiptItem,
     Inventory,
     InventoryBatch,
+    OperationSignoff,
     SerialNumber,
     StockMovement,
     StockTransfer,
@@ -46,8 +47,14 @@ from app.schemas.operations import (
     StockTransferResponse,
     StockTransferUpdate,
 )
+from app.schemas.operators import CompletionSignoffPayload
 from app.schemas.product import ProductAdHocCreate, ProductResponse
 from app.schemas.user import MessageResponse
+from app.services.operation_signoff_service import (
+    build_operation_signoff,
+    fetch_operation_signoff_map,
+    fetch_operation_signoff_summary,
+)
 from app.services.alerts import evaluate_alerts
 from app.services.operations.inventory_service import (
     get_or_create_inventory,

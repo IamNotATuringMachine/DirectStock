@@ -9,6 +9,8 @@ type SalesOrdersViewProps = {
   onSelectOrder: (orderId: number) => void;
   onConfirmOrder: (orderId: number) => void;
   onDeliverOrder: (orderId: number) => void;
+  onCompleteOrder: (orderId: number) => void;
+  completeOrderPending: boolean;
   customers: Customer[];
   customerLocations: CustomerLocation[];
   customerId: string;
@@ -34,6 +36,8 @@ export function SalesOrdersView({
   onSelectOrder,
   onConfirmOrder,
   onDeliverOrder,
+  onCompleteOrder,
+  completeOrderPending,
   customers,
   customerLocations,
   customerId,
@@ -182,6 +186,17 @@ export function SalesOrdersView({
                   </button>
                 )}
               </div>
+              {order.status !== "completed" && order.status !== "cancelled" ? (
+                <button
+                  type="button"
+                  onClick={() => onCompleteOrder(order.id)}
+                  className="btn btn-primary h-8 text-xs col-span-2 justify-center"
+                  disabled={completeOrderPending}
+                  data-testid={`sales-order-complete-${order.id}`}
+                >
+                  Auftrag abschließen
+                </button>
+              ) : null}
             </div>
           </div>
         ))}

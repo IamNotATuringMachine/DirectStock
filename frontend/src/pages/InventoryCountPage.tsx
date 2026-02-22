@@ -1,6 +1,7 @@
 import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { OperationSignoffModal } from "../components/operations/OperationSignoffModal";
 import {
   completeInventoryCountSession,
   createInventoryCountSession,
@@ -10,12 +11,22 @@ import {
   generateInventoryCountItems,
   updateInventoryCountItem,
 } from "../services/inventoryCountsApi";
+import {
+  fetchOperationSignoffSettings,
+  fetchOperators,
+  unlockOperator,
+  updateOperator,
+} from "../services/operatorsApi";
 import { fetchWarehouses } from "../services/warehousesApi";
-import type { InventoryCountItem } from "../types";
+import { useAuthStore } from "../stores/authStore";
+import type { CompletionSignoffPayload, InventoryCountItem } from "../types";
+import { isOperationSignoffRequired } from "../utils/tabletOps";
 import { InventoryCountView } from "./inventory-count/InventoryCountView";
 
 export default function InventoryCountPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const requiresSignoffCompletion = isOperationSignoffRequired(user);
 
   const [sessionType, setSessionType] = useState<"snapshot" | "cycle">("snapshot");
   const [warehouseId, setWarehouseId] = useState("");
@@ -28,6 +39,7 @@ export default function InventoryCountPage() {
   const [quickQuantity, setQuickQuantity] = useState("0");
 
   const [rowCounts, setRowCounts] = useState<Record<number, string>>({});
+  const [isSignoffModalOpen, setIsSignoffModalOpen] = useState(false);
 
   const sessionsQuery = useQuery({
     queryKey: ["inventory-count-sessions"],
@@ -50,6 +62,18 @@ export default function InventoryCountPage() {
     queryFn: () => fetchInventoryCountSummary(selectedSessionId as number),
     enabled: selectedSessionId !== null,
     refetchInterval: 15_000,
+  });
+
+  const operatorsQuery = useQuery({
+    queryKey: ["operators"],
+    queryFn: fetchOperators,
+    enabled: requiresSignoffCompletion,
+  });
+
+  const signoffSettingsQuery = useQuery({
+    queryKey: ["operators", "signoff-settings"],
+    queryFn: fetchOperationSignoffSettings,
+    enabled: requiresSignoffCompletion,
   });
 
   const selectedSession = useMemo(
@@ -111,11 +135,37 @@ export default function InventoryCountPage() {
     },
   });
 
+  const unlockOperatorMutation = useMutation({
+    mutationFn: unlockOperator,
+  });
+
+  const updateOperatorPinMutation = useMutation({
+    mutationFn: ({
+      operatorId,
+      pin,
+      pinEnabledOnly = false,
+    }: {
+      operatorId: number;
+      pin?: string;
+      pinEnabledOnly?: boolean;
+    }) =>
+      updateOperator(operatorId, pinEnabledOnly ? { pin_enabled: true } : { pin, pin_enabled: true }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["operators"] });
+    },
+  });
+
   const countActionsDisabled =
     countItemMutation.isPending || !selectedSessionId || generateItemsMutation.isPending || itemsQuery.isFetching;
 
   const completeMutation = useMutation({
-    mutationFn: completeInventoryCountSession,
+    mutationFn: ({
+      sessionId,
+      payload,
+    }: {
+      sessionId: number;
+      payload?: CompletionSignoffPayload;
+    }) => completeInventoryCountSession(sessionId, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["inventory-count-sessions"] });
       await queryClient.invalidateQueries({ queryKey: ["inventory-count-items", selectedSessionId] });
@@ -159,64 +209,95 @@ export default function InventoryCountPage() {
     });
   };
 
+  const onCompleteSession = async (sessionId: number) => {
+    if (!requiresSignoffCompletion) {
+      await completeMutation.mutateAsync({ sessionId });
+      return;
+    }
+    setIsSignoffModalOpen(true);
+  };
+
+  const onConfirmSignoff = async (payload: CompletionSignoffPayload) => {
+    if (!selectedSessionId) {
+      return;
+    }
+    await completeMutation.mutateAsync({ sessionId: selectedSessionId, payload });
+    setIsSignoffModalOpen(false);
+  };
+
   return (
-    <InventoryCountView
-      sessionsPanelProps={{
-        sessionType,
-        onSessionTypeChange: setSessionType,
-        warehouseId,
-        onWarehouseIdChange: setWarehouseId,
-        toleranceQuantity,
-        onToleranceQuantityChange: setToleranceQuantity,
-        notes,
-        onNotesChange: setNotes,
-        onCreateSession: (event) => void onCreateSession(event),
-        createSessionPending: createSessionMutation.isPending,
-        warehouses: warehousesQuery.data ?? [],
-        sessions: sessionsQuery.data ?? [],
-        selectedSessionId,
-        onSelectSession: setSelectedSessionId,
-      }}
-      actionsPanelProps={{
-        selectedSession,
-        onGenerate: (refresh) => {
-          if (!selectedSession) {
-            return;
-          }
-          void generateItemsMutation.mutateAsync({ sessionId: selectedSession.id, refresh });
-        },
-        generatePending: generateItemsMutation.isPending,
-        onComplete: (sessionId) => {
-          void completeMutation.mutateAsync(sessionId);
-        },
-        completePending: completeMutation.isPending,
-        summary: summaryQuery.data,
-      }}
-      quickCapturePanelProps={{
-        scanBin,
-        onScanBinChange: setScanBin,
-        scanProduct,
-        onScanProductChange: setScanProduct,
-        focusedQuickItem,
-        quickQuantity,
-        onQuickQuantityChange: setQuickQuantity,
-        onSaveQuickCount: () => {
-          void saveQuickCount();
-        },
-        countActionsDisabled,
-      }}
-      itemsTableProps={{
-        filteredItems,
-        rowCounts,
-        onRowCountChange: (itemId, value) => {
-          setRowCounts((prev) => ({ ...prev, [itemId]: value }));
-        },
-        onSaveRowCount: (item) => {
-          void saveRowCount(item);
-        },
-        countActionsDisabled,
-        itemsLoading: itemsQuery.isLoading,
-      }}
-    />
+    <>
+      <InventoryCountView
+        sessionsPanelProps={{
+          sessionType,
+          onSessionTypeChange: setSessionType,
+          warehouseId,
+          onWarehouseIdChange: setWarehouseId,
+          toleranceQuantity,
+          onToleranceQuantityChange: setToleranceQuantity,
+          notes,
+          onNotesChange: setNotes,
+          onCreateSession: (event) => void onCreateSession(event),
+          createSessionPending: createSessionMutation.isPending,
+          warehouses: warehousesQuery.data ?? [],
+          sessions: sessionsQuery.data ?? [],
+          selectedSessionId,
+          onSelectSession: setSelectedSessionId,
+        }}
+        actionsPanelProps={{
+          selectedSession,
+          onGenerate: (refresh) => {
+            if (!selectedSession) {
+              return;
+            }
+            void generateItemsMutation.mutateAsync({ sessionId: selectedSession.id, refresh });
+          },
+          generatePending: generateItemsMutation.isPending,
+          onComplete: (sessionId) => {
+            void onCompleteSession(sessionId);
+          },
+          completePending: completeMutation.isPending,
+          summary: summaryQuery.data,
+        }}
+        quickCapturePanelProps={{
+          scanBin,
+          onScanBinChange: setScanBin,
+          scanProduct,
+          onScanProductChange: setScanProduct,
+          focusedQuickItem,
+          quickQuantity,
+          onQuickQuantityChange: setQuickQuantity,
+          onSaveQuickCount: () => {
+            void saveQuickCount();
+          },
+          countActionsDisabled,
+        }}
+        itemsTableProps={{
+          filteredItems,
+          rowCounts,
+          onRowCountChange: (itemId, value) => {
+            setRowCounts((prev) => ({ ...prev, [itemId]: value }));
+          },
+          onSaveRowCount: (item) => {
+            void saveRowCount(item);
+          },
+          countActionsDisabled,
+          itemsLoading: itemsQuery.isLoading,
+        }}
+      />
+      <OperationSignoffModal
+        isOpen={isSignoffModalOpen}
+        title="Inventur abschließen"
+        operators={operatorsQuery.data ?? []}
+        settings={signoffSettingsQuery.data ?? null}
+        loading={operatorsQuery.isLoading || signoffSettingsQuery.isLoading}
+        submitting={completeMutation.isPending || updateOperatorPinMutation.isPending}
+        onClose={() => setIsSignoffModalOpen(false)}
+        onUnlock={(pin) => unlockOperatorMutation.mutateAsync(pin)}
+        onSetOperatorPin={(operatorId, pin) => updateOperatorPinMutation.mutateAsync({ operatorId, pin })}
+        onEnableOperatorPin={(operatorId) => updateOperatorPinMutation.mutateAsync({ operatorId, pinEnabledOnly: true })}
+        onConfirm={(payload) => onConfirmSignoff(payload)}
+      />
+    </>
   );
 }

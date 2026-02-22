@@ -16,12 +16,14 @@ import type {
 type DateRange = {
   dateFrom?: string;
   dateTo?: string;
+  includeExtended?: boolean;
 };
 
 function toRangeParams(range: DateRange) {
   return {
     date_from: range.dateFrom,
     date_to: range.dateTo,
+    include_extended: range.includeExtended,
   };
 }
 

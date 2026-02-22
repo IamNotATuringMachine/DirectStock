@@ -19,6 +19,8 @@ os.environ.setdefault("DIRECTSTOCK_ADMIN_EMAIL", "admin@example.com")
 os.environ.setdefault("DIRECTSTOCK_ADMIN_PASSWORD", "DirectStock2026!")
 os.environ.setdefault("OBSERVABILITY_ENABLED", "false")
 os.environ.setdefault("METRICS_ENABLED", "false")
+os.environ["PURCHASE_EMAIL_SMTP_ENABLED"] = "false"
+os.environ["PURCHASE_EMAIL_IMAP_ENABLED"] = "false"
 
 from app.bootstrap import seed_defaults
 from app.database import AsyncSessionLocal, engine

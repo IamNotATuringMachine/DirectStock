@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.inventory import Inventory, InventoryCountItem, InventoryCountSession, StockMovement
+from app.models.inventory import Inventory, InventoryCountItem, InventoryCountSession, OperationSignoff, StockMovement
 from app.models.warehouse import BinLocation, WarehouseZone
 from app.services.alerts import evaluate_alerts
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
@@ -89,6 +89,7 @@ async def complete_inventory_count_session_flow(
     db: AsyncSession,
     session: InventoryCountSession,
     current_user_id: int,
+    operation_signoff: OperationSignoff | None = None,
 ) -> None:
     if session.status == "completed":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Inventory count session already completed")
@@ -188,6 +189,8 @@ async def complete_inventory_count_session_flow(
 
         session.status = "completed"
         session.completed_at = now
+        if operation_signoff is not None:
+            db.add(operation_signoff)
         await evaluate_alerts(
             db,
             trigger="inventory_count_completed",

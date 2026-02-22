@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 READ_PERMISSION = "module.documents.read"
 WRITE_PERMISSION = "module.documents.write"
 
-ALLOWED_MIME_TYPES = {"application/pdf", "image/png", "image/jpeg"}
+ALLOWED_MIME_TYPES = {"application/pdf", "image/png", "image/jpeg", "message/rfc822"}
 MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024
 STORAGE_ROOT = Path("/app/data/documents")
 _NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")

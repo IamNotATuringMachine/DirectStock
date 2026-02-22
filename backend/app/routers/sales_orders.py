@@ -13,6 +13,7 @@ from app.models.phase3 import Document
 from app.models.phase5 import SalesOrder, SalesOrderGoodsIssueLink, SalesOrderItem
 from app.schemas.phase5 import (
     SalesOrderCreate,
+    SalesOrderCompleteRequest,
     SalesOrderDeliveryNoteLinkPayload,
     SalesOrderDetailResponse,
     SalesOrderItemCreate,
@@ -20,6 +21,12 @@ from app.schemas.phase5 import (
     SalesOrderListResponse,
     SalesOrderResponse,
     SalesOrderUpdate,
+)
+from app.schemas.user import MessageResponse
+from app.services.operation_signoff_service import (
+    build_operation_signoff,
+    fetch_operation_signoff_map,
+    fetch_operation_signoff_summary,
 )
 from .sales_orders_helpers import (
     _build_delivery_note_pdf,
@@ -53,7 +60,17 @@ async def list_sales_orders(
             )
         ).scalars()
     )
-    return SalesOrderListResponse(items=[_to_order_response(row) for row in rows], total=total, page=page, page_size=page_size)
+    signoff_map = await fetch_operation_signoff_map(
+        db=db,
+        operation_type="sales_order",
+        operation_ids=[row.id for row in rows],
+    )
+    return SalesOrderListResponse(
+        items=[_to_order_response(row, operation_signoff=signoff_map.get(row.id)) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.post("", response_model=SalesOrderDetailResponse, status_code=status.HTTP_201_CREATED)
@@ -103,7 +120,15 @@ async def get_sales_order(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sales order not found")
 
     items = list((await db.execute(select(SalesOrderItem).where(SalesOrderItem.sales_order_id == order_id).order_by(SalesOrderItem.line_no.asc(), SalesOrderItem.id.asc()))).scalars())
-    return SalesOrderDetailResponse(order=_to_order_response(order), items=[_to_item_response(item) for item in items])
+    operation_signoff = await fetch_operation_signoff_summary(
+        db=db,
+        operation_type="sales_order",
+        operation_id=order.id,
+    )
+    return SalesOrderDetailResponse(
+        order=_to_order_response(order, operation_signoff=operation_signoff),
+        items=[_to_item_response(item) for item in items],
+    )
 
 
 @router.put("/{order_id}", response_model=SalesOrderResponse)
@@ -141,7 +166,43 @@ async def update_sales_order(
 
     await db.commit()
     await db.refresh(order)
-    return _to_order_response(order)
+    operation_signoff = await fetch_operation_signoff_summary(
+        db=db,
+        operation_type="sales_order",
+        operation_id=order.id,
+    )
+    return _to_order_response(order, operation_signoff=operation_signoff)
+
+
+@router.post("/{order_id}/complete", response_model=MessageResponse)
+async def complete_sales_order(
+    order_id: int,
+    payload: SalesOrderCompleteRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permissions("module.sales_orders.write")),
+) -> MessageResponse:
+    order = (await db.execute(select(SalesOrder).where(SalesOrder.id == order_id))).scalar_one_or_none()
+    if order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sales order not found")
+    if order.status == "cancelled":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cancelled sales order cannot be completed")
+    if order.status == "completed":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Sales order already completed")
+
+    operation_signoff = await build_operation_signoff(
+        db=db,
+        payload=payload,
+        current_user=current_user,
+        operation_type="sales_order",
+        operation_id=order.id,
+    )
+
+    order.status = "completed"
+    order.completed_at = _now()
+    if operation_signoff is not None:
+        db.add(operation_signoff)
+    await db.commit()
+    return MessageResponse(message="sales order completed")
 
 
 @router.post("/{order_id}/items", response_model=SalesOrderItemResponse, status_code=status.HTTP_201_CREATED)

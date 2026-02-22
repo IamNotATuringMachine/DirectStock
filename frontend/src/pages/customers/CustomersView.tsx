@@ -1,39 +1,31 @@
 import type { FormEvent } from "react";
-import { Building2, MapPin, PhoneCall, Plus, Trash2, UserRound } from "lucide-react";
 
 import type { Customer, CustomerContact, CustomerLocation } from "../../types";
+import { ContactsPanel } from "./components/ContactsPanel";
+import { CustomerCreateModal, type CustomerCreateFormValues } from "./components/CustomerCreateModal";
+import { CustomerLocationModal, type CustomerLocationFormValues } from "./components/CustomerLocationModal";
+import { CustomersListPanel } from "./components/CustomersListPanel";
+import { LocationDetailsPanel } from "./components/LocationDetailsPanel";
+import { LocationsListPanel } from "./components/LocationsListPanel";
 
 type CustomersViewProps = {
   errorMessage: string | null;
   customerItems: Customer[];
   selectedCustomerId: number | null;
   selectedCustomerName: string | null;
-  customerNumber: string;
-  onCustomerNumberChange: (value: string) => void;
-  customerCompanyName: string;
-  onCustomerCompanyNameChange: (value: string) => void;
-  onSelectCustomer: (customerId: number) => void;
-  onCreateCustomer: (event: FormEvent<HTMLFormElement>) => void;
-  onDeleteCustomer: () => void;
-  locationCode: string;
-  onLocationCodeChange: (value: string) => void;
-  locationName: string;
-  onLocationNameChange: (value: string) => void;
-  locationPhone: string;
-  onLocationPhoneChange: (value: string) => void;
-  locationStreet: string;
-  onLocationStreetChange: (value: string) => void;
-  locationHouseNumber: string;
-  onLocationHouseNumberChange: (value: string) => void;
-  locationPostalCode: string;
-  onLocationPostalCodeChange: (value: string) => void;
-  locationCity: string;
-  onLocationCityChange: (value: string) => void;
+  selectedLocationId: number | null;
+  selectedLocation: CustomerLocation | null;
   locations: CustomerLocation[];
-  onCreateLocation: (event: FormEvent<HTMLFormElement>) => void;
-  onDeleteLocation: (locationId: number) => void;
-  contactLocationId: string;
-  onContactLocationIdChange: (value: string) => void;
+  contacts: CustomerContact[];
+  isCustomerCreateModalOpen: boolean;
+  isLocationCreateModalOpen: boolean;
+  isLocationEditModalOpen: boolean;
+  isCreatingCustomer: boolean;
+  isCreatingLocation: boolean;
+  isUpdatingLocation: boolean;
+  customerForm: CustomerCreateFormValues;
+  locationCreateForm: CustomerLocationFormValues;
+  locationEditForm: CustomerLocationFormValues;
   contactJobTitle: string;
   onContactJobTitleChange: (value: string) => void;
   contactSalutation: string;
@@ -46,9 +38,30 @@ type CustomersViewProps = {
   onContactPhoneChange: (value: string) => void;
   contactEmail: string;
   onContactEmailChange: (value: string) => void;
-  contacts: CustomerContact[];
-  onCreateContact: (event: FormEvent<HTMLFormElement>) => void;
+  onSelectCustomer: (customerId: number) => void;
+  onSelectLocation: (locationId: number) => void;
+  onDeleteCustomer: () => void;
+  onDeleteLocation: (locationId: number) => void;
   onDeleteContact: (contactId: number) => void;
+  onOpenCustomerCreateModal: () => void;
+  onCloseCustomerCreateModal: () => void;
+  onOpenLocationCreateModal: () => void;
+  onCloseLocationCreateModal: () => void;
+  onOpenLocationEditModal: () => void;
+  onCloseLocationEditModal: () => void;
+  onCustomerFormChange: <K extends keyof CustomerCreateFormValues>(field: K, value: CustomerCreateFormValues[K]) => void;
+  onLocationCreateFormChange: <K extends keyof CustomerLocationFormValues>(
+    field: K,
+    value: CustomerLocationFormValues[K]
+  ) => void;
+  onLocationEditFormChange: <K extends keyof CustomerLocationFormValues>(
+    field: K,
+    value: CustomerLocationFormValues[K]
+  ) => void;
+  onCreateCustomer: (event: FormEvent<HTMLFormElement>) => void;
+  onCreateLocation: (event: FormEvent<HTMLFormElement>) => void;
+  onUpdateLocation: (event: FormEvent<HTMLFormElement>) => void;
+  onCreateContact: (event: FormEvent<HTMLFormElement>) => void;
 };
 
 export function CustomersView({
@@ -56,32 +69,19 @@ export function CustomersView({
   customerItems,
   selectedCustomerId,
   selectedCustomerName,
-  customerNumber,
-  onCustomerNumberChange,
-  customerCompanyName,
-  onCustomerCompanyNameChange,
-  onSelectCustomer,
-  onCreateCustomer,
-  onDeleteCustomer,
-  locationCode,
-  onLocationCodeChange,
-  locationName,
-  onLocationNameChange,
-  locationPhone,
-  onLocationPhoneChange,
-  locationStreet,
-  onLocationStreetChange,
-  locationHouseNumber,
-  onLocationHouseNumberChange,
-  locationPostalCode,
-  onLocationPostalCodeChange,
-  locationCity,
-  onLocationCityChange,
+  selectedLocationId,
+  selectedLocation,
   locations,
-  onCreateLocation,
-  onDeleteLocation,
-  contactLocationId,
-  onContactLocationIdChange,
+  contacts,
+  isCustomerCreateModalOpen,
+  isLocationCreateModalOpen,
+  isLocationEditModalOpen,
+  isCreatingCustomer,
+  isCreatingLocation,
+  isUpdatingLocation,
+  customerForm,
+  locationCreateForm,
+  locationEditForm,
   contactJobTitle,
   onContactJobTitleChange,
   contactSalutation,
@@ -94,12 +94,27 @@ export function CustomersView({
   onContactPhoneChange,
   contactEmail,
   onContactEmailChange,
-  contacts,
-  onCreateContact,
+  onSelectCustomer,
+  onSelectLocation,
+  onDeleteCustomer,
+  onDeleteLocation,
   onDeleteContact,
+  onOpenCustomerCreateModal,
+  onCloseCustomerCreateModal,
+  onOpenLocationCreateModal,
+  onCloseLocationCreateModal,
+  onOpenLocationEditModal,
+  onCloseLocationEditModal,
+  onCustomerFormChange,
+  onLocationCreateFormChange,
+  onLocationEditFormChange,
+  onCreateCustomer,
+  onCreateLocation,
+  onUpdateLocation,
+  onCreateContact,
 }: CustomersViewProps) {
   const hasSelectedCustomer = selectedCustomerId !== null;
-  const contactLocationSelectId = "customers-contact-location-select";
+  const hasSelectedLocation = selectedLocationId !== null;
 
   return (
     <section className="page flex flex-col gap-6" data-testid="customers-page">
@@ -113,228 +128,82 @@ export function CustomersView({
         ) : null}
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <article className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] p-5 shadow-sm space-y-4">
-          <h3 className="section-title flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            Kunden
-          </h3>
-          <form className="space-y-2" onSubmit={onCreateCustomer}>
-            <input
-              className="input w-full"
-              placeholder="Kundennummer (z. B. CUS-1000)"
-              value={customerNumber}
-              onChange={(event) => onCustomerNumberChange(event.target.value)}
-            />
-            <input
-              className="input w-full"
-              placeholder="Firmenname"
-              value={customerCompanyName}
-              onChange={(event) => onCustomerCompanyNameChange(event.target.value)}
-            />
-            <button className="btn btn-primary w-full justify-center" type="submit">
-              <Plus className="w-4 h-4" />
-              Kunde anlegen
-            </button>
-          </form>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+        <CustomersListPanel
+          customerItems={customerItems}
+          selectedCustomerId={selectedCustomerId}
+          onSelectCustomer={onSelectCustomer}
+          onOpenCreateModal={onOpenCustomerCreateModal}
+          onDeleteCustomer={onDeleteCustomer}
+        />
 
-          <div className="border border-[var(--line)] rounded-[var(--radius-sm)] divide-y divide-[var(--line)] max-h-[420px] overflow-auto">
-            {customerItems.map((customer) => (
-              <button
-                key={customer.id}
-                className={`w-full px-3 py-2 text-left hover:bg-[var(--panel-soft)] ${selectedCustomerId === customer.id ? "bg-[var(--panel-strong)]" : ""}`}
-                onClick={() => onSelectCustomer(customer.id)}
-              >
-                <p className="font-medium text-sm">{customer.company_name}</p>
-                <p className="text-xs text-[var(--muted)]">{customer.customer_number}</p>
-              </button>
-            ))}
-          </div>
+        <LocationsListPanel
+          hasSelectedCustomer={hasSelectedCustomer}
+          selectedCustomerName={selectedCustomerName}
+          locations={locations}
+          selectedLocationId={selectedLocationId}
+          onSelectLocation={onSelectLocation}
+          onOpenCreateModal={onOpenLocationCreateModal}
+          onDeleteLocation={onDeleteLocation}
+        />
 
-          {hasSelectedCustomer ? (
-            <button
-              className="btn w-full justify-center text-red-600 border-red-300 hover:bg-red-50"
-              type="button"
-              onClick={onDeleteCustomer}
-            >
-              <Trash2 className="w-4 h-4" />
-              Kunde löschen
-            </button>
-          ) : null}
-        </article>
+        <div className="space-y-6">
+          <LocationDetailsPanel
+            hasSelectedCustomer={hasSelectedCustomer}
+            selectedLocation={selectedLocation}
+            onOpenEditModal={onOpenLocationEditModal}
+          />
 
-        <article className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] p-5 shadow-sm space-y-4">
-          <h3 className="section-title flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Standorte
-          </h3>
-          <p className="text-sm text-[var(--muted)]">
-            {selectedCustomerName ? `Ausgewählter Kunde: ${selectedCustomerName}` : "Bitte zuerst einen Kunden auswählen."}
-          </p>
-          <form className="space-y-2" onSubmit={onCreateLocation}>
-            <input
-              className="input w-full"
-              placeholder="Standortcode"
-              value={locationCode}
-              onChange={(event) => onLocationCodeChange(event.target.value)}
-              disabled={!hasSelectedCustomer}
-            />
-            <input
-              className="input w-full"
-              placeholder="Standortname"
-              value={locationName}
-              onChange={(event) => onLocationNameChange(event.target.value)}
-              disabled={!hasSelectedCustomer}
-            />
-            <input
-              className="input w-full"
-              placeholder="Telefon"
-              value={locationPhone}
-              onChange={(event) => onLocationPhoneChange(event.target.value)}
-              disabled={!hasSelectedCustomer}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input w-full"
-                placeholder="Straße"
-                value={locationStreet}
-                onChange={(event) => onLocationStreetChange(event.target.value)}
-                disabled={!hasSelectedCustomer}
-              />
-              <input
-                className="input w-full"
-                placeholder="Hausnr."
-                value={locationHouseNumber}
-                onChange={(event) => onLocationHouseNumberChange(event.target.value)}
-                disabled={!hasSelectedCustomer}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input w-full"
-                placeholder="PLZ"
-                value={locationPostalCode}
-                onChange={(event) => onLocationPostalCodeChange(event.target.value)}
-                disabled={!hasSelectedCustomer}
-              />
-              <input
-                className="input w-full"
-                placeholder="Ort"
-                value={locationCity}
-                onChange={(event) => onLocationCityChange(event.target.value)}
-                disabled={!hasSelectedCustomer}
-              />
-            </div>
-            <button className="btn btn-primary w-full justify-center" type="submit" disabled={!hasSelectedCustomer}>
-              <Plus className="w-4 h-4" />
-              Standort anlegen
-            </button>
-          </form>
-
-          <div className="border border-[var(--line)] rounded-[var(--radius-sm)] divide-y divide-[var(--line)] max-h-[360px] overflow-auto">
-            {locations.map((location) => (
-              <div key={location.id} className="px-3 py-2">
-                <p className="font-medium text-sm">{location.name}</p>
-                <p className="text-xs text-[var(--muted)]">{location.location_code}</p>
-                <button type="button" className="text-xs mt-1 text-red-600" onClick={() => onDeleteLocation(location.id)}>
-                  Standort löschen
-                </button>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="bg-[var(--panel)] border border-[var(--line)] rounded-[var(--radius-lg)] p-5 shadow-sm space-y-4">
-          <h3 className="section-title flex items-center gap-2">
-            <UserRound className="w-4 h-4" />
-            Ansprechpartner
-          </h3>
-          <form className="space-y-2" onSubmit={onCreateContact}>
-            <label className="sr-only" htmlFor={contactLocationSelectId}>
-              Standort-Zuordnung
-            </label>
-            <select
-              id={contactLocationSelectId}
-              className="input w-full"
-              value={contactLocationId}
-              onChange={(event) => onContactLocationIdChange(event.target.value)}
-              disabled={!hasSelectedCustomer}
-            >
-              <option value="">Ohne Standort-Zuordnung</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.location_code} - {location.name}
-                </option>
-              ))}
-            </select>
-            <input
-              className="input w-full"
-              placeholder="Titel / Funktion (z. B. Kassenleitung)"
-              value={contactJobTitle}
-              onChange={(event) => onContactJobTitleChange(event.target.value)}
-              disabled={!hasSelectedCustomer}
-            />
-            <input
-              className="input w-full"
-              placeholder="Anrede (z. B. Frau)"
-              value={contactSalutation}
-              onChange={(event) => onContactSalutationChange(event.target.value)}
-              disabled={!hasSelectedCustomer}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input w-full"
-                placeholder="Vorname"
-                value={contactFirstName}
-                onChange={(event) => onContactFirstNameChange(event.target.value)}
-                disabled={!hasSelectedCustomer}
-              />
-              <input
-                className="input w-full"
-                placeholder="Nachname"
-                value={contactLastName}
-                onChange={(event) => onContactLastNameChange(event.target.value)}
-                disabled={!hasSelectedCustomer}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input w-full"
-                placeholder="Telefon"
-                value={contactPhone}
-                onChange={(event) => onContactPhoneChange(event.target.value)}
-                disabled={!hasSelectedCustomer}
-              />
-              <input
-                className="input w-full"
-                placeholder="E-Mail"
-                value={contactEmail}
-                onChange={(event) => onContactEmailChange(event.target.value)}
-                disabled={!hasSelectedCustomer}
-              />
-            </div>
-            <button className="btn btn-primary w-full justify-center" type="submit" disabled={!hasSelectedCustomer}>
-              <PhoneCall className="w-4 h-4" />
-              Ansprechpartner anlegen
-            </button>
-          </form>
-
-          <div className="border border-[var(--line)] rounded-[var(--radius-sm)] divide-y divide-[var(--line)] max-h-[360px] overflow-auto">
-            {contacts.map((contact) => (
-              <div key={contact.id} className="px-3 py-2">
-                <p className="font-medium text-sm">
-                  {contact.salutation ? `${contact.salutation} ` : ""}
-                  {contact.first_name} {contact.last_name}
-                </p>
-                <p className="text-xs text-[var(--muted)]">{contact.job_title || "Ohne Titel/Funktion"}</p>
-                <button type="button" className="text-xs mt-1 text-red-600" onClick={() => onDeleteContact(contact.id)}>
-                  Ansprechpartner löschen
-                </button>
-              </div>
-            ))}
-          </div>
-        </article>
+          <ContactsPanel
+            hasSelectedLocation={hasSelectedLocation}
+            selectedLocationName={selectedLocation?.name ?? null}
+            contacts={contacts}
+            contactJobTitle={contactJobTitle}
+            onContactJobTitleChange={onContactJobTitleChange}
+            contactSalutation={contactSalutation}
+            onContactSalutationChange={onContactSalutationChange}
+            contactFirstName={contactFirstName}
+            onContactFirstNameChange={onContactFirstNameChange}
+            contactLastName={contactLastName}
+            onContactLastNameChange={onContactLastNameChange}
+            contactPhone={contactPhone}
+            onContactPhoneChange={onContactPhoneChange}
+            contactEmail={contactEmail}
+            onContactEmailChange={onContactEmailChange}
+            onCreateContact={onCreateContact}
+            onDeleteContact={onDeleteContact}
+          />
+        </div>
       </div>
+
+      <CustomerCreateModal
+        isOpen={isCustomerCreateModalOpen}
+        values={customerForm}
+        isSubmitting={isCreatingCustomer}
+        onClose={onCloseCustomerCreateModal}
+        onSubmit={onCreateCustomer}
+        onChange={onCustomerFormChange}
+      />
+
+      <CustomerLocationModal
+        isOpen={isLocationCreateModalOpen}
+        mode="create"
+        values={locationCreateForm}
+        isSubmitting={isCreatingLocation}
+        onClose={onCloseLocationCreateModal}
+        onSubmit={onCreateLocation}
+        onChange={onLocationCreateFormChange}
+      />
+
+      <CustomerLocationModal
+        isOpen={isLocationEditModalOpen}
+        mode="edit"
+        values={locationEditForm}
+        isSubmitting={isUpdatingLocation}
+        onClose={onCloseLocationEditModal}
+        onSubmit={onUpdateLocation}
+        onChange={onLocationEditFormChange}
+      />
     </section>
   );
 }

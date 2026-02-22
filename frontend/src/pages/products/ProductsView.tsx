@@ -105,7 +105,7 @@ export function ProductsView({
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
             <input
-              className="input h-10 w-full pl-10 pr-4 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              className="input products-toolbar-search-input h-10 w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               placeholder="Suche nach Nummer, Name, Beschreibung..."
               value={searchInput}
               onChange={(event) => onSearchInputChange(event.target.value)}
@@ -117,7 +117,7 @@ export function ProductsView({
           <div className="relative">
             <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
             <select
-              className="input h-10 w-full pl-10 pr-10 appearance-none rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              className="input products-toolbar-status-select h-10 w-full appearance-none rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               value={statusFilter}
               onChange={(event) => onStatusFilterChange(event.target.value as "" | ProductStatus)}
               data-testid="products-status-filter"
@@ -138,7 +138,7 @@ export function ProductsView({
           <div className="relative">
             <Layers className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
             <select
-              className="input h-10 w-full pl-10 pr-10 appearance-none rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              className="input products-toolbar-group-select h-10 w-full appearance-none rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               value={groupFilter}
               onChange={(event) => onGroupFilterChange(event.target.value)}
               data-testid="products-group-filter"

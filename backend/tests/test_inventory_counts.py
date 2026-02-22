@@ -8,6 +8,27 @@ def _suffix() -> str:
     return uuid4().hex[:8].upper()
 
 
+async def _create_and_login_user(client: AsyncClient, admin_token: str, role: str) -> str:
+    username = f"{role}-{_suffix().lower()}"
+    created = await client.post(
+        "/api/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "full_name": f"{role} user",
+            "password": "RolePass123!",
+            "roles": [role],
+            "is_active": True,
+        },
+    )
+    assert created.status_code == 201
+
+    login = await client.post("/api/auth/login", json={"username": username, "password": "RolePass123!"})
+    assert login.status_code == 200
+    return login.json()["access_token"]
+
+
 async def _create_master_data(client: AsyncClient, admin_token: str, prefix: str) -> dict[str, int]:
     group = await client.post(
         "/api/product-groups",
@@ -269,5 +290,77 @@ async def test_inventory_count_recount_required_flow(client: AsyncClient, admin_
     complete = await client.post(
         f"/api/inventory-counts/{session_id}/complete",
         headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert complete.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_inventory_count_complete_requires_signoff_for_tablet_role(client: AsyncClient, admin_token: str):
+    tablet_token = await _create_and_login_user(client, admin_token, "tablet_ops")
+    prefix = f"ICT-{_suffix()}"
+    data = await _create_master_data(client, admin_token, prefix)
+    await _receive_stock(
+        client,
+        admin_token,
+        product_id=data["product_id"],
+        bin_id=data["bin_a_id"],
+        quantity="4",
+    )
+
+    operator = await client.post(
+        "/api/operators",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"display_name": f"IC Operator {prefix}"},
+    )
+    assert operator.status_code == 201
+    operator_id = operator.json()["id"]
+
+    create_session = await client.post(
+        "/api/inventory-counts",
+        headers={"Authorization": f"Bearer {tablet_token}"},
+        json={"session_type": "snapshot", "warehouse_id": data["warehouse_id"]},
+    )
+    assert create_session.status_code == 201
+    session_id = create_session.json()["id"]
+
+    generate = await client.post(
+        f"/api/inventory-counts/{session_id}/generate-items",
+        headers={"Authorization": f"Bearer {tablet_token}"},
+        json={"refresh_existing": False},
+    )
+    assert generate.status_code == 200
+
+    items = await client.get(
+        f"/api/inventory-counts/{session_id}/items",
+        headers={"Authorization": f"Bearer {tablet_token}"},
+    )
+    assert items.status_code == 200
+    item_id = items.json()[0]["id"]
+
+    count_update = await client.put(
+        f"/api/inventory-counts/{session_id}/items/{item_id}",
+        headers={"Authorization": f"Bearer {tablet_token}"},
+        json={"counted_quantity": "4"},
+    )
+    assert count_update.status_code == 200
+
+    missing_signoff = await client.post(
+        f"/api/inventory-counts/{session_id}/complete",
+        headers={"Authorization": f"Bearer {tablet_token}"},
+    )
+    assert missing_signoff.status_code == 422
+
+    complete = await client.post(
+        f"/api/inventory-counts/{session_id}/complete",
+        headers={"Authorization": f"Bearer {tablet_token}"},
+        json={
+            "operator_id": operator_id,
+            "signature_payload": {
+                "strokes": [{"points": [{"x": 10, "y": 10, "t": 1}, {"x": 20, "y": 15, "t": 2}]}],
+                "canvas_width": 640,
+                "canvas_height": 220,
+                "captured_at": "2026-02-21T10:00:00Z",
+            },
+        },
     )
     assert complete.status_code == 200

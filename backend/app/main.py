@@ -1,10 +1,12 @@
-from contextlib import asynccontextmanager
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.database import engine
+from app.database import AsyncSessionLocal, engine
 from app.middleware.audit import AuditMiddleware
 from app.middleware.error_handler import register_exception_handlers
 from app.middleware.idempotency import IdempotencyMiddleware
@@ -26,10 +28,12 @@ from app.routers.inventory_counts import router as inventory_counts_router
 from app.routers.integration_clients import router as integration_clients_router
 from app.routers.inter_warehouse_transfers import router as inter_warehouse_transfers_router
 from app.routers.operations import router as operations_router
+from app.routers.operators import router as operators_router
 from app.routers.pages import router as pages_router
 from app.routers.permissions import router as permissions_router
 from app.routers.picking import router as picking_router
 from app.routers.pricing import router as pricing_router
+from app.routers.purchase_email_settings import router as purchase_email_settings_router
 from app.routers.product_settings import router as product_settings_router
 from app.routers.products import router as products_router
 from app.routers.purchase_recommendations import router as purchase_recommendations_router
@@ -44,15 +48,47 @@ from app.routers.ui_preferences import router as ui_preferences_router
 from app.routers.users import router as users_router
 from app.routers.warehouses import router as warehouses_router
 from app.routers.workflows import router as workflows_router
+from app.services.purchasing import resolve_purchase_email_settings, sync_purchase_order_replies
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+
+async def _purchase_order_mail_poll_loop() -> None:
+    while True:
+        interval_seconds = max(settings.purchase_email_poll_interval_seconds, 30)
+        try:
+            async with AsyncSessionLocal() as db:
+                runtime_settings = await resolve_purchase_email_settings(db, base_settings=settings)
+                interval_seconds = max(runtime_settings.purchase_email_poll_interval_seconds, 30)
+                if runtime_settings.purchase_email_imap_enabled:
+                    result = await sync_purchase_order_replies(db, current_user_id=None)
+                    if result.processed > 0:
+                        logger.info(
+                            "purchase-order-mail-sync processed=%s matched=%s skipped=%s",
+                            result.processed,
+                            result.matched,
+                            result.skipped,
+                        )
+        except Exception:
+            logger.exception("purchase-order-mail-sync failed")
+        await asyncio.sleep(interval_seconds)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_tracing(app=app, sync_engine=engine.sync_engine, settings=settings)
-    yield
-    shutdown_tracing()
+    poller_task: asyncio.Task[None] | None = None
+    if settings.purchase_email_imap_enabled:
+        poller_task = asyncio.create_task(_purchase_order_mail_poll_loop())
+    try:
+        yield
+    finally:
+        if poller_task is not None:
+            poller_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await poller_task
+        shutdown_tracing()
 
 
 app = FastAPI(
@@ -101,6 +137,7 @@ app.include_router(roles_router)
 app.include_router(ui_preferences_router)
 app.include_router(dashboard_config_router)
 app.include_router(pricing_router)
+app.include_router(purchase_email_settings_router)
 app.include_router(sales_orders_router)
 app.include_router(invoices_router)
 app.include_router(audit_log_router)
@@ -112,6 +149,7 @@ app.include_router(warehouses_router)
 app.include_router(inventory_router)
 app.include_router(inventory_counts_router)
 app.include_router(operations_router)
+app.include_router(operators_router)
 app.include_router(dashboard_router)
 
 

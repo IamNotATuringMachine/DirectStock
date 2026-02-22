@@ -1,14 +1,17 @@
-import { navigableRoutes } from "./routeCatalog";
+import { routeCatalog } from "./routeCatalog";
 
 type AccessRoute = {
   path: string;
   requiredPermission: string;
 };
 
-const accessRoutePriority: AccessRoute[] = navigableRoutes.map((route) => ({
-  path: route.path,
-  requiredPermission: route.requiredPermission,
-}));
+const accessRoutePriority: AccessRoute[] = routeCatalog
+  .filter((route) => !route.path.includes("/:"))
+  .sort((a, b) => a.priority - b.priority)
+  .map((route) => ({
+    path: route.path,
+    requiredPermission: route.requiredPermission,
+  }));
 
 const accessPathMatchers = accessRoutePriority.map((route) => ({
   ...route,

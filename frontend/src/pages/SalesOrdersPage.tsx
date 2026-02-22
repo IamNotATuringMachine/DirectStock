@@ -1,25 +1,39 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { OperationSignoffModal } from "../components/operations/OperationSignoffModal";
 import { fetchCustomerLocations, fetchCustomers } from "../services/customersApi";
+import {
+  fetchOperationSignoffSettings,
+  fetchOperators,
+  unlockOperator,
+  updateOperator,
+} from "../services/operatorsApi";
 import { fetchAllProducts } from "../services/productsApi";
 import {
   addSalesOrderItem,
+  completeSalesOrder,
   createDeliveryNote,
   createSalesOrder,
   fetchSalesOrder,
   fetchSalesOrders,
   updateSalesOrder,
 } from "../services/salesOrdersApi";
+import { useAuthStore } from "../stores/authStore";
+import type { CompletionSignoffPayload } from "../types";
+import { isOperationSignoffRequired } from "../utils/tabletOps";
 import { SalesOrdersView } from "./sales-orders/SalesOrdersView";
 
 export default function SalesOrdersPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const requiresSignoffCompletion = isOperationSignoffRequired(user);
   const [customerId, setCustomerId] = useState<string>("");
   const [customerLocationId, setCustomerLocationId] = useState<string>("");
   const [productId, setProductId] = useState<string>("");
   const [quantity, setQuantity] = useState("1");
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [isSignoffModalOpen, setIsSignoffModalOpen] = useState(false);
 
   const ordersQuery = useQuery({
     queryKey: ["sales-orders"],
@@ -43,6 +57,18 @@ export default function SalesOrdersPage() {
     queryKey: ["sales-order", selectedOrderId],
     queryFn: () => fetchSalesOrder(selectedOrderId as number),
     enabled: selectedOrderId !== null,
+  });
+
+  const operatorsQuery = useQuery({
+    queryKey: ["operators"],
+    queryFn: fetchOperators,
+    enabled: requiresSignoffCompletion,
+  });
+
+  const signoffSettingsQuery = useQuery({
+    queryKey: ["operators", "signoff-settings"],
+    queryFn: fetchOperationSignoffSettings,
+    enabled: requiresSignoffCompletion,
   });
 
   const createMutation = useMutation({
@@ -79,6 +105,42 @@ export default function SalesOrdersPage() {
     },
   });
 
+  const unlockOperatorMutation = useMutation({
+    mutationFn: unlockOperator,
+  });
+
+  const updateOperatorPinMutation = useMutation({
+    mutationFn: ({
+      operatorId,
+      pin,
+      pinEnabledOnly = false,
+    }: {
+      operatorId: number;
+      pin?: string;
+      pinEnabledOnly?: boolean;
+    }) =>
+      updateOperator(operatorId, pinEnabledOnly ? { pin_enabled: true } : { pin, pin_enabled: true }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["operators"] });
+    },
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: ({
+      orderId,
+      payload,
+    }: {
+      orderId: number;
+      payload?: CompletionSignoffPayload;
+    }) => completeSalesOrder(orderId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      if (selectedOrderId !== null) {
+        await queryClient.invalidateQueries({ queryKey: ["sales-order", selectedOrderId] });
+      }
+    },
+  });
+
   const deliveryNoteMutation = useMutation({
     mutationFn: (orderId: number) => createDeliveryNote(orderId),
   });
@@ -105,39 +167,75 @@ export default function SalesOrdersPage() {
     return !productId;
   }, [productId, selectedOrderId]);
 
+  const onCompleteOrder = async (orderId: number) => {
+    if (!requiresSignoffCompletion) {
+      await completeMutation.mutateAsync({ orderId });
+      return;
+    }
+    setSelectedOrderId(orderId);
+    setIsSignoffModalOpen(true);
+  };
+
+  const onConfirmSignoff = async (payload: CompletionSignoffPayload) => {
+    if (!selectedOrderId) {
+      return;
+    }
+    await completeMutation.mutateAsync({ orderId: selectedOrderId, payload });
+    setIsSignoffModalOpen(false);
+  };
+
   return (
-    <SalesOrdersView
-      orders={ordersQuery.data?.items ?? []}
-      selectedOrderId={selectedOrderId}
-      onSelectOrder={setSelectedOrderId}
-      onConfirmOrder={(orderId) => {
-        void updateMutation.mutateAsync({ orderId, status: "confirmed" });
-      }}
-      onDeliverOrder={(orderId) => {
-        void deliveryNoteMutation.mutateAsync(orderId);
-      }}
-      customers={customersQuery.data?.items ?? []}
-      customerLocations={customerLocationsQuery.data ?? []}
-      customerId={customerId}
-      onCustomerIdChange={setCustomerId}
-      customerLocationId={customerLocationId}
-      onCustomerLocationIdChange={setCustomerLocationId}
-      onCreateOrder={(event) => void onCreateOrder(event)}
-      createOrderPending={createMutation.isPending}
-      selectedOrder={selectedOrder}
-      products={productsQuery.data?.items ?? []}
-      productId={productId}
-      onProductIdChange={setProductId}
-      quantity={quantity}
-      onQuantityChange={setQuantity}
-      disableAddItem={disableAddItem}
-      addItemPending={addItemMutation.isPending}
-      onAddItem={() => {
-        if (selectedOrderId === null) {
-          return;
-        }
-        void addItemMutation.mutateAsync({ orderId: selectedOrderId });
-      }}
-    />
+    <>
+      <SalesOrdersView
+        orders={ordersQuery.data?.items ?? []}
+        selectedOrderId={selectedOrderId}
+        onSelectOrder={setSelectedOrderId}
+        onConfirmOrder={(orderId) => {
+          void updateMutation.mutateAsync({ orderId, status: "confirmed" });
+        }}
+        onDeliverOrder={(orderId) => {
+          void deliveryNoteMutation.mutateAsync(orderId);
+        }}
+        onCompleteOrder={(orderId) => {
+          void onCompleteOrder(orderId);
+        }}
+        completeOrderPending={completeMutation.isPending}
+        customers={customersQuery.data?.items ?? []}
+        customerLocations={customerLocationsQuery.data ?? []}
+        customerId={customerId}
+        onCustomerIdChange={setCustomerId}
+        customerLocationId={customerLocationId}
+        onCustomerLocationIdChange={setCustomerLocationId}
+        onCreateOrder={(event) => void onCreateOrder(event)}
+        createOrderPending={createMutation.isPending}
+        selectedOrder={selectedOrder}
+        products={productsQuery.data?.items ?? []}
+        productId={productId}
+        onProductIdChange={setProductId}
+        quantity={quantity}
+        onQuantityChange={setQuantity}
+        disableAddItem={disableAddItem}
+        addItemPending={addItemMutation.isPending}
+        onAddItem={() => {
+          if (selectedOrderId === null) {
+            return;
+          }
+          void addItemMutation.mutateAsync({ orderId: selectedOrderId });
+        }}
+      />
+      <OperationSignoffModal
+        isOpen={isSignoffModalOpen}
+        title="Verkaufsauftrag abschließen"
+        operators={operatorsQuery.data ?? []}
+        settings={signoffSettingsQuery.data ?? null}
+        loading={operatorsQuery.isLoading || signoffSettingsQuery.isLoading}
+        submitting={completeMutation.isPending || updateOperatorPinMutation.isPending}
+        onClose={() => setIsSignoffModalOpen(false)}
+        onUnlock={(pin) => unlockOperatorMutation.mutateAsync(pin)}
+        onSetOperatorPin={(operatorId, pin) => updateOperatorPinMutation.mutateAsync({ operatorId, pin })}
+        onEnableOperatorPin={(operatorId) => updateOperatorPinMutation.mutateAsync({ operatorId, pinEnabledOnly: true })}
+        onConfirm={(payload) => onConfirmSignoff(payload)}
+      />
+    </>
   );
 }

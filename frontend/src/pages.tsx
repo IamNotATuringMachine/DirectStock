@@ -12,6 +12,7 @@ import PickingPage from "./pages/PickingPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import ProductFormPage from "./pages/ProductFormPage";
 import ProductsPage from "./pages/ProductsPage";
+import OperatorsPage from "./pages/OperatorsPage";
 import PurchasingPage from "./pages/PurchasingPage";
 import ReportsPage from "./pages/ReportsPage";
 import ReturnsPage from "./pages/ReturnsPage";
@@ -19,6 +20,8 @@ import ScannerPage from "./pages/ScannerPage";
 import SalesOrdersPage from "./pages/SalesOrdersPage";
 import ShippingPage from "./pages/ShippingPage";
 import StockTransferPage from "./pages/StockTransferPage";
+import SuppliersPage from "./pages/SuppliersPage";
+import TabletOperationsHubPage from "./pages/TabletOperationsHubPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import CustomersPage from "./pages/CustomersPage";
 import UsersPage from "./pages/UsersPage";
@@ -40,6 +43,7 @@ export {
   ProductDetailPage,
   ProductFormPage,
   ProductsPage,
+  OperatorsPage,
   PurchasingPage,
   ReportsPage,
   ReturnsPage,
@@ -47,6 +51,8 @@ export {
   SalesOrdersPage,
   ShippingPage,
   StockTransferPage,
+  SuppliersPage,
+  TabletOperationsHubPage,
   InvoicesPage,
   UsersPage,
   WarehousePage,

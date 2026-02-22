@@ -12,7 +12,12 @@ async def list_goods_receipts(
     if status_filter:
         stmt = stmt.where(GoodsReceipt.status == status_filter)
     rows = list((await db.execute(stmt)).scalars())
-    return [_to_goods_receipt_response(item) for item in rows]
+    signoff_map = await fetch_operation_signoff_map(
+        db=db,
+        operation_type="goods_receipt",
+        operation_ids=[item.id for item in rows],
+    )
+    return [_to_goods_receipt_response(item, operation_signoff=signoff_map.get(item.id)) for item in rows]
 
 
 @router.post("/goods-receipts", response_model=GoodsReceiptResponse, status_code=status.HTTP_201_CREATED)
@@ -221,7 +226,12 @@ async def get_goods_receipt(
     item = (await db.execute(select(GoodsReceipt).where(GoodsReceipt.id == receipt_id))).scalar_one_or_none()
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods receipt not found")
-    return _to_goods_receipt_response(item)
+    operation_signoff = await fetch_operation_signoff_summary(
+        db=db,
+        operation_type="goods_receipt",
+        operation_id=item.id,
+    )
+    return _to_goods_receipt_response(item, operation_signoff=operation_signoff)
 
 
 @router.put("/goods-receipts/{receipt_id}", response_model=GoodsReceiptResponse)

@@ -225,3 +225,46 @@ class InventoryCountItem(TimestampMixin, Base):
     recount_required: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
     last_counted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     counted_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+
+
+class WarehouseOperator(TimestampMixin, Base):
+    __tablename__ = "warehouse_operators"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", index=True)
+    pin_hash: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    pin_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    updated_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+
+
+class OperationSignoffSetting(TimestampMixin, Base):
+    __tablename__ = "operation_signoff_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    require_pin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    require_operator_selection: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    pin_session_ttl_minutes: Mapped[int] = mapped_column(default=480, server_default="480")
+    updated_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+
+
+class OperationSignoff(TimestampMixin, Base):
+    __tablename__ = "operation_signoffs"
+    __table_args__ = (
+        UniqueConstraint("operation_type", "operation_id", name="uq_operation_signoffs_type_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    operation_type: Mapped[str] = mapped_column(String(40), index=True)
+    operation_id: Mapped[int] = mapped_column(index=True)
+    operator_id: Mapped[int | None] = mapped_column(
+        ForeignKey("warehouse_operators.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    operator_name_snapshot: Mapped[str] = mapped_column(String(120))
+    signature_payload_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    pin_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
+    pin_session_token_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    device_context_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    recorded_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

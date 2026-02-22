@@ -33,7 +33,7 @@ export function GoodsReceiptReceiptActions({ vm }: { vm: any }) {
         className="btn btn-primary w-full justify-center"
         type="button"
         disabled={!vm.selectedReceiptId || vm.selectedReceipt?.status !== "draft" || vm.completeMutation.isPending}
-        onClick={() => vm.selectedReceiptId && void vm.completeMutation.mutateAsync(vm.selectedReceiptId)}
+        onClick={() => void vm.onCompleteReceipt()}
         data-testid="goods-receipt-complete-btn"
       >
         Abschließen

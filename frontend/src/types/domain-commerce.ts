@@ -1,3 +1,5 @@
+import type { OperationSignoffSummary } from "./domain-ops";
+
 export type Permission = {
   code: string;
   description: string | null;
@@ -105,6 +107,7 @@ export type SalesOrder = {
   ordered_at: string | null;
   completed_at: string | null;
   created_by: number | null;
+  operation_signoff?: OperationSignoffSummary | null;
   currency: string;
   notes: string | null;
   created_at: string;

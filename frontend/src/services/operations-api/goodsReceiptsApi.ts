@@ -1,4 +1,11 @@
-import type { BinSuggestion, GoodsReceipt, GoodsReceiptItem, Product, ProductCreatePayload } from "../../types";
+import type {
+  BinSuggestion,
+  CompletionSignoffPayload,
+  GoodsReceipt,
+  GoodsReceiptItem,
+  Product,
+  ProductCreatePayload,
+} from "../../types";
 import { api } from "../api";
 import {
   allocateLocalEntityId,
@@ -140,20 +147,23 @@ export async function createGoodsReceiptFromPo(poId: number): Promise<GoodsRecei
   return response.data;
 }
 
-export async function completeGoodsReceipt(receiptId: number): Promise<{ message: string }> {
+export async function completeGoodsReceipt(
+  receiptId: number,
+  payload?: CompletionSignoffPayload
+): Promise<{ message: string }> {
   const url = `/goods-receipts/${receiptId}/complete`;
   if (shouldQueueOfflineMutation("POST", url)) {
     await enqueueOfflineMutation({
       method: "POST",
       url,
-      payload: {},
+      payload: payload ?? {},
       entityType: "goods_receipt_complete",
       parentEntityId: receiptId,
     });
     return buildQueuedMessage("Wareneingang");
   }
 
-  const response = await api.post<{ message: string }>(url);
+  const response = await api.post<{ message: string }>(url, payload);
   return response.data;
 }
 

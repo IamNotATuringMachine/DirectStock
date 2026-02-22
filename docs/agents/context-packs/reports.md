@@ -11,7 +11,7 @@
 
 ## High-Value Tests
 - `./scripts/check_api_contract_drift.sh`
-- `cd backend && python -m pytest -q tests/test_reports.py tests/test_reports_forecast.py`
+- `./scripts/run_backend_pytest.sh -q tests/test_reports.py tests/test_reports_forecast.py`
 - `cd frontend && npm run test`
 
 ## Frequent Failure Modes

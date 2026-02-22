@@ -1,4 +1,4 @@
-import type { GoodsIssue, GoodsIssueItem } from "../../types";
+import type { CompletionSignoffPayload, GoodsIssue, GoodsIssueItem } from "../../types";
 import { api } from "../api";
 import {
   allocateLocalEntityId,
@@ -97,20 +97,23 @@ export async function createGoodsIssueItem(
   return response.data;
 }
 
-export async function completeGoodsIssue(issueId: number): Promise<{ message: string }> {
+export async function completeGoodsIssue(
+  issueId: number,
+  payload?: CompletionSignoffPayload
+): Promise<{ message: string }> {
   const url = `/goods-issues/${issueId}/complete`;
   if (shouldQueueOfflineMutation("POST", url)) {
     await enqueueOfflineMutation({
       method: "POST",
       url,
-      payload: {},
+      payload: payload ?? {},
       entityType: "goods_issue_complete",
       parentEntityId: issueId,
     });
     return buildQueuedMessage("Warenausgang");
   }
 
-  const response = await api.post<{ message: string }>(url);
+  const response = await api.post<{ message: string }>(url, payload);
   return response.data;
 }
 

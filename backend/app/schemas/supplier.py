@@ -10,6 +10,10 @@ class SupplierBase(BaseModel):
     contact_name: str | None = Field(default=None, max_length=255)
     email: str | None = Field(default=None, max_length=255)
     phone: str | None = Field(default=None, max_length=50)
+    purchase_email_salutation: str | None = Field(default=None, max_length=255)
+    purchase_email_subject_template: str | None = None
+    purchase_email_body_template: str | None = None
+    purchase_email_signature: str | None = None
     is_active: bool = True
 
 
@@ -22,6 +26,10 @@ class SupplierUpdate(BaseModel):
     contact_name: str | None = Field(default=None, max_length=255)
     email: str | None = Field(default=None, max_length=255)
     phone: str | None = Field(default=None, max_length=50)
+    purchase_email_salutation: str | None = Field(default=None, max_length=255)
+    purchase_email_subject_template: str | None = None
+    purchase_email_body_template: str | None = None
+    purchase_email_signature: str | None = None
     is_active: bool | None = None
 
 
@@ -66,3 +74,18 @@ class ProductSupplierResponse(BaseModel):
     is_preferred: bool
     created_at: datetime
     updated_at: datetime
+
+
+class SupplierPurchaseEmailTemplateResponse(BaseModel):
+    supplier_id: int
+    salutation: str | None
+    subject_template: str | None
+    body_template: str | None
+    signature: str | None
+
+
+class SupplierPurchaseEmailTemplateUpdate(BaseModel):
+    salutation: str | None = Field(default=None, max_length=255)
+    subject_template: str | None = None
+    body_template: str | None = None
+    signature: str | None = None

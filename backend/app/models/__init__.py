@@ -21,10 +21,13 @@ from app.models.inventory import (
     InventoryBatch,
     InventoryCountItem,
     InventoryCountSession,
+    OperationSignoff,
+    OperationSignoffSetting,
     SerialNumber,
     StockMovement,
     StockTransfer,
     StockTransferItem,
+    WarehouseOperator,
 )
 from app.models.phase3 import (
     AbcClassificationItem,
@@ -57,6 +60,7 @@ from app.models.phase4 import (
 from app.models.phase5 import (
     AppPage,
     BillingSetting,
+    PurchaseEmailSetting,
     CustomerProductPrice,
     DashboardCard,
     Invoice,
@@ -70,7 +74,7 @@ from app.models.phase5 import (
     UserDashboardConfig,
     UserUiPreference,
 )
-from app.models.purchasing import ClientOperationLog, PurchaseOrder, PurchaseOrderItem
+from app.models.purchasing import ClientOperationLog, PurchaseOrder, PurchaseOrderEmailEvent, PurchaseOrderItem
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 
 __all__ = [
@@ -99,6 +103,9 @@ __all__ = [
     "InventoryBatch",
     "InventoryCountItem",
     "InventoryCountSession",
+    "WarehouseOperator",
+    "OperationSignoffSetting",
+    "OperationSignoff",
     "InterWarehouseTransfer",
     "InterWarehouseTransferItem",
     "AppPage",
@@ -114,6 +121,7 @@ __all__ = [
     "Invoice",
     "InvoiceItem",
     "BillingSetting",
+    "PurchaseEmailSetting",
     "InvoiceExport",
     "LegacyIdMap",
     "LegacyMigrationIssue",
@@ -127,6 +135,7 @@ __all__ = [
     "ProductWarehouseSetting",
     "PurchaseRecommendation",
     "PurchaseOrder",
+    "PurchaseOrderEmailEvent",
     "PurchaseOrderItem",
     "PickTask",
     "PickWave",

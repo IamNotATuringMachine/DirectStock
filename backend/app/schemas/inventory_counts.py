@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from app.schemas.operators import OperationSignoffSummary
 
 
 class InventoryCountSessionCreate(BaseModel):
@@ -23,6 +24,7 @@ class InventoryCountSessionResponse(BaseModel):
     generated_at: datetime | None
     completed_at: datetime | None
     created_by: int | None
+    operation_signoff: OperationSignoffSummary | None = None
     notes: str | None
     created_at: datetime
     updated_at: datetime

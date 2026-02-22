@@ -1,4 +1,4 @@
-import { AlertCircle, FileText, Filter } from "lucide-react";
+import { AlertCircle, FileText, Filter, Settings } from "lucide-react";
 
 import type { PurchasingTab } from "../model";
 
@@ -47,6 +47,19 @@ export function PurchasingTabs({ tab, onTabChange }: PurchasingTabsProps) {
       >
         <AlertCircle className="w-4 h-4" />
         Bestellvorschläge
+      </button>
+
+      <button
+        onClick={() => onTabChange("setup")}
+        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+          tab === "setup"
+            ? "border-[var(--accent)] text-[var(--accent)]"
+            : "border-transparent text-[var(--muted)] hover:text-[var(--ink)] hover:border-[var(--line-strong)]"
+        }`}
+        data-testid="purchasing-tab-setup"
+      >
+        <Settings className="w-4 h-4" />
+        Setup
       </button>
     </div>
   );

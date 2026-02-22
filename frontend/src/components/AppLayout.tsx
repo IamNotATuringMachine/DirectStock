@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation, matchPath } from "react-router-dom";
-import { ChevronRight, LogOut, Menu, Moon, Sun, User, X } from "lucide-react";
+import { Link, NavLink, Outlet, useLocation, matchPath } from "react-router-dom";
+import { Home, LogOut, Menu, Moon, Sun, User, X } from "lucide-react";
 
 import OfflineSyncPanel from "./offline/OfflineSyncPanel";
 import PwaStatus from "./pwa/PwaStatus";
@@ -9,6 +9,7 @@ import { routeCatalog, navigableRoutes } from "../routing/routeCatalog";
 import { fetchMyUiPreferences, updateMyUiPreferences } from "../services/uiPreferencesApi";
 import { useAuthStore } from "../stores/authStore";
 import { useUiPreferencesStore } from "../stores/uiPreferencesStore";
+import { TABLET_OPS_HOME_PATH, isTabletOpsKioskPath, isTabletOpsUser } from "../utils/tabletOps";
 
 type NavItem = {
   to: string;
@@ -68,6 +69,8 @@ export default function AppLayout() {
   const hasLoadedUiPreferencesRef = useRef(false);
 
   const grantedPermissions = useMemo(() => new Set(user?.permissions ?? []), [user?.permissions]);
+  const tabletOpsUser = useMemo(() => isTabletOpsUser(user), [user]);
+  const kioskLayout = tabletOpsUser && isTabletOpsKioskPath(location.pathname);
 
   useEffect(() => {
     if (!accessToken) {
@@ -102,6 +105,12 @@ export default function AppLayout() {
       setIsMobileNavOpen(false);
     }
   }, [isMobileLayout]);
+
+  useEffect(() => {
+    if (kioskLayout) {
+      setIsMobileNavOpen(false);
+    }
+  }, [kioskLayout]);
 
   useEffect(() => {
     if (isMobileLayout) {
@@ -156,6 +165,9 @@ export default function AppLayout() {
   }, [accessToken, logout]);
 
   const onToggleNavigation = () => {
+    if (kioskLayout) {
+      return;
+    }
     if (isMobileLayout) {
       setIsMobileNavOpen((value) => !value);
       return;
@@ -180,6 +192,7 @@ export default function AppLayout() {
 
   const shellClassName = [
     "shell",
+    kioskLayout ? "kiosk-layout" : "",
     !isMobileLayout && isSidebarCollapsed ? "sidebar-collapsed" : "",
     isMobileLayout ? "mobile-layout" : "",
     isMobileLayout && isMobileNavOpen ? "mobile-nav-open" : "",
@@ -191,7 +204,7 @@ export default function AppLayout() {
 
   return (
     <div className={shellClassName} data-testid="app-shell">
-      {isMobileLayout ? (
+      {isMobileLayout && !kioskLayout ? (
         <button
           className="sidebar-overlay"
           onClick={() => setIsMobileNavOpen(false)}
@@ -199,76 +212,85 @@ export default function AppLayout() {
           type="button"
         />
       ) : null}
-      <aside className="sidebar">
-        <div className="brand">
-          {isSidebarCollapsed ? (
-            <img src={directServicesLogo} alt="DS" className="brand-logo-collapsed" />
-          ) : (
-            "DirectStock"
-          )}
-        </div>
-        <nav>
-          {navItems
-            .filter((item) => canAccess(item.requiredPermission, grantedPermissions))
-            .map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-                aria-label={item.label}
-                title={item.label}
-                onClick={() => {
-                  if (isMobileLayout) {
-                    setIsMobileNavOpen(false);
-                  }
-                }}
-              >
-                <item.icon size={20} aria-hidden="true" className="nav-icon" />
-                {!isSidebarCollapsed && <span className="nav-link-label">{item.label}</span>}
-              </NavLink>
-            ))}
-        </nav>
-        {isMobileLayout ? (
-          <div className="sidebar-utilities" data-testid="sidebar-utilities">
-            <button
-              className="btn width-full justify-start"
-              type="button"
-              onClick={() => void onToggleTheme()}
-              data-testid="theme-toggle-btn"
-            >
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-              Design: {theme}
-            </button>
-            <OfflineSyncPanel />
+      {!kioskLayout ? (
+        <aside className="sidebar">
+          <div className="brand">
+            {isSidebarCollapsed ? (
+              <img src={directServicesLogo} alt="DS" className="brand-logo-collapsed" />
+            ) : (
+              "DirectStock"
+            )}
           </div>
-        ) : null}
-      </aside>
+          <nav>
+            {navItems
+              .filter((item) => canAccess(item.requiredPermission, grantedPermissions))
+              .map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+                  aria-label={item.label}
+                  title={item.label}
+                  onClick={() => {
+                    if (isMobileLayout) {
+                      setIsMobileNavOpen(false);
+                    }
+                  }}
+                >
+                  <item.icon size={20} aria-hidden="true" className="nav-icon" />
+                  {!isSidebarCollapsed && <span className="nav-link-label">{item.label}</span>}
+                </NavLink>
+              ))}
+          </nav>
+          {isMobileLayout ? (
+            <div className="sidebar-utilities" data-testid="sidebar-utilities">
+              <button
+                className="btn width-full justify-start"
+                type="button"
+                onClick={() => void onToggleTheme()}
+                data-testid="theme-toggle-btn"
+              >
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+                Design: {theme}
+              </button>
+              <OfflineSyncPanel />
+            </div>
+          ) : null}
+        </aside>
+      ) : null}
       <div className="content-area">
         <header className="topbar">
           <div className="topbar-left">
-            <button
-              className="icon-btn sidebar-toggle"
-              onClick={onToggleNavigation}
-              data-testid="sidebar-toggle"
-              title={
-                isMobileLayout
-                  ? isMobileNavOpen
-                    ? "Navigation schließen"
-                    : "Navigation öffnen"
-                  : isSidebarCollapsed
-                    ? "Sidebar erweitern"
-                    : "Sidebar einklappen"
-              }
-              aria-label="Toggle Navigation"
-            >
-              {isMobileLayout ? isMobileNavOpen ? <X size={20} /> : <Menu size={20} /> : <Menu size={20} />}
-            </button>
+            {!kioskLayout ? (
+              <button
+                className="icon-btn sidebar-toggle"
+                onClick={onToggleNavigation}
+                data-testid="sidebar-toggle"
+                title={
+                  isMobileLayout
+                    ? isMobileNavOpen
+                      ? "Navigation schließen"
+                      : "Navigation öffnen"
+                    : isSidebarCollapsed
+                      ? "Sidebar erweitern"
+                      : "Sidebar einklappen"
+                }
+                aria-label="Toggle Navigation"
+              >
+                {isMobileLayout ? isMobileNavOpen ? <X size={20} /> : <Menu size={20} /> : <Menu size={20} />}
+              </button>
+            ) : (
+              <Link to={TABLET_OPS_HOME_PATH} className="btn" data-testid="tablet-ops-home-btn">
+                <Home size={16} />
+                Home
+              </Link>
+            )}
 
             <div className="topbar-title text-lg font-semibold tracking-tight text-[var(--ink)]">{currentTitle}</div>
           </div>
 
           <div className="topbar-right flex items-center gap-3" data-testid="topbar-right">
-            {!isMobileLayout ? (
+            {!isMobileLayout && !kioskLayout ? (
               <>
                 <button
                   className="icon-btn w-9 h-9 rounded-full hover:bg-[var(--panel-soft)] transition-colors"
@@ -283,26 +305,42 @@ export default function AppLayout() {
               </>
             ) : null}
 
-            <PwaStatus compact={isMobileLayout} />
+            {kioskLayout ? (
+              <button
+                className="icon-btn w-9 h-9 rounded-full hover:bg-[var(--panel-soft)] transition-colors"
+                type="button"
+                onClick={() => void onToggleTheme()}
+                data-testid="theme-toggle-btn"
+                title={`Design umstellen (${theme === "dark" ? "Hell" : "Dunkel"})`}
+              >
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+            ) : (
+              <>
+                <PwaStatus compact={isMobileLayout} />
 
-            <div className="h-6 w-px bg-[var(--line)] mx-2"></div>
+                <div className="h-6 w-px bg-[var(--line)] mx-2"></div>
 
-            <div
-              className="topbar-user flex items-center gap-3 px-3 py-1.5 rounded-full bg-[var(--panel-soft)] hover:bg-[var(--line)]/30 transition-colors cursor-default border border-[var(--line)]/50"
-              title={`Angemeldet als ${user?.username}`}
-            >
-              <div className="user-avatar w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-sm">
-                <User size={16} />
-              </div>
-              {!isMobileLayout && (
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-[var(--ink)] leading-none">{user?.username ?? "-"}</span>
-                  <span className="text-xs text-[var(--muted)] leading-none mt-0.5 uppercase tracking-wide text-[10px]">
-                    {user?.roles.includes("admin") ? "Administrator" : "Benutzer"}
-                  </span>
+                <div
+                  className="topbar-user flex items-center gap-3 px-3 py-1.5 rounded-full bg-[var(--panel-soft)] hover:bg-[var(--line)]/30 transition-colors cursor-default border border-[var(--line)]/50"
+                  title={`Angemeldet als ${user?.username}`}
+                >
+                  <div className="user-avatar w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-sm">
+                    <User size={16} />
+                  </div>
+                  {!isMobileLayout && (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-[var(--ink)] leading-none">
+                        {user?.username ?? "-"}
+                      </span>
+                      <span className="text-xs text-[var(--muted)] leading-none mt-0.5 uppercase tracking-wide text-[10px]">
+                        {user?.roles.includes("admin") ? "Administrator" : "Benutzer"}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
 
             <button
               className="icon-btn danger-hover w-9 h-9 rounded-full hover:bg-red-50 text-[var(--muted)] hover:text-red-600 transition-colors ml-1"

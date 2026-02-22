@@ -199,6 +199,18 @@ select.input:focus-visible,
   grid-template-columns: 76px minmax(0, 1fr);
 }
 
+.shell.kiosk-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.shell.kiosk-layout .content-area {
+  min-height: 100dvh;
+}
+
+.shell.kiosk-layout .topbar {
+  padding-inline: clamp(10px, 2.2vw, 18px);
+}
+
 .sidebar {
   position: sticky;
   top: 0;

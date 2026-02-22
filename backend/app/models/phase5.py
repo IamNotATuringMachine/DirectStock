@@ -187,6 +187,33 @@ class BillingSetting(TimestampMixin, Base):
     payment_terms_days: Mapped[int] = mapped_column(Integer(), default=14, server_default="14")
 
 
+class PurchaseEmailSetting(TimestampMixin, Base):
+    __tablename__ = "purchase_email_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    profile_name: Mapped[str] = mapped_column(String(120), default="Standard", server_default="Standard")
+    is_active: Mapped[bool] = mapped_column(Boolean(), default=False, server_default="false", index=True)
+    smtp_enabled: Mapped[bool] = mapped_column(Boolean(), default=False, server_default="false")
+    smtp_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    smtp_port: Mapped[int] = mapped_column(Integer(), default=587, server_default="587")
+    smtp_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    smtp_password: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    smtp_use_tls: Mapped[bool] = mapped_column(Boolean(), default=True, server_default="true")
+    from_address: Mapped[str] = mapped_column(String(255), default="einkauf@directstock.local", server_default="einkauf@directstock.local")
+    reply_to_address: Mapped[str] = mapped_column(String(255), default="einkauf@directstock.local", server_default="einkauf@directstock.local")
+    sender_name: Mapped[str] = mapped_column(String(255), default="Einkauf", server_default="Einkauf")
+    imap_enabled: Mapped[bool] = mapped_column(Boolean(), default=False, server_default="false")
+    imap_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    imap_port: Mapped[int] = mapped_column(Integer(), default=993, server_default="993")
+    imap_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    imap_password: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    imap_mailbox: Mapped[str] = mapped_column(String(255), default="INBOX", server_default="INBOX")
+    imap_use_ssl: Mapped[bool] = mapped_column(Boolean(), default=True, server_default="true")
+    poll_interval_seconds: Mapped[int] = mapped_column(Integer(), default=300, server_default="300")
+    default_to_addresses: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    default_cc_addresses: Mapped[str | None] = mapped_column(Text(), nullable=True)
+
+
 class InvoiceExport(TimestampMixin, Base):
     __tablename__ = "invoice_exports"
 

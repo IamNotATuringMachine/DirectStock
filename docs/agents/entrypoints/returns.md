@@ -12,5 +12,5 @@
 3. Audit and idempotency protections preserved for mutations.
 
 ## Verification
-- `cd backend && python -m pytest -q tests/test_inbound_returns_workflow_extensions.py`
+- `./scripts/run_backend_pytest.sh -q tests/test_inbound_returns_workflow_extensions.py`
 - `./scripts/check_mutation_integrity.py`

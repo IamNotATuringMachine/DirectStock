@@ -1,0 +1,759 @@
+name: CI
+
+permissions:
+  contents: read
+  issues: write
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      run_observability_smoke:
+        description: "Run observability stack smoke checks"
+        required: false
+        type: boolean
+        default: false
+      run_agent_governance:
+        description: "Run unrestricted_senior autonomy conformance scan and issue sync"
+        required: false
+        type: boolean
+        default: false
+      run_mcp_readiness:
+        description: "Run MCP readiness preflight check (includes git MCP probe)"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 2 * * *"
+    - cron: "0 3 */2 * *"
+
+jobs:
+  provider_capability_openai:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install provider lint deps
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install jsonschema
+
+      - name: Validate policy parity for provider
+        run: python3 scripts/agent_policy_lint.py --strict --provider openai --format json
+
+      - name: Validate provider runtime capabilities
+        run: python3 scripts/check_provider_capabilities.py --strict --provider openai --format json
+
+  provider_capability_anthropic:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install provider lint deps
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install jsonschema
+
+      - name: Validate policy parity for provider
+        run: python3 scripts/agent_policy_lint.py --strict --provider anthropic --format json
+
+      - name: Validate provider runtime capabilities
+        run: python3 scripts/check_provider_capabilities.py --strict --provider anthropic --format json
+
+  provider_capability_google:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install provider lint deps
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install jsonschema
+
+      - name: Validate policy parity for provider
+        run: python3 scripts/agent_policy_lint.py --strict --provider google --format json
+
+      - name: Validate provider runtime capabilities
+        run: python3 scripts/check_provider_capabilities.py --strict --provider google --format json
+
+  llm_guards:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Refactor scope allowlist
+        run: ./scripts/check_refactor_scope_allowlist.sh
+
+      - name: File size limits guard
+        run: SIZE_GUARD_MODE=changed ./scripts/check_file_size_limits.sh
+
+      - name: Repo index drift guard
+        run: python3 scripts/generate_repo_index.py --check
+
+      - name: Entrypoint coverage guard
+        run: python3 scripts/check_entrypoint_coverage.py
+
+  size_guard:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: File size limits guard
+        run: SIZE_GUARD_MODE=changed ./scripts/check_file_size_limits.sh
+
+  dead_code_guard:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run Knip dead code detection
+        run: npm run knip
+
+  ralph_cli:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts/ralph
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: scripts/ralph/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate Ralph template contract
+        run: npm run test -- tests/template-contract.test.ts
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install provider lint deps
+        working-directory: .
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install jsonschema
+
+      - name: Validate policy parity
+        working-directory: .
+        run: python3 scripts/agent_policy_lint.py --strict --provider all --format json
+
+      - name: Validate provider capability contracts
+        working-directory: .
+        run: python3 scripts/check_provider_capabilities.py --provider all --format json
+
+      - name: Validate MCP profile parity
+        working-directory: .
+        run: python3 scripts/check_mcp_profile_parity.py --strict --format json
+
+  frontend:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: E2E hermetic guard
+        run: npm run test:e2e:hermetic
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  e2e_smoke:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npm run playwright:install
+
+      - name: Run isolated E2E smoke (desktop + mobile)
+        working-directory: frontend
+        run: npm run test:e2e:smoke
+
+  frontend_a11y_gate:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npm run playwright:install
+
+      - name: Run frontend accessibility gate
+        working-directory: frontend
+        run: npm run test:e2e:a11y
+
+  frontend_visual_gate:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npm run playwright:install
+
+      - name: Run frontend visual gate
+        working-directory: frontend
+        run: npm run test:e2e:visual
+
+  frontend_a11y_gate_mobile:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npm run playwright:install
+
+      - name: Run frontend accessibility gate (mobile)
+        working-directory: frontend
+        run: npm run test:e2e:a11y:mobile
+
+  frontend_visual_gate_mobile:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npm run playwright:install
+
+      - name: Run frontend visual gate (mobile)
+        working-directory: frontend
+        run: npm run test:e2e:visual:mobile
+
+  design_token_drift_gate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run design token drift gate
+        run: ./scripts/check_design_token_drift.sh
+
+  gemini_config_guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Gemini static readiness
+        run: ./scripts/check_gemini_readiness.sh --mode static
+
+      - name: Validate MCP profile parity
+        run: python3 scripts/check_mcp_profile_parity.py --strict --format json
+
+  e2e_flakiness:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npm run playwright:install
+
+      - name: Collect E2E flakiness snapshot (20 runs)
+        run: RUNS=20 TEST_FLAKE_CMD='cd frontend && npm run test:e2e:smoke' ./scripts/collect_test_flakiness.sh
+
+      - name: Upload flakiness metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-flakiness-metrics
+          path: docs/validation/metrics/test-flakiness-latest.md
+          if-no-files-found: error
+
+  backend:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          pip install ruff
+
+      - name: Ruff check
+        run: ruff check --config ruff.toml app tests
+
+      - name: Ruff format check
+        run: |
+          ruff format --config ruff.toml --check \
+            app/config.py \
+            app/database.py \
+            app/main.py \
+            app/middleware/idempotency.py \
+            app/observability/metrics.py \
+            app/observability/tracing.py \
+            app/services/carriers/sandbox_stub.py \
+            tests/test_idempotency_regressions_phase6.py \
+            tests/test_audit_mutations_phase6.py
+
+      - name: OpenAPI contract drift guard
+        run: bash ../scripts/check_api_contract_drift.sh
+
+      - name: Backend tests
+        run: python -m pytest -q
+
+  perf_smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run k6 perf smoke scenarios
+        run: ./scripts/perf/run_perf_smoke.sh
+
+      - name: Assert performance budgets
+        run: ./scripts/perf/assert_budgets.sh
+
+      - name: Upload perf metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-smoke-metrics
+          path: |
+            docs/validation/metrics/perf-latest.md
+            docs/validation/metrics/perf-results/
+          if-no-files-found: error
+
+  perf_nightly:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run nightly k6 performance profile
+        run: PERF_MODE=full ./scripts/perf/run_perf_smoke.sh
+
+      - name: Assert nightly performance budgets
+        run: ./scripts/perf/assert_budgets.sh
+
+      - name: Upload nightly perf metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-nightly-metrics
+          path: |
+            docs/validation/metrics/perf-latest.md
+            docs/validation/metrics/perf-results/
+          if-no-files-found: error
+
+  security:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend and security tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e backend[dev]
+          pip install pip-audit bandit
+
+      - name: Install gitleaks
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.19.3/gitleaks_8.19.3_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          rm -f /tmp/gitleaks.tar.gz
+          gitleaks version
+
+      - name: Run security gates
+        run: ./scripts/check_security_gates.sh
+
+  observability_smoke:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_observability_smoke == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start app + observability profile
+        run: docker compose -f docker-compose.dev.yml --profile observability up -d --build
+
+      - name: Wait for stack warmup
+        run: sleep 45
+
+      - name: Run observability smoke checks
+        run: ./scripts/observability/smoke.sh
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f docker-compose.dev.yml --profile observability down -v
+
+  golden_tasks_nightly:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e backend[dev]
+          pip install ruff
+
+      - name: Run golden tasks
+        run: GOLDEN_TASK_MODE=smoke MIN_SUCCESS_RATE=0.90 ./scripts/run_golden_tasks.sh
+
+      - name: Upload golden task artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-tasks-metrics
+          path: |
+            docs/validation/metrics/golden-tasks-latest.md
+            docs/validation/metrics/golden-task-logs/
+          if-no-files-found: error
+
+  agent_governance:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_agent_governance == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install governance lint dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install jsonschema pytest
+
+      - name: Self-improve regression tests
+        run: python3 -m pytest -q tests/test_agent_self_improve.py
+
+      - name: Run agent autonomy conformance scan
+        id: governance
+        run: |
+          status_file="$(mktemp)"
+          set +e
+          AGENT_GOVERNANCE_STATUS_FILE="${status_file}" ./scripts/agent_governance_check.sh
+          rc=$?
+          set -e
+
+          debt_value="0"
+          if [ -f "${status_file}" ]; then
+            debt_value="$(awk -F= '/^debt=/{print $2}' "${status_file}" | head -n1)"
+          fi
+
+          echo "debt=${debt_value:-0}" >> "${GITHUB_OUTPUT}"
+          echo "exit_code=${rc}" >> "${GITHUB_OUTPUT}"
+          rm -f "${status_file}"
+
+      - name: Upload governance artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-governance-metrics
+          path: |
+            docs/validation/metrics/agent-governance-latest.md
+            docs/validation/metrics/agent-governance-history.md
+          if-no-files-found: error
+
+      - name: Open or update autonomy conformance debt issue
+        if: steps.governance.outputs.debt == '1'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const title = "Agent Autonomy Conformance Debt";
+            const report = fs.readFileSync("docs/validation/metrics/agent-governance-latest.md", "utf8");
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `${report}\n\n---\nGenerated by CI run: ${runUrl}`;
+            const { owner, repo } = context.repo;
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100
+            });
+            const existing = openIssues.find((issue) => issue.title === title && !issue.pull_request);
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.number,
+                title,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body
+              });
+            }
+
+  mcp_readiness:
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_mcp_readiness == true) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-mcp-readiness'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run MCP readiness preflight
+        env:
+          MCP_PROFILE: "ci-readonly"
+          MCP_REQUIRE_POSTGRES_READONLY: "1"
+          MCP_PROBE_ALLOW_BLOCKED: "1"
+          MCP_POSTGRES_DSN: ${{ secrets.MCP_POSTGRES_DSN }}
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.MCP_GITHUB_PAT }}
+        run: ./scripts/check_mcp_readiness.sh
+
+      - name: Upload MCP readiness artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-readiness-metrics
+          path: docs/validation/metrics/mcp-readiness-latest.md
+          if-no-files-found: error

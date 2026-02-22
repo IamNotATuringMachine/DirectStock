@@ -11,7 +11,16 @@ from app.schemas.phase5 import RoleCreate, RolePermissionUpdate, RoleResponse, R
 router = APIRouter(prefix="/api/roles", tags=["roles"])
 
 
-SYSTEM_ROLES = {"admin", "lagerleiter", "lagermitarbeiter", "einkauf", "versand", "controller", "auditor"}
+SYSTEM_ROLES = {
+    "admin",
+    "lagerleiter",
+    "lagermitarbeiter",
+    "einkauf",
+    "versand",
+    "controller",
+    "auditor",
+    "tablet_ops",
+}
 
 
 def _to_response(role: Role) -> RoleResponse:

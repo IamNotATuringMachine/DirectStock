@@ -19,7 +19,7 @@ description: Bug fix workflow — from reproduction to verified fix
 
 2. **Reproduce** — Run the failing test or trigger the bug:
    ```bash
-   cd backend && python -m pytest -q -k "<test_name>"
+   ./scripts/run_backend_pytest.sh -q -k "<test_name>"
    # or
    cd frontend && npm run test -- --grep "<test_name>"
    ```
@@ -39,7 +39,7 @@ description: Bug fix workflow — from reproduction to verified fix
 
 6. **Verify fix**:
    ```bash
-   cd backend && python -m pytest -q
+   ./scripts/run_backend_pytest.sh -q
    cd frontend && npm run test
    ```
 

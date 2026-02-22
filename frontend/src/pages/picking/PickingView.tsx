@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { Check, CheckCircle2, ChevronRight, Package, Play, RefreshCw, Scan, Search, X } from "lucide-react";
+import { Check, CheckCircle2, ChevronRight, Package, Play, Scan, Search, X } from "lucide-react";
 
 import ExternalScannerListener from "../../components/scanner/ExternalScannerListener";
 import type { PickTask, PickWave } from "../../types";
@@ -86,8 +86,8 @@ export function PickingView({
         </div>
       </header>
 
-      <div className="warehouse-grid grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <aside className="subpanel lg:col-span-4 xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col h-[calc(100vh-200px)] sticky top-6">
+      <div className="warehouse-grid grid grid-cols-1 gap-6 items-start">
+        <aside className="subpanel bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col h-auto lg:h-[calc(100dvh-220px)] lg:sticky lg:top-6">
           <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex justify-between items-center">
             <h3 className="section-title font-semibold text-zinc-900 dark:text-zinc-100">
               Pick-Waves
@@ -95,11 +95,11 @@ export function PickingView({
             <button
               onClick={onCreateWave}
               disabled={createWavePending}
-              className="inline-flex items-center justify-center p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               title="Neue Pick-Wave erstellen"
               data-testid="pick-wave-create-btn"
             >
-              {createWavePending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+              {createWavePending ? "Erstelle..." : "Neue Wave"}
             </button>
           </div>
 
@@ -138,7 +138,7 @@ export function PickingView({
           </div>
         </aside>
 
-        <main className="subpanel lg:col-span-8 xl:col-span-9 space-y-6">
+        <main className="subpanel space-y-6">
           {!selectedWave ? (
             <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-12 text-center h-full flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">

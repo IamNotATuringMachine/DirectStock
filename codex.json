@@ -29,7 +29,7 @@
         "backend": {
             "scope": "backend/",
             "policy": "backend/AGENTS.md",
-            "testCommand": "cd backend && python -m pytest -q"
+            "testCommand": "./scripts/run_backend_pytest.sh -q"
         },
         "governance": {
             "scope": "docs/agents/",

@@ -252,6 +252,17 @@ select.input {
   padding-right: 2.1rem;
 }
 
+[data-testid="products-page"] .products-toolbar .products-toolbar-search-input {
+  padding-left: 2.25rem;
+  padding-right: 1rem;
+}
+
+[data-testid="products-page"] .products-toolbar .products-toolbar-status-select,
+[data-testid="products-page"] .products-toolbar .products-toolbar-group-select {
+  padding-left: 2.25rem;
+  padding-right: 2.25rem;
+}
+
 [data-testid="scanner-page"] .scan-controls label {
   width: min(320px, 100%);
 }
@@ -276,8 +287,18 @@ select.input {
   pointer-events: none;
 }
 
+[data-testid="picking-page"] .warehouse-grid {
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+}
+
 [data-testid="picking-page"] .warehouse-grid>.subpanel {
   min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  [data-testid="picking-page"] .warehouse-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 [data-testid="pick-task-table"] th,

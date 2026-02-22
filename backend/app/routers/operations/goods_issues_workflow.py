@@ -7,6 +7,7 @@ async def complete_goods_issue_flow(
     item: GoodsIssue,
     issue_items: list[GoodsIssueItem],
     current_user: User,
+    operation_signoff: OperationSignoff | None = None,
 ) -> None:
     now = _now()
     touched_product_ids: set[int] = set()
@@ -118,6 +119,8 @@ async def complete_goods_issue_flow(
         item.completed_at = now
         if item.issued_at is None:
             item.issued_at = now
+        if operation_signoff is not None:
+            db.add(operation_signoff)
 
         await evaluate_alerts(
             db,

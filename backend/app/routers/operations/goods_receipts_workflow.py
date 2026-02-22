@@ -5,6 +5,7 @@ from .common import *
 @router.post("/goods-receipts/{receipt_id}/complete", response_model=MessageResponse)
 async def complete_goods_receipt(
     receipt_id: int,
+    payload: CompletionSignoffPayload | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permissions(GOODS_RECEIPT_WRITE_PERMISSION)),
 ) -> MessageResponse:
@@ -22,6 +23,14 @@ async def complete_goods_receipt(
             status_code=HTTP_422_UNPROCESSABLE,
             detail="Goods receipt has no items",
         )
+
+    operation_signoff = await build_operation_signoff(
+        db=db,
+        payload=payload,
+        current_user=current_user,
+        operation_type="goods_receipt",
+        operation_id=item.id,
+    )
 
     now = _now()
     touched_product_ids: set[int] = set()
@@ -237,6 +246,8 @@ async def complete_goods_receipt(
         item.completed_at = now
         if item.received_at is None:
             item.received_at = now
+        if operation_signoff is not None:
+            db.add(operation_signoff)
 
         if non_new_items:
             return_order = ReturnOrder(

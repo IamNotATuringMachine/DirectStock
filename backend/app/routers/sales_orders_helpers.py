@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.catalog import Customer, CustomerLocation, Product
 from app.models.inventory import GoodsIssue
 from app.models.phase5 import CustomerProductPrice, ProductBasePrice, SalesOrder, SalesOrderItem
+from app.schemas.operators import OperationSignoffSummary
 from app.schemas.phase5 import SalesOrderItemCreate, SalesOrderItemResponse, SalesOrderResponse
 
 
@@ -46,7 +47,11 @@ def _effective_storage_root() -> Path:
         return fallback
 
 
-def _to_order_response(item: SalesOrder) -> SalesOrderResponse:
+def _to_order_response(
+    item: SalesOrder,
+    *,
+    operation_signoff: OperationSignoffSummary | None = None,
+) -> SalesOrderResponse:
     return SalesOrderResponse(
         id=item.id,
         order_number=item.order_number,
@@ -56,6 +61,7 @@ def _to_order_response(item: SalesOrder) -> SalesOrderResponse:
         ordered_at=item.ordered_at,
         completed_at=item.completed_at,
         created_by=item.created_by,
+        operation_signoff=operation_signoff,
         currency=item.currency,
         notes=item.notes,
         created_at=item.created_at,

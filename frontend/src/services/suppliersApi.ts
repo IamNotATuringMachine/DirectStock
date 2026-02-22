@@ -1,5 +1,10 @@
 import { api } from "./api";
-import type { ProductSupplierRelation, Supplier, SupplierListResponse } from "../types";
+import type {
+  ProductSupplierRelation,
+  Supplier,
+  SupplierListResponse,
+  SupplierPurchaseEmailTemplate,
+} from "../types";
 
 export async function fetchSuppliers(params?: {
   page?: number;
@@ -16,6 +21,36 @@ export async function fetchSuppliers(params?: {
     },
   });
   return response.data;
+}
+
+export async function createSupplier(payload: {
+  supplier_number: string;
+  company_name: string;
+  contact_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  is_active?: boolean;
+}): Promise<Supplier> {
+  const response = await api.post<Supplier>("/suppliers", payload);
+  return response.data;
+}
+
+export async function updateSupplier(
+  supplierId: number,
+  payload: {
+    company_name?: string;
+    contact_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    is_active?: boolean;
+  }
+): Promise<Supplier> {
+  const response = await api.put<Supplier>(`/suppliers/${supplierId}`, payload);
+  return response.data;
+}
+
+export async function deleteSupplier(supplierId: number): Promise<void> {
+  await api.delete(`/suppliers/${supplierId}`);
 }
 
 export async function fetchProductSuppliers(productId: number): Promise<ProductSupplierRelation[]> {
@@ -55,4 +90,27 @@ export async function updateProductSupplier(
 
 export async function deleteProductSupplier(productId: number, relationId: number): Promise<void> {
   await api.delete(`/products/${productId}/suppliers/${relationId}`);
+}
+
+export async function fetchSupplierPurchaseEmailTemplate(
+  supplierId: number
+): Promise<SupplierPurchaseEmailTemplate> {
+  const response = await api.get<SupplierPurchaseEmailTemplate>(`/suppliers/${supplierId}/purchase-email-template`);
+  return response.data;
+}
+
+export async function updateSupplierPurchaseEmailTemplate(
+  supplierId: number,
+  payload: {
+    salutation?: string | null;
+    subject_template?: string | null;
+    body_template?: string | null;
+    signature?: string | null;
+  }
+): Promise<SupplierPurchaseEmailTemplate> {
+  const response = await api.put<SupplierPurchaseEmailTemplate>(
+    `/suppliers/${supplierId}/purchase-email-template`,
+    payload
+  );
+  return response.data;
 }

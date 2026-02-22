@@ -13,7 +13,7 @@
 3. Frontend route guards reflect backend permission outputs from `/api/auth/me`.
 
 ## High-Value Tests
-- `cd backend && python -m pytest -q tests/test_auth.py tests/test_rbac_permissions_phase5.py`
+- `./scripts/run_backend_pytest.sh -q tests/test_auth.py tests/test_rbac_permissions_phase5.py`
 - `cd frontend && npm run test`
 - `./scripts/check_mutation_integrity.py`
 

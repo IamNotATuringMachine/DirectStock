@@ -24,6 +24,20 @@ Use one entry per high-risk action (destructive git, breaking API/schema, securi
 
 <!-- Append new entries below this line in reverse chronological order. -->
 
+## 2026-02-21T18:46:14Z - purchase-order supplier email workflow rollout
+- action: add purchase-order supplier communication state model, SMTP/IMAP workflow services, new API endpoints, and frontend purchasing/goods-receipt flow updates for send/sync/reply-confirmation handling
+- rationale: implement end-to-end supplier order email exchange with auditable communication events, reply attachment ingestion, and confirmed-only receiving flow
+- impacted_files: backend/app/models/purchasing.py, backend/alembic/versions/0035_purchase_order_email_workflow.py, backend/app/services/purchasing/email_workflow.py, backend/app/routers/purchasing.py, backend/app/routers/suppliers.py, backend/app/routers/documents.py, backend/app/main.py, frontend/src/pages/purchasing/*, frontend/src/pages/goods-receipt/hooks/useGoodsReceiptFlow.ts, frontend/src/services/purchasingApi.ts, frontend/src/services/suppliersApi.ts, frontend/src/types/*
+- risk_level: high
+- expected_impact: purchase orders gain explicit supplier communication lifecycle, outbound order mails include persisted PDFs, inbound replies are imported/deduplicated as `.eml`, and goods receipt PO mode only exposes supplier-confirmed orders
+- result: success
+- actual_impact: workflow is implemented across backend/frontend with migration/backfill, template CRUD+validation, IMAP sync endpoint/background poller, communication timeline data, and confirmed-only PO selection for goods receipt
+- rollback_hint: revert migration `0035_purchase_order_email_workflow`, remove new purchasing/supplier endpoints/services and frontend API/UX additions, then run test suite and contract drift check
+- verification:
+  - `cd backend && .venv/bin/python -m pytest -q tests/test_purchase_orders.py tests/test_documents.py tests/test_operations.py` -> PASS (15 passed)
+  - `cd frontend && npm run test` -> PASS (13 files, 45 tests)
+  - `./scripts/check_api_contract_drift.sh` -> PASS
+
 ## 2026-02-19T17:11:12Z - migrate postgres mcp server to in-repo implementation
 - action: replace deprecated npm-based PostgreSQL MCP runtime with in-repo Python MCP server and hard-switch all startup/readiness/bootstrap paths
 - rationale: `@modelcontextprotocol/server-postgres` is deprecated; repository must remove dependency on archived/deprecated server implementation

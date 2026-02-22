@@ -1,10 +1,37 @@
 import type { FormEvent } from "react";
-import { ArrowRight, CheckCircle, Plus, ShoppingCart } from "lucide-react";
+import { ArrowRight, CheckCircle, Mail, MessageSquare, Plus, RefreshCw, ShoppingCart } from "lucide-react";
 
-import type { Product, PurchaseOrder, PurchaseOrderItem } from "../../../types";
+import type {
+  Product,
+  PurchaseOrder,
+  PurchaseOrderCommunicationEvent,
+  PurchaseOrderItem,
+  SupplierPurchaseEmailTemplate,
+} from "../../../types";
+import { purchaseTemplatePlaceholders, supplierCommStatusLabels } from "../model";
+
+const supplierCommStatusClassMap: Record<PurchaseOrder["supplier_comm_status"], string> = {
+  open_unsent: "bg-slate-100 text-slate-700",
+  waiting_reply: "bg-amber-100 text-amber-700",
+  reply_received_pending: "bg-blue-100 text-blue-700",
+  confirmed_with_date: "bg-green-100 text-green-700",
+  confirmed_undetermined: "bg-emerald-100 text-emerald-700",
+};
+
+function formatDateTime(value: string | null): string {
+  if (!value) {
+    return "-";
+  }
+  return new Date(value).toLocaleString("de-DE");
+}
+
+function buildDocumentDownloadUrl(documentId: number): string {
+  return `/api/documents/${documentId}/download`;
+}
 
 export type PurchasingOrderDetailsProps = {
   selectedOrder: PurchaseOrder | null;
+  selectedSupplierName: string | null;
   allowedTransitions: PurchaseOrder["status"][];
   onStatusTransition: (orderId: number, nextStatus: PurchaseOrder["status"]) => void;
   statusMutationPending: boolean;
@@ -19,10 +46,38 @@ export type PurchasingOrderDetailsProps = {
   createItemPending: boolean;
   orderItems: PurchaseOrderItem[];
   orderItemsLoading: boolean;
+  onSendOrderEmail: (orderId: number) => void;
+  sendOrderEmailPending: boolean;
+  onSyncMailbox: () => void;
+  syncMailboxPending: boolean;
+  mailboxSyncSummary: string | null;
+  onConfirmSupplierReply: (
+    orderId: number,
+    payload: {
+      supplier_comm_status: "confirmed_with_date" | "confirmed_undetermined";
+      supplier_delivery_date?: string | null;
+      supplier_last_reply_note?: string | null;
+    }
+  ) => void;
+  confirmSupplierReplyPending: boolean;
+  confirmationDeliveryDate: string;
+  onConfirmationDeliveryDateChange: (value: string) => void;
+  confirmationNote: string;
+  onConfirmationNoteChange: (value: string) => void;
+  communications: PurchaseOrderCommunicationEvent[];
+  communicationsLoading: boolean;
+  supplierTemplate: SupplierPurchaseEmailTemplate | null;
+  supplierTemplateLoading: boolean;
+  canEditSupplierTemplate: boolean;
+  onTemplateFieldChange: (field: keyof Omit<SupplierPurchaseEmailTemplate, "supplier_id">, value: string) => void;
+  onSaveSupplierTemplate: () => void;
+  saveSupplierTemplatePending: boolean;
+  templateFeedback: string | null;
 };
 
 export function PurchasingOrderDetails({
   selectedOrder,
+  selectedSupplierName,
   allowedTransitions,
   onStatusTransition,
   statusMutationPending,
@@ -37,6 +92,26 @@ export function PurchasingOrderDetails({
   createItemPending,
   orderItems,
   orderItemsLoading,
+  onSendOrderEmail,
+  sendOrderEmailPending,
+  onSyncMailbox,
+  syncMailboxPending,
+  mailboxSyncSummary,
+  onConfirmSupplierReply,
+  confirmSupplierReplyPending,
+  confirmationDeliveryDate,
+  onConfirmationDeliveryDateChange,
+  confirmationNote,
+  onConfirmationNoteChange,
+  communications,
+  communicationsLoading,
+  supplierTemplate,
+  supplierTemplateLoading,
+  canEditSupplierTemplate,
+  onTemplateFieldChange,
+  onSaveSupplierTemplate,
+  saveSupplierTemplatePending,
+  templateFeedback,
 }: PurchasingOrderDetailsProps) {
   if (!selectedOrder) {
     return (
@@ -51,6 +126,8 @@ export function PurchasingOrderDetails({
       </div>
     );
   }
+
+  const supplierStatusLabel = supplierCommStatusLabels[selectedOrder.supplier_comm_status];
 
   return (
     <div className="space-y-6">
@@ -70,10 +147,18 @@ export function PurchasingOrderDetails({
               >
                 {selectedOrder.status}
               </span>
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                  supplierCommStatusClassMap[selectedOrder.supplier_comm_status]
+                }`}
+              >
+                {supplierStatusLabel}
+              </span>
             </div>
             <h2 className="text-2xl font-bold text-[var(--ink)]" data-testid="purchase-order-selected-status">
               {selectedOrder.order_number} ({selectedOrder.status})
             </h2>
+            <p className="text-sm text-[var(--muted)] mt-1">Lieferant: {selectedSupplierName ?? "-"}</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -96,6 +181,93 @@ export function PurchasingOrderDetails({
                 Endstatus erreicht
               </span>
             )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+          <button
+            type="button"
+            onClick={() => onSendOrderEmail(selectedOrder.id)}
+            disabled={sendOrderEmailPending || selectedOrder.supplier_comm_status !== "open_unsent"}
+            className="h-10 px-4 flex items-center justify-center gap-2 bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+            data-testid="purchase-order-send-email-btn"
+          >
+            {sendOrderEmailPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            Bestellung senden
+          </button>
+          <button
+            type="button"
+            onClick={onSyncMailbox}
+            disabled={syncMailboxPending}
+            className="h-10 px-4 flex items-center justify-center gap-2 bg-[var(--panel-soft)] border border-[var(--line)] text-[var(--ink)] rounded-lg text-sm font-medium disabled:opacity-50"
+            data-testid="purchase-order-sync-mail-btn"
+          >
+            {syncMailboxPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+            E-Mails synchronisieren
+          </button>
+          <div className="h-10 px-3 rounded-lg border border-[var(--line)] bg-[var(--bg)] text-xs text-[var(--muted)] flex items-center">
+            {mailboxSyncSummary ?? "Noch kein Mail-Sync ausgeführt"}
+          </div>
+        </div>
+
+        <div className="bg-[var(--bg)]/60 border border-[var(--line)] rounded-lg p-4 mb-6" data-testid="supplier-confirmation-section">
+          <h4 className="text-sm font-semibold text-[var(--ink)] mb-3">Lieferantenrückmeldung</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label className="block text-xs text-[var(--muted)] mb-1">Liefertermin</label>
+              <input
+                type="date"
+                value={confirmationDeliveryDate}
+                onChange={(event) => onConfirmationDeliveryDateChange(event.target.value)}
+                className="w-full h-9 px-3 bg-[var(--panel)] border border-[var(--line)] rounded-lg text-sm text-[var(--ink)]"
+                data-testid="supplier-confirmation-date"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs text-[var(--muted)] mb-1">Notiz zur Rückmeldung</label>
+              <input
+                value={confirmationNote}
+                onChange={(event) => onConfirmationNoteChange(event.target.value)}
+                className="w-full h-9 px-3 bg-[var(--panel)] border border-[var(--line)] rounded-lg text-sm text-[var(--ink)]"
+                placeholder="Optional"
+                data-testid="supplier-confirmation-note"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                onConfirmSupplierReply(selectedOrder.id, {
+                  supplier_comm_status: "confirmed_with_date",
+                  supplier_delivery_date: confirmationDeliveryDate || null,
+                  supplier_last_reply_note: confirmationNote.trim() || null,
+                })
+              }
+              disabled={confirmSupplierReplyPending}
+              className="h-9 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              data-testid="supplier-confirm-with-date"
+            >
+              Bestätigen mit Termin
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onConfirmSupplierReply(selectedOrder.id, {
+                  supplier_comm_status: "confirmed_undetermined",
+                  supplier_delivery_date: null,
+                  supplier_last_reply_note: confirmationNote.trim() || null,
+                })
+              }
+              disabled={confirmSupplierReplyPending}
+              className="h-9 px-4 bg-[var(--panel-soft)] border border-[var(--line)] text-[var(--ink)] rounded-lg text-sm font-medium disabled:opacity-50"
+              data-testid="supplier-confirm-undetermined"
+            >
+              Bestätigen unbestimmt
+            </button>
+          </div>
+          <div className="text-xs text-[var(--muted)] mt-3">
+            Aktuell: {supplierStatusLabel} | Liefertermin: {selectedOrder.supplier_delivery_date ?? "unbestimmt"}
           </div>
         </div>
 
@@ -170,7 +342,7 @@ export function PurchasingOrderDetails({
           </div>
         ) : null}
 
-        <div className="overflow-x-auto border border-[var(--line)] rounded-lg">
+        <div className="overflow-x-auto border border-[var(--line)] rounded-lg mb-6">
           <table className="w-full text-left text-sm" data-testid="purchase-order-items-list">
             <thead className="bg-[var(--panel-strong)] text-[var(--muted)] font-medium">
               <tr>
@@ -206,6 +378,100 @@ export function PurchasingOrderDetails({
               ) : null}
             </tbody>
           </table>
+        </div>
+
+        <div className="bg-[var(--bg)]/50 border border-[var(--line)] rounded-lg p-4 mb-6" data-testid="purchase-order-communications">
+          <h4 className="text-sm font-semibold text-[var(--ink)] mb-3">Kommunikations-Timeline</h4>
+          <div className="space-y-2">
+            {communications.map((entry) => (
+              <div key={entry.id} className="rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2">
+                <div className="flex justify-between items-center gap-3">
+                  <div className="text-sm text-[var(--ink)]">
+                    {entry.direction === "outbound" ? "Ausgang" : "Eingang"} · {entry.event_type}
+                  </div>
+                  <div className="text-xs text-[var(--muted)]">{formatDateTime(entry.occurred_at)}</div>
+                </div>
+                <div className="text-xs text-[var(--muted)] mt-1 truncate">Betreff: {entry.subject ?? "-"}</div>
+                <div className="text-xs text-[var(--muted)] mt-1">Von: {entry.from_address ?? "-"} | An: {entry.to_address ?? "-"}</div>
+                {entry.document_id ? (
+                  <a
+                    href={buildDocumentDownloadUrl(entry.document_id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex mt-2 text-xs text-[var(--accent)] hover:underline"
+                  >
+                    Anhang herunterladen
+                  </a>
+                ) : null}
+              </div>
+            ))}
+            {!communicationsLoading && communications.length === 0 ? (
+              <div className="text-sm text-[var(--muted)]">Noch keine Kommunikationsereignisse vorhanden.</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="bg-[var(--bg)]/50 border border-[var(--line)] rounded-lg p-4" data-testid="supplier-template-editor">
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <h4 className="text-sm font-semibold text-[var(--ink)]">Lieferanten-E-Mail-Template</h4>
+            <button
+              type="button"
+              onClick={onSaveSupplierTemplate}
+              disabled={!canEditSupplierTemplate || saveSupplierTemplatePending || !supplierTemplate}
+              className="h-9 px-4 bg-[var(--ink)] hover:bg-[var(--ink)]/90 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              data-testid="supplier-template-save"
+            >
+              Template speichern
+            </button>
+          </div>
+          {supplierTemplateLoading ? <p className="text-sm text-[var(--muted)]">Template wird geladen...</p> : null}
+          {supplierTemplate ? (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-[var(--muted)] mb-1">Anrede</label>
+                <input
+                  value={supplierTemplate.salutation ?? ""}
+                  onChange={(event) => onTemplateFieldChange("salutation", event.target.value)}
+                  className="w-full h-9 px-3 bg-[var(--panel)] border border-[var(--line)] rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--muted)] mb-1">Betreff-Template</label>
+                <input
+                  value={supplierTemplate.subject_template ?? ""}
+                  onChange={(event) => onTemplateFieldChange("subject_template", event.target.value)}
+                  className="w-full h-9 px-3 bg-[var(--panel)] border border-[var(--line)] rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--muted)] mb-1">Body-Template</label>
+                <textarea
+                  value={supplierTemplate.body_template ?? ""}
+                  onChange={(event) => onTemplateFieldChange("body_template", event.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 bg-[var(--panel)] border border-[var(--line)] rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--muted)] mb-1">Signatur</label>
+                <textarea
+                  value={supplierTemplate.signature ?? ""}
+                  onChange={(event) => onTemplateFieldChange("signature", event.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 bg-[var(--panel)] border border-[var(--line)] rounded-lg text-sm"
+                />
+              </div>
+              <div className="text-xs text-[var(--muted)]">
+                Platzhalter: {purchaseTemplatePlaceholders.join(", ")}
+              </div>
+              {templateFeedback ? <div className="text-xs text-[var(--muted)]">{templateFeedback}</div> : null}
+              {!canEditSupplierTemplate ? (
+                <div className="text-xs text-[var(--muted)]">Keine Berechtigung für Lieferanten-Templates.</div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">Wähle eine Bestellung mit Lieferant, um das Template zu bearbeiten.</p>
+          )}
         </div>
       </div>
     </div>

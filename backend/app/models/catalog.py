@@ -48,6 +48,10 @@ class Supplier(TimestampMixin, Base):
     contact_name: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(255))
     phone: Mapped[str | None] = mapped_column(String(50))
+    purchase_email_salutation: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    purchase_email_subject_template: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    purchase_email_body_template: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    purchase_email_signature: Mapped[str | None] = mapped_column(Text(), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
 

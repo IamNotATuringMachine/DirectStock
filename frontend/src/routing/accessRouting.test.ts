@@ -33,4 +33,8 @@ describe("accessRouting", () => {
     expect(canAccessPath("/products/123", ["page.products.view"])).toBe(true);
     expect(canAccessPath("/products/123", ["page.dashboard.view"])).toBe(false);
   });
+
+  it("routes tablet operators to tablet hub first", () => {
+    expect(resolveFirstAccessiblePath(["page.tablet-ops.view", "page.dashboard.view"])).toBe("/tablet-ops");
+  });
 });

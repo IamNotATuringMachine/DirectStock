@@ -21,7 +21,7 @@
 1. Keep routers orchestration-only; move logic to services.
 2. Preserve RBAC/audit/idempotency contracts.
 3. Run:
-   - `cd backend && python -m pytest -q`
+   - `./scripts/run_backend_pytest.sh -q`
    - `./scripts/check_api_contract_drift.sh`
 
 ## 4) Cross-Cutting Change

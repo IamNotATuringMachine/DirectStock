@@ -13,5 +13,5 @@
 
 ## Verification
 - `./scripts/check_api_contract_drift.sh`
-- `cd backend && python -m pytest -q`
+- `./scripts/run_backend_pytest.sh -q`
 - `cd frontend && npm run test`

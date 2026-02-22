@@ -17,6 +17,7 @@ from app.schemas.operations import (
     StockTransferItemResponse,
     StockTransferResponse,
 )
+from app.schemas.operators import OperationSignoffSummary
 from app.schemas.product import ProductResponse
 
 
@@ -37,7 +38,11 @@ def _to_product_response(item: Product) -> ProductResponse:
     )
 
 
-def _to_goods_receipt_response(item: GoodsReceipt) -> GoodsReceiptResponse:
+def _to_goods_receipt_response(
+    item: GoodsReceipt,
+    *,
+    operation_signoff: OperationSignoffSummary | None = None,
+) -> GoodsReceiptResponse:
     return GoodsReceiptResponse(
         id=item.id,
         receipt_number=item.receipt_number,
@@ -49,6 +54,7 @@ def _to_goods_receipt_response(item: GoodsReceipt) -> GoodsReceiptResponse:
         received_at=item.received_at,
         completed_at=item.completed_at,
         created_by=item.created_by,
+        operation_signoff=operation_signoff,
         notes=item.notes,
         created_at=item.created_at,
         updated_at=item.updated_at,
@@ -93,7 +99,11 @@ def _to_goods_receipt_item_response(
     )
 
 
-def _to_goods_issue_response(item: GoodsIssue) -> GoodsIssueResponse:
+def _to_goods_issue_response(
+    item: GoodsIssue,
+    *,
+    operation_signoff: OperationSignoffSummary | None = None,
+) -> GoodsIssueResponse:
     return GoodsIssueResponse(
         id=item.id,
         issue_number=item.issue_number,
@@ -104,6 +114,7 @@ def _to_goods_issue_response(item: GoodsIssue) -> GoodsIssueResponse:
         issued_at=item.issued_at,
         completed_at=item.completed_at,
         created_by=item.created_by,
+        operation_signoff=operation_signoff,
         notes=item.notes,
         created_at=item.created_at,
         updated_at=item.updated_at,

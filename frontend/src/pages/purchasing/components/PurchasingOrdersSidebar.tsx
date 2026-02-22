@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import { FileText, Package, Plus, RefreshCw, Save } from "lucide-react";
 
 import type { PurchaseOrder, Supplier } from "../../../types";
+import { supplierCommStatusLabels } from "../model";
 
 export type PurchasingOrdersSidebarProps = {
   supplierId: string;
@@ -134,6 +135,9 @@ export function PurchasingOrdersSidebar({
                   </div>
                   <p className="text-xs text-[var(--muted)] truncate">
                     {order.supplier_id ? `Lieferant: ${order.supplier_id}` : "Kein Lieferant"}
+                  </p>
+                  <p className="text-[11px] text-[var(--muted)] truncate">
+                    Lieferantenstatus: {supplierCommStatusLabels[order.supplier_comm_status]}
                   </p>
                 </div>
               </button>

@@ -12,7 +12,7 @@
 3. Contract changes remain synchronized with frontend types.
 
 ## High-Value Tests
-- `cd backend && python -m pytest -q`
+- `./scripts/run_backend_pytest.sh -q`
 - `./scripts/check_api_contract_drift.sh`
 - `./scripts/check_mutation_integrity.py`
 

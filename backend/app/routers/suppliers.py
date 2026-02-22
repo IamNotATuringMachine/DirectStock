@@ -11,9 +11,12 @@ from app.schemas.supplier import (
     ProductSupplierUpdate,
     SupplierCreate,
     SupplierListResponse,
+    SupplierPurchaseEmailTemplateResponse,
+    SupplierPurchaseEmailTemplateUpdate,
     SupplierResponse,
     SupplierUpdate,
 )
+from app.services.purchasing import validate_purchase_email_templates
 
 router = APIRouter(prefix="/api", tags=["suppliers"])
 
@@ -29,6 +32,10 @@ def _to_supplier_response(item: Supplier) -> SupplierResponse:
         contact_name=item.contact_name,
         email=item.email,
         phone=item.phone,
+        purchase_email_salutation=item.purchase_email_salutation,
+        purchase_email_subject_template=item.purchase_email_subject_template,
+        purchase_email_body_template=item.purchase_email_body_template,
+        purchase_email_signature=item.purchase_email_signature,
         is_active=item.is_active,
         created_at=item.created_at,
         updated_at=item.updated_at,
@@ -151,6 +158,63 @@ async def delete_supplier(
 
     await db.delete(item)
     await db.commit()
+
+
+@router.get(
+    "/suppliers/{supplier_id}/purchase-email-template",
+    response_model=SupplierPurchaseEmailTemplateResponse,
+)
+async def get_supplier_purchase_email_template(
+    supplier_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_permissions(SUPPLIER_READ_PERMISSION)),
+) -> SupplierPurchaseEmailTemplateResponse:
+    item = (await db.execute(select(Supplier).where(Supplier.id == supplier_id))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supplier not found")
+    return SupplierPurchaseEmailTemplateResponse(
+        supplier_id=item.id,
+        salutation=item.purchase_email_salutation,
+        subject_template=item.purchase_email_subject_template,
+        body_template=item.purchase_email_body_template,
+        signature=item.purchase_email_signature,
+    )
+
+
+@router.put(
+    "/suppliers/{supplier_id}/purchase-email-template",
+    response_model=SupplierPurchaseEmailTemplateResponse,
+)
+async def update_supplier_purchase_email_template(
+    supplier_id: int,
+    payload: SupplierPurchaseEmailTemplateUpdate,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_permissions(SUPPLIER_WRITE_PERMISSION)),
+) -> SupplierPurchaseEmailTemplateResponse:
+    item = (await db.execute(select(Supplier).where(Supplier.id == supplier_id))).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supplier not found")
+
+    validate_purchase_email_templates(
+        salutation=payload.salutation,
+        subject_template=payload.subject_template,
+        body_template=payload.body_template,
+        signature=payload.signature,
+    )
+
+    item.purchase_email_salutation = payload.salutation
+    item.purchase_email_subject_template = payload.subject_template
+    item.purchase_email_body_template = payload.body_template
+    item.purchase_email_signature = payload.signature
+    await db.commit()
+
+    return SupplierPurchaseEmailTemplateResponse(
+        supplier_id=item.id,
+        salutation=item.purchase_email_salutation,
+        subject_template=item.purchase_email_subject_template,
+        body_template=item.purchase_email_body_template,
+        signature=item.purchase_email_signature,
+    )
 
 
 @router.get("/products/{product_id}/suppliers", response_model=list[ProductSupplierResponse])

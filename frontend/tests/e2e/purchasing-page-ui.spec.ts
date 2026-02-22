@@ -436,6 +436,7 @@ test.describe("/purchasing page ui and functional regression", () => {
     await expect(page.getByTestId("purchasing-tab-orders")).toBeVisible();
     await expect(page.getByTestId("purchasing-tab-abc")).toBeVisible();
     await expect(page.getByTestId("purchasing-tab-recommendations")).toBeVisible();
+    await expect(page.getByTestId("purchasing-tab-setup")).toBeVisible();
 
     await page.getByTestId("purchase-order-supplier-select").selectOption(String(seed.supplierId));
     await page.getByTestId("purchase-order-notes-input").fill(`E2E Purchasing UI ${Date.now()}`);

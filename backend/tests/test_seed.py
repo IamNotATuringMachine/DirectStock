@@ -167,6 +167,9 @@ async def test_seeded_roles_include_wave1_module_permissions(tmp_path: Path):
         assert "module.abc.write" in role_permissions["einkauf"]
         assert "module.audit_log.read" in role_permissions["controller"]
         assert "module.audit_log.read" in role_permissions["auditor"]
+        assert "module.operators.settings.write" in role_permissions["lagerleiter"]
+        assert "module.operators.write" in role_permissions["tablet_ops"]
+        assert "module.operations.signoff.required" in role_permissions["tablet_ops"]
 
         expected_codes = {
             "module.inventory_counts.cancel",
@@ -183,6 +186,10 @@ async def test_seeded_roles_include_wave1_module_permissions(tmp_path: Path):
             "module.abc.read",
             "module.abc.write",
             "module.audit_log.read",
+            "module.operators.read",
+            "module.operators.write",
+            "module.operators.settings.write",
+            "module.operations.signoff.required",
         }
         assert expected_codes.issubset(permission_codes)
 

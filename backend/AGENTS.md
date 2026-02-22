@@ -24,7 +24,7 @@ These are backend defaults, not escalation triggers. High-risk or breaking backe
 At minimum for backend-affecting changes, run:
 
 ```bash
-cd backend && python -m pytest -q
+./scripts/run_backend_pytest.sh -q
 ```
 
 If a targeted run is used during iteration, still run relevant final validation before completion.

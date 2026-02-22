@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -13,11 +13,19 @@ import {
   downloadGoodsReceiptItemSerialLabelsPdf,
   fetchBinSuggestions,
 } from "../../../services/operationsApi";
+import {
+  fetchOperationSignoffSettings,
+  fetchOperators,
+  unlockOperator,
+  updateOperator,
+} from "../../../services/operatorsApi";
 import { fetchAllProducts, fetchProductGroups } from "../../../services/productsApi";
 import { fetchPurchaseOrderItems, fetchPurchaseOrders, resolvePurchaseOrder } from "../../../services/purchasingApi";
 import { fetchSuppliers } from "../../../services/suppliersApi";
 import { createBin, fetchBins, fetchWarehouses, fetchZones } from "../../../services/warehousesApi";
+import type { CompletionSignoffPayload } from "../../../types";
 import { useAuthStore } from "../../../stores/authStore";
+import { isOperationSignoffRequired } from "../../../utils/tabletOps";
 import { useGoodsReceiptQueries } from "./useGoodsReceiptQueries";
 import { useGoodsReceiptState } from "./useGoodsReceiptState";
 import { useGoodsReceiptActions } from "./useGoodsReceiptActions";
@@ -30,6 +38,8 @@ export function useGoodsReceiptFlow() {
   const user = useAuthStore((state) => state.user);
   const canQuickCreateProduct = Boolean(user?.permissions?.includes("module.products.quick_create"));
   const canCreateBins = Boolean(user?.roles.some((role) => role === "admin" || role === "lagerleiter"));
+  const requiresSignoffCompletion = isOperationSignoffRequired(user);
+  const [isSignoffModalOpen, setIsSignoffModalOpen] = useState(false);
 
   const state = useGoodsReceiptState();
 
@@ -77,11 +87,7 @@ export function useGoodsReceiptFlow() {
 
   const purchaseOrdersQuery = useQuery({
     queryKey: ["purchase-orders", "goods-receipt-picker"],
-    queryFn: async () => {
-      const ordered = await fetchPurchaseOrders("ordered");
-      const partiallyReceived = await fetchPurchaseOrders("partially_received");
-      return [...ordered, ...partiallyReceived];
-    },
+    queryFn: () => fetchPurchaseOrders({ receivable_only: true }),
   });
 
   const purchaseOrderItemsQuery = useQuery({
@@ -117,6 +123,18 @@ export function useGoodsReceiptFlow() {
     queryKey: ["bins", "goods-receipt-picker", state.selectedZoneId],
     queryFn: () => fetchBins(state.selectedZoneId as number),
     enabled: state.selectedZoneId !== null,
+  });
+
+  const operatorsQuery = useQuery({
+    queryKey: ["operators"],
+    queryFn: fetchOperators,
+    enabled: requiresSignoffCompletion,
+  });
+
+  const signoffSettingsQuery = useQuery({
+    queryKey: ["operators", "signoff-settings"],
+    queryFn: fetchOperationSignoffSettings,
+    enabled: requiresSignoffCompletion,
   });
 
   const createReceiptMutation = useMutation({
@@ -191,8 +209,28 @@ export function useGoodsReceiptFlow() {
     },
   });
 
+  const unlockOperatorMutation = useMutation({
+    mutationFn: unlockOperator,
+  });
+
+  const updateOperatorPinMutation = useMutation({
+    mutationFn: ({
+      operatorId,
+      pin,
+      pinEnabledOnly = false,
+    }: {
+      operatorId: number;
+      pin?: string;
+      pinEnabledOnly?: boolean;
+    }) => updateOperator(operatorId, pinEnabledOnly ? { pin_enabled: true } : { pin, pin_enabled: true }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["operators"] });
+    },
+  });
+
   const completeMutation = useMutation({
-    mutationFn: completeGoodsReceipt,
+    mutationFn: ({ receiptId, payload }: { receiptId: number; payload?: CompletionSignoffPayload }) =>
+      completeGoodsReceipt(receiptId, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["goods-receipts"] });
       await queryClient.invalidateQueries({ queryKey: ["goods-receipt-items", state.selectedReceiptId] });
@@ -301,6 +339,25 @@ export function useGoodsReceiptFlow() {
   const flowStepIndex = flowSteps.findIndex((step) => step.id === state.flowStep);
   const flowProgress = ((flowStepIndex + 1) / flowSteps.length) * 100;
 
+  const onCompleteReceipt = async () => {
+    if (!state.selectedReceiptId) {
+      return;
+    }
+    if (!requiresSignoffCompletion) {
+      await completeMutation.mutateAsync({ receiptId: state.selectedReceiptId });
+      return;
+    }
+    setIsSignoffModalOpen(true);
+  };
+
+  const onConfirmSignoff = async (payload: CompletionSignoffPayload) => {
+    if (!state.selectedReceiptId) {
+      return;
+    }
+    await completeMutation.mutateAsync({ receiptId: state.selectedReceiptId, payload });
+    setIsSignoffModalOpen(false);
+  };
+
   return {
     ...state,
     ...actions,
@@ -323,11 +380,15 @@ export function useGoodsReceiptFlow() {
     warehousesQuery,
     zonesQuery,
     binsQuery,
+    operatorsQuery,
+    signoffSettingsQuery,
     createReceiptMutation,
     createReceiptFromPoMutation,
     resolvePurchaseOrderMutation,
     createItemMutation,
     completeMutation,
+    unlockOperatorMutation,
+    updateOperatorPinMutation,
     cancelMutation,
     deleteMutation,
     adHocProductMutation,
@@ -335,5 +396,10 @@ export function useGoodsReceiptFlow() {
     flowSteps,
     flowStepIndex,
     flowProgress,
+    requiresSignoffCompletion,
+    isSignoffModalOpen,
+    setIsSignoffModalOpen,
+    onCompleteReceipt,
+    onConfirmSignoff,
   };
 }

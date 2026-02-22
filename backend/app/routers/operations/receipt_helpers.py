@@ -47,6 +47,11 @@ def _ensure_purchase_order_ready_for_receipt(order: PurchaseOrder) -> None:
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Purchase order {order.order_number} is not ready for goods receipt",
         )
+    if order.supplier_comm_status not in {"confirmed_with_date", "confirmed_undetermined"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Purchase order {order.order_number} is not supplier-confirmed for goods receipt",
+        )
 
 
 def _resolve_receipt_mode(*, explicit_mode: str | None, purchase_order_id: int | None) -> str:

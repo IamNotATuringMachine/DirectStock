@@ -8,7 +8,7 @@ docker compose -f docker-compose.dev.yml up --build
 
 ## Backend Tests
 ```bash
-cd backend && python -m pytest -q
+./scripts/run_backend_pytest.sh -q
 ```
 
 ## Frontend Tests

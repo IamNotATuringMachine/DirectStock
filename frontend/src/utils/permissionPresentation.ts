@@ -27,6 +27,7 @@ const PAGE_LABELS: Record<string, string> = {
   "inter-warehouse-transfer": "Inter-Warehouse Transfer",
   shipping: "Versand",
   customers: "Kunden",
+  suppliers: "Lieferanten",
   scanner: "Scanner",
   users: "Benutzerverwaltung",
   "sales-orders": "Verkaufsauftraege",

@@ -2,6 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
+from app.schemas.operators import OperationSignoffSummary
 
 
 class GoodsReceiptCreate(BaseModel):
@@ -32,6 +33,7 @@ class GoodsReceiptResponse(BaseModel):
     received_at: datetime | None
     completed_at: datetime | None
     created_by: int | None
+    operation_signoff: OperationSignoffSummary | None = None
     notes: str | None
     created_at: datetime
     updated_at: datetime
@@ -115,6 +117,7 @@ class GoodsIssueResponse(BaseModel):
     issued_at: datetime | None
     completed_at: datetime | None
     created_by: int | None
+    operation_signoff: OperationSignoffSummary | None = None
     notes: str | None
     created_at: datetime
     updated_at: datetime

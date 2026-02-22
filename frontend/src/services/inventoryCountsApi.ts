@@ -10,7 +10,7 @@ import {
   shouldQueueOfflineMutation,
   type OfflineQueueItem,
 } from "./offlineQueue";
-import type { InventoryCountItem, InventoryCountSession } from "../types";
+import type { CompletionSignoffPayload, InventoryCountItem, InventoryCountSession } from "../types";
 
 const sessionCache = new Map<number, InventoryCountSession>();
 const sessionItemCache = new Map<number, InventoryCountItem[]>();
@@ -275,20 +275,23 @@ export async function updateInventoryCountItem(
   return response.data;
 }
 
-export async function completeInventoryCountSession(sessionId: number): Promise<{ message: string }> {
+export async function completeInventoryCountSession(
+  sessionId: number,
+  payload?: CompletionSignoffPayload
+): Promise<{ message: string }> {
   const url = `/inventory-counts/${sessionId}/complete`;
   if (shouldQueueOfflineMutation("POST", url)) {
     await enqueueOfflineMutation({
       method: "POST",
       url,
-      payload: {},
+      payload: payload ?? {},
       entityType: "inventory_count_complete",
       parentEntityId: sessionId,
     });
     return buildQueuedMessage("Inventurabschluss");
   }
 
-  const response = await api.post<{ message: string }>(url);
+  const response = await api.post<{ message: string }>(url, payload);
   return response.data;
 }
 

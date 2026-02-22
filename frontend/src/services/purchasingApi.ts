@@ -1,8 +1,20 @@
 import { api } from "./api";
-import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderResolveResponse } from "../types";
+import type {
+  PurchaseOrder,
+  PurchaseOrderCommunicationListResponse,
+  PurchaseOrderEmailSendResponse,
+  PurchaseOrderItem,
+  PurchaseOrderMailSyncResponse,
+  PurchaseOrderResolveResponse,
+  SupplierCommStatus,
+} from "../types";
 
-export async function fetchPurchaseOrders(status?: PurchaseOrder["status"]): Promise<PurchaseOrder[]> {
-  const response = await api.get<PurchaseOrder[]>("/purchase-orders", { params: { status } });
+export async function fetchPurchaseOrders(params?: {
+  status?: PurchaseOrder["status"];
+  supplier_comm_status?: SupplierCommStatus;
+  receivable_only?: boolean;
+}): Promise<PurchaseOrder[]> {
+  const response = await api.get<PurchaseOrder[]>("/purchase-orders", { params });
   return response.data;
 }
 
@@ -23,7 +35,7 @@ export async function createPurchaseOrder(payload: {
   return response.data;
 }
 
-async function updatePurchaseOrder(
+export async function updatePurchaseOrder(
   orderId: number,
   payload: {
     supplier_id?: number | null;
@@ -62,6 +74,35 @@ export async function createPurchaseOrderItem(
   return response.data;
 }
 
-async function deletePurchaseOrderItem(orderId: number, itemId: number): Promise<void> {
+export async function deletePurchaseOrderItem(orderId: number, itemId: number): Promise<void> {
   await api.delete(`/purchase-orders/${orderId}/items/${itemId}`);
+}
+
+export async function sendPurchaseOrderEmail(orderId: number): Promise<PurchaseOrderEmailSendResponse> {
+  const response = await api.post<PurchaseOrderEmailSendResponse>(`/purchase-orders/${orderId}/send-email`);
+  return response.data;
+}
+
+export async function updatePurchaseOrderSupplierConfirmation(
+  orderId: number,
+  payload: {
+    supplier_comm_status: "confirmed_with_date" | "confirmed_undetermined";
+    supplier_delivery_date?: string | null;
+    supplier_last_reply_note?: string | null;
+  }
+): Promise<PurchaseOrder> {
+  const response = await api.patch<PurchaseOrder>(`/purchase-orders/${orderId}/supplier-confirmation`, payload);
+  return response.data;
+}
+
+export async function syncPurchaseOrderMailbox(): Promise<PurchaseOrderMailSyncResponse> {
+  const response = await api.post<PurchaseOrderMailSyncResponse>("/purchase-orders/mail-sync");
+  return response.data;
+}
+
+export async function fetchPurchaseOrderCommunications(
+  orderId: number
+): Promise<PurchaseOrderCommunicationListResponse> {
+  const response = await api.get<PurchaseOrderCommunicationListResponse>(`/purchase-orders/${orderId}/communications`);
+  return response.data;
 }

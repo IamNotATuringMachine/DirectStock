@@ -1,3 +1,68 @@
+export type SupplierCommStatus =
+  | "open_unsent"
+  | "waiting_reply"
+  | "reply_received_pending"
+  | "confirmed_with_date"
+  | "confirmed_undetermined";
+
+export type SignaturePoint = {
+  x: number;
+  y: number;
+  t?: number | null;
+};
+
+export type SignatureStroke = {
+  points: SignaturePoint[];
+};
+
+export type SignaturePayload = {
+  strokes: SignatureStroke[];
+  canvas_width: number;
+  canvas_height: number;
+  captured_at: string;
+};
+
+export type CompletionSignoffPayload = {
+  operator_id?: number | null;
+  signature_payload: SignaturePayload;
+  pin_session_token?: string;
+  device_context?: Record<string, unknown>;
+};
+
+export type OperationSignoffSummary = {
+  operator_id: number | null;
+  operator_name: string;
+  recorded_at: string;
+  pin_verified: boolean;
+};
+
+export type WarehouseOperator = {
+  id: number;
+  display_name: string;
+  is_active: boolean;
+  pin_enabled: boolean;
+  has_pin: boolean;
+  created_by: number | null;
+  updated_by: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OperationSignoffSettings = {
+  require_pin: boolean;
+  require_operator_selection: boolean;
+  pin_session_ttl_minutes: number;
+  updated_by: number | null;
+  updated_at: string;
+};
+
+export type OperatorUnlockResponse = {
+  operator_id: number;
+  operator_name: string;
+  session_token: string;
+  expires_at: string;
+};
+
 export type PurchaseOrder = {
   id: number;
   order_number: string;
@@ -6,6 +71,13 @@ export type PurchaseOrder = {
   expected_delivery_at: string | null;
   ordered_at: string | null;
   completed_at: string | null;
+  supplier_comm_status: SupplierCommStatus;
+  supplier_delivery_date: string | null;
+  supplier_email_sent_at: string | null;
+  supplier_reply_received_at: string | null;
+  supplier_last_reply_note: string | null;
+  supplier_outbound_message_id: string | null;
+  supplier_last_sync_at: string | null;
   created_by: number | null;
   notes: string | null;
   created_at: string;
@@ -39,6 +111,103 @@ export type PurchaseOrderResolveItem = {
 export type PurchaseOrderResolveResponse = {
   order: PurchaseOrder;
   items: PurchaseOrderResolveItem[];
+};
+
+export type PurchaseOrderCommunicationEvent = {
+  id: number;
+  purchase_order_id: number;
+  direction: string;
+  event_type: string;
+  message_id: string | null;
+  in_reply_to: string | null;
+  subject: string | null;
+  from_address: string | null;
+  to_address: string | null;
+  occurred_at: string;
+  document_id: number | null;
+  created_by: number | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PurchaseOrderCommunicationListResponse = {
+  items: PurchaseOrderCommunicationEvent[];
+};
+
+export type PurchaseOrderEmailSendResponse = {
+  order: PurchaseOrder;
+  communication_event_id: number;
+  document_id: number;
+  message_id: string;
+};
+
+export type PurchaseOrderMailSyncResponse = {
+  processed: number;
+  matched: number;
+  skipped: number;
+  imported_document_ids: number[];
+};
+
+export type PurchaseEmailSenderProfile = {
+  id: number;
+  profile_name: string;
+  is_active: boolean;
+  smtp_enabled: boolean;
+  smtp_host: string | null;
+  smtp_port: number;
+  smtp_username: string | null;
+  smtp_password_set: boolean;
+  smtp_use_tls: boolean;
+  from_address: string;
+  reply_to_address: string;
+  sender_name: string;
+  imap_enabled: boolean;
+  imap_host: string | null;
+  imap_port: number;
+  imap_username: string | null;
+  imap_password_set: boolean;
+  imap_mailbox: string;
+  imap_use_ssl: boolean;
+  poll_interval_seconds: number;
+  default_to_addresses: string | null;
+  default_cc_addresses: string | null;
+};
+
+export type PurchaseEmailSettings = {
+  active_profile_id: number;
+  profiles: PurchaseEmailSenderProfile[];
+};
+
+export type PurchaseEmailSenderProfileUpdatePayload = {
+  id?: number;
+  profile_name: string;
+  is_active: boolean;
+  smtp_enabled: boolean;
+  smtp_host?: string | null;
+  smtp_port: number;
+  smtp_username?: string | null;
+  smtp_password?: string | null;
+  clear_smtp_password?: boolean;
+  smtp_use_tls: boolean;
+  from_address: string;
+  reply_to_address: string;
+  sender_name: string;
+  imap_enabled: boolean;
+  imap_host?: string | null;
+  imap_port: number;
+  imap_username?: string | null;
+  imap_password?: string | null;
+  clear_imap_password?: boolean;
+  imap_mailbox: string;
+  imap_use_ssl: boolean;
+  poll_interval_seconds: number;
+  default_to_addresses?: string | null;
+  default_cc_addresses?: string | null;
+};
+
+export type PurchaseEmailSettingsUpdatePayload = {
+  profiles: PurchaseEmailSenderProfileUpdatePayload[];
 };
 
 export type AbcClassificationRun = {
@@ -264,6 +433,7 @@ export type InventoryCountSession = {
   generated_at: string | null;
   completed_at: string | null;
   created_by: number | null;
+  operation_signoff?: OperationSignoffSummary | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

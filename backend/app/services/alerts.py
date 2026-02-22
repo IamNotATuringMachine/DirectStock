@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
+from secrets import token_hex
 
 from sqlalchemy import Select, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alerts import AlertEvent, AlertRule
-from app.models.catalog import Product, ProductWarehouseSetting
+from app.models.catalog import Product, ProductSupplier, ProductWarehouseSetting
 from app.models.inventory import Inventory, InventoryBatch
+from app.models.purchasing import PurchaseOrder, PurchaseOrderItem
 from app.models.warehouse import BinLocation, Warehouse, WarehouseZone
 
 
@@ -31,6 +33,99 @@ class AlertCandidate:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _generate_purchase_order_number() -> str:
+    return f"PO-{_now().strftime('%Y%m%d%H%M%S')}-{token_hex(2).upper()}"
+
+
+def _round_up_to_multiple(value: Decimal, multiple: Decimal) -> Decimal:
+    if value <= 0:
+        return Decimal("0")
+    if multiple <= 0:
+        return value
+    units = (value / multiple).to_integral_value(rounding=ROUND_CEILING)
+    return units * multiple
+
+
+async def _preferred_supplier_for_product(db: AsyncSession, product_id: int) -> tuple[int | None, Decimal]:
+    relation = (
+        await db.execute(
+            select(ProductSupplier)
+            .where(ProductSupplier.product_id == product_id)
+            .order_by(ProductSupplier.is_preferred.desc(), ProductSupplier.id.asc())
+        )
+    ).scalars().first()
+    if relation is None:
+        return None, Decimal("1")
+    min_order_quantity = Decimal(relation.min_order_quantity or 1)
+    if min_order_quantity <= 0:
+        min_order_quantity = Decimal("1")
+    return relation.supplier_id, min_order_quantity
+
+
+async def _open_purchase_order_quantity_for_product(db: AsyncSession, product_id: int) -> Decimal:
+    value = (
+        await db.execute(
+            select(func.coalesce(func.sum(PurchaseOrderItem.ordered_quantity - PurchaseOrderItem.received_quantity), 0))
+            .join(PurchaseOrder, PurchaseOrder.id == PurchaseOrderItem.purchase_order_id)
+            .where(
+                PurchaseOrderItem.product_id == product_id,
+                PurchaseOrder.status.in_(["draft", "approved", "ordered", "partially_received"]),
+            )
+        )
+    ).scalar_one()
+    return Decimal(value or 0)
+
+
+async def _create_prefilled_purchase_order_for_low_stock(
+    db: AsyncSession,
+    *,
+    candidate: AlertCandidate,
+) -> int | None:
+    if candidate.alert_type != "low_stock" or candidate.product_id is None:
+        return None
+
+    threshold_value = Decimal(str((candidate.metadata_json or {}).get("threshold") or "0"))
+    on_hand_value = Decimal(str((candidate.metadata_json or {}).get("on_hand") or "0"))
+    deficit = threshold_value - on_hand_value
+    if deficit <= 0:
+        return None
+
+    open_po_quantity = await _open_purchase_order_quantity_for_product(db, candidate.product_id)
+    if open_po_quantity >= deficit:
+        return None
+
+    remaining_quantity = deficit - open_po_quantity
+    supplier_id, min_order_quantity = await _preferred_supplier_for_product(db, candidate.product_id)
+    order_quantity = _round_up_to_multiple(remaining_quantity, min_order_quantity)
+    if order_quantity <= 0:
+        return None
+
+    purchase_order = PurchaseOrder(
+        order_number=_generate_purchase_order_number(),
+        supplier_id=supplier_id,
+        status="draft",
+        created_by=None,
+        notes=(
+            "Auto-vorgefertigt wegen Low-Stock-Alert "
+            f"{candidate.source_key} (on_hand={on_hand_value}, threshold={threshold_value})."
+        ),
+    )
+    db.add(purchase_order)
+    await db.flush()
+
+    db.add(
+        PurchaseOrderItem(
+            purchase_order_id=purchase_order.id,
+            product_id=candidate.product_id,
+            ordered_quantity=order_quantity,
+            received_quantity=0,
+            unit="piece",
+            unit_price=None,
+        )
+    )
+    return purchase_order.id
 
 
 def _base_stock_stmt(rule: AlertRule, *, scoped_product_ids: set[int] | None) -> Select:
@@ -297,6 +392,11 @@ async def evaluate_alerts(
             if await _is_duplicate_candidate(db, candidate):
                 continue
 
+            prefilled_purchase_order_id = await _create_prefilled_purchase_order_for_low_stock(
+                db,
+                candidate=candidate,
+            )
+
             db.add(
                 AlertEvent(
                     rule_id=candidate.rule_id,
@@ -313,6 +413,7 @@ async def evaluate_alerts(
                     triggered_at=_now(),
                     metadata_json={
                         "trigger": trigger,
+                        "prefilled_purchase_order_id": prefilled_purchase_order_id,
                         **(candidate.metadata_json or {}),
                     },
                 )

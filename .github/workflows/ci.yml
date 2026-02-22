@@ -473,7 +473,7 @@ jobs:
 
       - name: Install deps
         run: |
-          python -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           pip install -e .[dev]
           pip install ruff
 
@@ -497,7 +497,7 @@ jobs:
         run: bash ../scripts/check_api_contract_drift.sh
 
       - name: Backend tests
-        run: python -m pytest -q
+        run: python3 -m pytest -q
 
   perf_smoke:
     if: github.event_name == 'pull_request'
@@ -561,7 +561,7 @@ jobs:
 
       - name: Install backend and security tooling
         run: |
-          python -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           pip install -e backend[dev]
           pip install pip-audit bandit
 
@@ -623,7 +623,7 @@ jobs:
 
       - name: Install backend deps
         run: |
-          python -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           pip install -e backend[dev]
           pip install ruff
 

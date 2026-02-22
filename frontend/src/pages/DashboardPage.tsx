@@ -5,6 +5,7 @@ import { DashboardRecentMovements } from "./dashboard/components/DashboardRecent
 import { DashboardLowStock } from "./dashboard/components/DashboardLowStock";
 import { DashboardCriticalAlerts } from "./dashboard/components/DashboardCriticalAlerts";
 import { DashboardActivity } from "./dashboard/components/DashboardActivity";
+import { DashboardOpenPurchaseOrders } from "./dashboard/components/DashboardOpenPurchaseOrders";
 import { useDashboard } from "./dashboard/hooks/useDashboard";
 
 export default function DashboardPage() {
@@ -17,6 +18,8 @@ export default function DashboardPage() {
         activityQuery,
         kpiQuery,
         criticalAlertsQuery,
+        openPurchaseOrdersQuery,
+        canReadPurchasing,
         cardsCatalog,
         visibleCardKeys,
         isSavingDashboardConfig,
@@ -46,10 +49,10 @@ export default function DashboardPage() {
                 {showConfig && (
                     <article className="subpanel animate-in slide-in-from-top duration-300">
                         <div className="flex items-center gap-2 mb-4">
-                            <Layout size={20} className="text-zinc-900" />
-                            <h3 className="text-lg font-semibold m-0 text-zinc-900 truncate">Karten konfigurieren</h3>
+                            <Layout size={20} className="text-[var(--ink)]" />
+                            <h3 className="text-lg font-semibold m-0 text-[var(--ink)] truncate">Karten konfigurieren</h3>
                         </div>
-                        <p className="text-sm text-zinc-500 mb-4 line-clamp-2">
+                        <p className="text-sm text-[var(--muted)] mb-4 line-clamp-2">
                             Wählen Sie die Module aus, die auf Ihrem Dashboard angezeigt werden sollen. Die Änderungen werden automatisch gespeichert.
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -58,14 +61,14 @@ export default function DashboardPage() {
                                     key={card.card_key}
                                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                                         visibleCardKeys.has(card.card_key)
-                                            ? "bg-zinc-50 border-zinc-300"
-                                            : "bg-white border-zinc-200 hover:border-zinc-400"
+                                            ? "bg-[var(--panel-soft)] border-[var(--line-strong)]"
+                                            : "bg-[var(--panel)] border-[var(--line)] hover:border-[var(--line-strong)]"
                                     }`}
                                 >
                                     <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
                                         <input
                                             type="checkbox"
-                                            className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-zinc-300 transition-all checked:bg-zinc-900 checked:border-zinc-900 focus:ring-2 focus:ring-zinc-900 focus:ring-offset-1"
+                                            className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-[var(--line-strong)] transition-all checked:bg-[var(--accent)] checked:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1 focus:ring-offset-[var(--panel)]"
                                             checked={visibleCardKeys.has(card.card_key)}
                                             onChange={() => toggleCard(card.card_key)}
                                             disabled={isSavingDashboardConfig}
@@ -73,7 +76,7 @@ export default function DashboardPage() {
                                         />
                                         <CheckIcon className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
                                     </div>
-                                    <span className="text-sm font-medium text-zinc-900 truncate">{card.title}</span>
+                                    <span className="text-sm font-medium text-[var(--ink)] truncate">{card.title}</span>
                                 </label>
                             ))}
                         </div>
@@ -85,7 +88,8 @@ export default function DashboardPage() {
                         summary={summaryQuery.data}
                         kpis={kpiQuery.data}
                         visible={visibleCardKeys.has("summary")}
-                        isLoading={summaryQuery.isLoading || kpiQuery.isLoading}
+                        summaryLoading={summaryQuery.isLoading}
+                        kpisLoading={kpiQuery.isLoading}
                     />
 
                     <DashboardQuickActions visible={visibleCardKeys.has("quick-actions")} />
@@ -99,6 +103,12 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="lg:col-span-2 flex flex-col gap-6">
+                        <DashboardOpenPurchaseOrders
+                            data={openPurchaseOrdersQuery.data}
+                            visible={visibleCardKeys.has("open-purchase-orders")}
+                            isLoading={openPurchaseOrdersQuery.isLoading}
+                            canReadPurchasing={canReadPurchasing}
+                        />
                         <DashboardLowStock
                             data={lowStockQuery.data}
                             visible={visibleCardKeys.has("low-stock")}

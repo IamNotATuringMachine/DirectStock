@@ -192,6 +192,25 @@ async def test_alert_rules_crud_low_stock_and_ack(client: AsyncClient, admin_tok
     payload = alerts.json()
     assert payload["total"] == 1
     alert_id = payload["items"][0]["id"]
+    prefilled_order_id = payload["items"][0]["metadata_json"].get("prefilled_purchase_order_id")
+    assert prefilled_order_id is not None
+
+    order_detail = await client.get(
+        f"/api/purchase-orders/{prefilled_order_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert order_detail.status_code == 200
+    assert order_detail.json()["status"] == "draft"
+    assert "low-stock-alert" in order_detail.json()["notes"].lower()
+
+    order_items = await client.get(
+        f"/api/purchase-orders/{prefilled_order_id}/items",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert order_items.status_code == 200
+    assert len(order_items.json()) == 1
+    assert order_items.json()[0]["product_id"] == data["product_id"]
+    assert order_items.json()[0]["ordered_quantity"] == "6.000"
 
     ack = await client.post(
         f"/api/alerts/{alert_id}/ack",
@@ -309,6 +328,80 @@ async def test_alert_rule_rbac_and_zero_stock_dedup(client: AsyncClient, admin_t
     )
     assert all_alerts.status_code == 200
     assert all_alerts.json()["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_low_stock_alert_does_not_create_prefilled_order_when_open_po_exists(client: AsyncClient, admin_token: str):
+    prefix = f"ALPO-{_suffix()}"
+    data = await _create_master_data(client, admin_token, prefix)
+
+    existing_po = await client.post(
+        "/api/purchase-orders",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"notes": "Manual pre-existing PO"},
+    )
+    assert existing_po.status_code == 201
+
+    existing_po_item = await client.post(
+        f"/api/purchase-orders/{existing_po.json()['id']}/items",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "product_id": data["product_id"],
+            "ordered_quantity": "10",
+            "unit": "piece",
+        },
+    )
+    assert existing_po_item.status_code == 201
+
+    create_rule = await client.post(
+        "/api/alert-rules",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "name": f"{prefix} low stock",
+            "rule_type": "low_stock",
+            "severity": "high",
+            "is_active": True,
+            "product_id": data["product_id"],
+            "warehouse_id": data["warehouse_id"],
+            "threshold_quantity": "10",
+            "dedupe_window_minutes": 1440,
+        },
+    )
+    assert create_rule.status_code == 201
+
+    await _receive_stock(
+        client,
+        admin_token,
+        product_id=data["product_id"],
+        bin_id=data["bin_id"],
+        quantity="4",
+    )
+
+    alerts = await client.get(
+        f"/api/alerts?rule_id={create_rule.json()['id']}&alert_type=low_stock&status=open",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert alerts.status_code == 200
+    assert alerts.json()["total"] == 1
+    assert alerts.json()["items"][0]["metadata_json"].get("prefilled_purchase_order_id") is None
+
+    all_orders = await client.get(
+        "/api/purchase-orders",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert all_orders.status_code == 200
+
+    matching_orders: set[int] = set()
+    for order in all_orders.json():
+        items = await client.get(
+            f"/api/purchase-orders/{order['id']}/items",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert items.status_code == 200
+        if any(item["product_id"] == data["product_id"] for item in items.json()):
+            matching_orders.add(order["id"])
+
+    assert matching_orders == {existing_po.json()["id"]}
 
 
 @pytest.mark.asyncio

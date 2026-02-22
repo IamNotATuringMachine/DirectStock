@@ -11,7 +11,7 @@
 
 ## High-Value Tests
 - `./scripts/check_mutation_integrity.py`
-- `cd backend && python -m pytest -q tests/test_operations.py tests/test_offline_idempotency*.py`
+- `./scripts/run_backend_pytest.sh -q tests/test_operations.py tests/test_offline_idempotency*.py`
 - `cd frontend && npm run test:e2e:smoke`
 
 ## Frequent Failure Modes

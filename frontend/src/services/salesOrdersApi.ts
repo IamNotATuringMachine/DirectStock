@@ -1,5 +1,10 @@
 import { api } from "./api";
-import type { SalesOrder, SalesOrderDetail, SalesOrderItem } from "../types";
+import {
+  buildQueuedMessage,
+  enqueueOfflineMutation,
+  shouldQueueOfflineMutation,
+} from "./offlineQueue";
+import type { CompletionSignoffPayload, SalesOrder, SalesOrderDetail, SalesOrderItem } from "../types";
 
 export async function fetchSalesOrders(params?: {
   page?: number;
@@ -69,6 +74,26 @@ export async function addSalesOrderItem(
   }
 ): Promise<SalesOrderItem> {
   const response = await api.post<SalesOrderItem>(`/sales-orders/${orderId}/items`, payload);
+  return response.data;
+}
+
+export async function completeSalesOrder(
+  orderId: number,
+  payload?: CompletionSignoffPayload
+): Promise<{ message: string }> {
+  const url = `/sales-orders/${orderId}/complete`;
+  if (shouldQueueOfflineMutation("POST", url)) {
+    await enqueueOfflineMutation({
+      method: "POST",
+      url,
+      payload: payload ?? {},
+      entityType: "sales_order_complete",
+      parentEntityId: orderId,
+    });
+    return buildQueuedMessage("Auftragsabschluss");
+  }
+
+  const response = await api.post<{ message: string }>(url, payload);
   return response.data;
 }
 

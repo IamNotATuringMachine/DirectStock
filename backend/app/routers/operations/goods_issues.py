@@ -12,7 +12,12 @@ async def list_goods_issues(
     if status_filter:
         stmt = stmt.where(GoodsIssue.status == status_filter)
     rows = list((await db.execute(stmt)).scalars())
-    return [_to_goods_issue_response(item) for item in rows]
+    signoff_map = await fetch_operation_signoff_map(
+        db=db,
+        operation_type="goods_issue",
+        operation_ids=[item.id for item in rows],
+    )
+    return [_to_goods_issue_response(item, operation_signoff=signoff_map.get(item.id)) for item in rows]
 
 
 @router.post("/goods-issues", response_model=GoodsIssueResponse, status_code=status.HTTP_201_CREATED)
@@ -55,7 +60,12 @@ async def get_goods_issue(
     item = (await db.execute(select(GoodsIssue).where(GoodsIssue.id == issue_id))).scalar_one_or_none()
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goods issue not found")
-    return _to_goods_issue_response(item)
+    operation_signoff = await fetch_operation_signoff_summary(
+        db=db,
+        operation_type="goods_issue",
+        operation_id=item.id,
+    )
+    return _to_goods_issue_response(item, operation_signoff=operation_signoff)
 
 
 @router.put("/goods-issues/{issue_id}", response_model=GoodsIssueResponse)
@@ -237,6 +247,7 @@ async def delete_goods_issue_item(
 @router.post("/goods-issues/{issue_id}/complete", response_model=MessageResponse)
 async def complete_goods_issue(
     issue_id: int,
+    payload: CompletionSignoffPayload | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permissions(GOODS_ISSUE_WRITE_PERMISSION)),
 ) -> MessageResponse:
@@ -255,11 +266,20 @@ async def complete_goods_issue(
             detail="Goods issue has no items",
         )
 
+    operation_signoff = await build_operation_signoff(
+        db=db,
+        payload=payload,
+        current_user=current_user,
+        operation_type="goods_issue",
+        operation_id=item.id,
+    )
+
     await complete_goods_issue_flow(
         db=db,
         item=item,
         issue_items=issue_items,
         current_user=current_user,
+        operation_signoff=operation_signoff,
     )
 
     return MessageResponse(message="goods issue completed")

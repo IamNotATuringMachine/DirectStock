@@ -12,11 +12,15 @@ import {
   fetchMyDashboardConfig,
   updateMyDashboardConfig,
 } from "../../../services/dashboardConfigApi";
+import { fetchPurchaseOrders } from "../../../services/purchasingApi";
 import { fetchReportKpis } from "../../../services/reportsApi";
+import { useAuthStore } from "../../../stores/authStore";
 
 export function useDashboard() {
   const queryClient = useQueryClient();
   const [showConfig, setShowConfig] = useState(false);
+  const userPermissions = useAuthStore((state) => state.user?.permissions ?? []);
+  const canReadPurchasing = userPermissions.includes("*") || userPermissions.includes("module.purchasing.read");
 
   const now = new Date();
   const dateTo = now.toISOString().slice(0, 10);
@@ -50,7 +54,7 @@ export function useDashboard() {
 
   const kpiQuery = useQuery({
     queryKey: ["dashboard-report-kpis", dateFrom, dateTo],
-    queryFn: () => fetchReportKpis({ dateFrom, dateTo }),
+    queryFn: () => fetchReportKpis({ dateFrom, dateTo, includeExtended: false }),
     refetchInterval: 60000,
   });
 
@@ -64,6 +68,21 @@ export function useDashboard() {
         severity: "critical"
       }),
     refetchInterval: 60000,
+  });
+
+  const openPurchaseOrdersQuery = useQuery({
+    queryKey: ["dashboard-open-purchase-orders"],
+    queryFn: () => fetchPurchaseOrders(),
+    select: (orders) =>
+      orders
+        .filter((order) => order.status !== "completed" && order.status !== "cancelled")
+        .sort((a, b) => {
+          const aTime = Date.parse(a.created_at);
+          const bTime = Date.parse(b.created_at);
+          return Number.isNaN(bTime - aTime) ? 0 : bTime - aTime;
+        }),
+    refetchInterval: 60000,
+    enabled: canReadPurchasing,
   });
 
   const cardsCatalogQuery = useQuery({
@@ -123,6 +142,8 @@ export function useDashboard() {
     activityQuery,
     kpiQuery,
     criticalAlertsQuery,
+    openPurchaseOrdersQuery,
+    canReadPurchasing,
     cardsCatalog,
     visibleCardKeys,
     isSavingDashboardConfig,

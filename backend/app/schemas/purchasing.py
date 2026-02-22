@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -29,6 +30,13 @@ class PurchaseOrderResponse(BaseModel):
     expected_delivery_at: datetime | None
     ordered_at: datetime | None
     completed_at: datetime | None
+    supplier_comm_status: str
+    supplier_delivery_date: date | None
+    supplier_email_sent_at: datetime | None
+    supplier_reply_received_at: datetime | None
+    supplier_last_reply_note: str | None
+    supplier_outbound_message_id: str | None
+    supplier_last_sync_at: datetime | None
     created_by: int | None
     notes: str | None
     created_at: datetime
@@ -78,3 +86,45 @@ class PurchaseOrderResolveItem(BaseModel):
 class PurchaseOrderResolveResponse(BaseModel):
     order: PurchaseOrderResponse
     items: list[PurchaseOrderResolveItem]
+
+
+class PurchaseOrderSupplierConfirmationUpdate(BaseModel):
+    supplier_comm_status: str = Field(pattern="^(confirmed_with_date|confirmed_undetermined)$")
+    supplier_delivery_date: date | None = None
+    supplier_last_reply_note: str | None = None
+
+
+class PurchaseOrderEmailSendResponse(BaseModel):
+    order: PurchaseOrderResponse
+    communication_event_id: int
+    document_id: int
+    message_id: str
+
+
+class PurchaseOrderMailSyncResponse(BaseModel):
+    processed: int
+    matched: int
+    skipped: int
+    imported_document_ids: list[int]
+
+
+class PurchaseOrderCommunicationEventResponse(BaseModel):
+    id: int
+    purchase_order_id: int
+    direction: str
+    event_type: str
+    message_id: str | None
+    in_reply_to: str | None
+    subject: str | None
+    from_address: str | None
+    to_address: str | None
+    occurred_at: datetime
+    document_id: int | None
+    created_by: int | None
+    metadata_json: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PurchaseOrderCommunicationListResponse(BaseModel):
+    items: list[PurchaseOrderCommunicationEventResponse]

@@ -324,3 +324,19 @@ async def test_reports_inventory_accuracy_abc_and_kpis(client: AsyncClient, admi
     assert "alert_count" in kpi_payload
     assert "inter_warehouse_transfers_in_transit" in kpi_payload
     assert "inter_warehouse_transit_quantity" in kpi_payload
+
+    kpis_light = await client.get(
+        f"/api/reports/kpis?date_from={today}&date_to={today}&include_extended=false",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert kpis_light.status_code == 200
+    kpis_light_payload = kpis_light.json()
+    assert "turnover_rate" in kpis_light_payload
+    assert "dock_to_stock_hours" in kpis_light_payload
+    assert "inventory_accuracy_percent" in kpis_light_payload
+    assert "alert_count" in kpis_light_payload
+    assert kpis_light_payload["pick_accuracy_rate"] == "0.00"
+    assert kpis_light_payload["returns_rate"] == "0.00"
+    assert kpis_light_payload["approval_cycle_hours"] == "0.00"
+    assert kpis_light_payload["inter_warehouse_transfers_in_transit"] == 0
+    assert kpis_light_payload["inter_warehouse_transit_quantity"] == "0"

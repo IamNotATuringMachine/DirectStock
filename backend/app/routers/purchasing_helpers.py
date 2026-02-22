@@ -36,6 +36,13 @@ def _to_order_response(item: PurchaseOrder) -> PurchaseOrderResponse:
         expected_delivery_at=item.expected_delivery_at,
         ordered_at=item.ordered_at,
         completed_at=item.completed_at,
+        supplier_comm_status=item.supplier_comm_status,
+        supplier_delivery_date=item.supplier_delivery_date,
+        supplier_email_sent_at=item.supplier_email_sent_at,
+        supplier_reply_received_at=item.supplier_reply_received_at,
+        supplier_last_reply_note=item.supplier_last_reply_note,
+        supplier_outbound_message_id=item.supplier_outbound_message_id,
+        supplier_last_sync_at=item.supplier_last_sync_at,
         created_by=item.created_by,
         notes=item.notes,
         created_at=item.created_at,
@@ -68,6 +75,11 @@ def _ensure_receivable(order: PurchaseOrder) -> None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Purchase order {order.order_number} is not ready for goods receipt",
+        )
+    if order.supplier_comm_status not in {"confirmed_with_date", "confirmed_undetermined"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Purchase order {order.order_number} is not supplier-confirmed for goods receipt",
         )
 
 

@@ -61,6 +61,10 @@ export type Supplier = {
   contact_name: string | null;
   email: string | null;
   phone: string | null;
+  purchase_email_salutation: string | null;
+  purchase_email_subject_template: string | null;
+  purchase_email_body_template: string | null;
+  purchase_email_signature: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -71,6 +75,14 @@ export type SupplierListResponse = {
   total: number;
   page: number;
   page_size: number;
+};
+
+export type SupplierPurchaseEmailTemplate = {
+  supplier_id: number;
+  salutation: string | null;
+  subject_template: string | null;
+  body_template: string | null;
+  signature: string | null;
 };
 
 export type ProductSupplierRelation = {

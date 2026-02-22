@@ -111,3 +111,58 @@ async def test_sales_order_idempotent_create(client: AsyncClient, admin_token: s
     assert first.status_code == 201
     assert second.status_code == 201
     assert first.json()["order"]["id"] == second.json()["order"]["id"]
+
+
+@pytest.mark.asyncio
+async def test_sales_order_complete_with_signoff_persists_summary(client: AsyncClient, admin_token: str):
+    marker = f"P5SO-SIGN-{suffix()}"
+    product_id = await create_product(client, admin_token, marker)
+    customer_id = await create_customer(client, admin_token, marker)
+    await create_base_price(client, admin_token, product_id=product_id, net_price="20.00", vat_rate="19")
+
+    operator = await client.post(
+        "/api/operators",
+        headers=auth_headers(admin_token),
+        json={"display_name": f"SO Operator {suffix()}"},
+    )
+    assert operator.status_code == 201
+    operator_id = operator.json()["id"]
+
+    created = await client.post(
+        "/api/sales-orders",
+        headers=auth_headers(admin_token),
+        json={
+            "customer_id": customer_id,
+            "currency": "EUR",
+            "items": [
+                {
+                    "item_type": "product",
+                    "product_id": product_id,
+                    "quantity": "1",
+                    "unit": "piece",
+                }
+            ],
+        },
+    )
+    assert created.status_code == 201
+    order_id = created.json()["order"]["id"]
+
+    complete = await client.post(
+        f"/api/sales-orders/{order_id}/complete",
+        headers=auth_headers(admin_token),
+        json={
+            "operator_id": operator_id,
+            "signature_payload": {
+                "strokes": [{"points": [{"x": 10, "y": 10, "t": 1}, {"x": 20, "y": 15, "t": 2}]}],
+                "canvas_width": 640,
+                "canvas_height": 220,
+                "captured_at": "2026-02-21T10:00:00Z",
+            },
+        },
+    )
+    assert complete.status_code == 200
+
+    detail = await client.get(f"/api/sales-orders/{order_id}", headers=auth_headers(admin_token))
+    assert detail.status_code == 200
+    assert detail.json()["order"]["status"] == "completed"
+    assert detail.json()["order"]["operation_signoff"]["operator_id"] == operator_id

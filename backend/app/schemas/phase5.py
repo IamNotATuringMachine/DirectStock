@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from app.schemas.operators import CompletionSignoffPayload, OperationSignoffSummary
 
 
 class PermissionResponse(BaseModel):
@@ -192,6 +193,10 @@ class SalesOrderUpdate(BaseModel):
     notes: str | None = None
 
 
+class SalesOrderCompleteRequest(CompletionSignoffPayload):
+    pass
+
+
 class SalesOrderItemResponse(BaseModel):
     id: int
     sales_order_id: int
@@ -219,6 +224,7 @@ class SalesOrderResponse(BaseModel):
     ordered_at: datetime | None
     completed_at: datetime | None
     created_by: int | None
+    operation_signoff: OperationSignoffSummary | None = None
     currency: str
     notes: str | None
     created_at: datetime

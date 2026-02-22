@@ -16,6 +16,7 @@ DEFAULT_ROLES: list[tuple[str, str]] = [
     ("versand", "Versand"),
     ("controller", "Controlling"),
     ("auditor", "Audit / Read-Only"),
+    ("tablet_ops", "Tablet Operations"),
 ]
 
 DEFAULT_USERS = [

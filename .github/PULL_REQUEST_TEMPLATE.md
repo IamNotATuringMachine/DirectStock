@@ -15,7 +15,7 @@
 - [ ] Frontend: `npm run build`
 - [ ] Backend: `ruff check` (Refactor Scope)
 - [ ] Backend: `ruff format --check` (Refactor Scope)
-- [ ] Backend: `python -m pytest -q`
+- [ ] Backend: `./scripts/run_backend_pytest.sh -q`
 - [ ] Repo: `pre-commit run --all-files`
 
 ## Risiko/Regression

@@ -51,6 +51,38 @@ class Settings(BaseSettings):
     dhl_express_shipper_country_code: str = "DE"
     dhl_express_shipper_state_code: str = ""
 
+    purchase_email_smtp_enabled: bool = False
+    purchase_email_smtp_host: str = ""
+    purchase_email_smtp_port: int = 587
+    purchase_email_smtp_username: str = ""
+    purchase_email_smtp_password: str = ""
+    purchase_email_smtp_use_tls: bool = True
+    purchase_email_from_address: str = "einkauf@directstock.local"
+    purchase_email_reply_to_address: str = "einkauf@directstock.local"
+    purchase_email_sender_name: str = "Einkauf"
+    purchase_email_default_to_addresses: str = ""
+    purchase_email_default_cc_addresses: str = ""
+
+    purchase_email_imap_enabled: bool = False
+    purchase_email_imap_host: str = ""
+    purchase_email_imap_port: int = 993
+    purchase_email_imap_username: str = ""
+    purchase_email_imap_password: str = ""
+    purchase_email_imap_mailbox: str = "INBOX"
+    purchase_email_imap_use_ssl: bool = True
+    purchase_email_poll_interval_seconds: int = 300
+
+    purchase_email_default_salutation: str = "Guten Tag {supplier_company_name},"
+    purchase_email_default_subject_template: str = "Bestellung {order_number}"
+    purchase_email_default_body_template: str = (
+        "{salutation}\n\n"
+        "hiermit bestellen wir folgende Artikel:\n\n"
+        "{items_table}\n\n"
+        "Bitte bestaetigen Sie die Bestellung und teilen Sie uns den Liefertermin mit.\n\n"
+        "Vielen Dank."
+    )
+    purchase_email_default_signature: str = "Mit freundlichen Gruessen\n{sender_name}\n{sender_email}"
+
     default_admin_username: str = Field(default="admin", validation_alias="DIRECTSTOCK_ADMIN_USERNAME")
     default_admin_email: str = Field(default="admin@directstock.local", validation_alias="DIRECTSTOCK_ADMIN_EMAIL")
     default_admin_password: str = Field(default="DirectStock2026!", validation_alias="DIRECTSTOCK_ADMIN_PASSWORD")

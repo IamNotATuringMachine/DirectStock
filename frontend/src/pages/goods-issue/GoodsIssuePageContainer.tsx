@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { OperationSignoffModal } from "../../components/operations/OperationSignoffModal";
 import { fetchCustomerLocations, fetchCustomers } from "../../services/customersApi";
 import { fetchInventoryByBin } from "../../services/inventoryApi";
 import {
@@ -10,15 +11,25 @@ import {
   fetchGoodsIssueItems,
   fetchGoodsIssues,
 } from "../../services/operationsApi";
+import {
+  fetchOperationSignoffSettings,
+  fetchOperators,
+  unlockOperator,
+  updateOperator,
+} from "../../services/operatorsApi";
 import { fetchAllProducts } from "../../services/productsApi";
 import { fetchBins, fetchWarehouses, fetchZones } from "../../services/warehousesApi";
-import type { BinLocation, InventoryByBinItem, Product } from "../../types";
+import type { BinLocation, CompletionSignoffPayload, InventoryByBinItem, Product } from "../../types";
+import { useAuthStore } from "../../stores/authStore";
+import { isOperationSignoffRequired } from "../../utils/tabletOps";
 import { flowSteps, type IssueFlowStep } from "./model";
 import { resolveBinFromScan, resolveProductFromScan } from "./scanResolvers";
 import { GoodsIssueView } from "./GoodsIssueView";
 
 export default function GoodsIssuePage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const requiresSignoffCompletion = isOperationSignoffRequired(user);
   const [customerId, setCustomerId] = useState<string>("");
   const [customerLocationId, setCustomerLocationId] = useState<string>("");
   const [customerReference, setCustomerReference] = useState("");
@@ -37,6 +48,7 @@ export default function GoodsIssuePage() {
   const [flowLoading, setFlowLoading] = useState(false);
   const [flowFeedbackStatus, setFlowFeedbackStatus] = useState<"idle" | "success" | "error">("idle");
   const [flowFeedbackMessage, setFlowFeedbackMessage] = useState<string | null>(null);
+  const [isSignoffModalOpen, setIsSignoffModalOpen] = useState(false);
   const issuesQuery = useQuery({
     queryKey: ["goods-issues"],
     queryFn: () => fetchGoodsIssues(),
@@ -87,6 +99,18 @@ export default function GoodsIssuePage() {
     enabled: selectedZoneId !== null,
   });
 
+  const operatorsQuery = useQuery({
+    queryKey: ["operators"],
+    queryFn: fetchOperators,
+    enabled: requiresSignoffCompletion,
+  });
+
+  const signoffSettingsQuery = useQuery({
+    queryKey: ["operators", "signoff-settings"],
+    queryFn: fetchOperationSignoffSettings,
+    enabled: requiresSignoffCompletion,
+  });
+
   const createIssueMutation = useMutation({
     mutationFn: createGoodsIssue,
     onSuccess: async (issue) => {
@@ -127,8 +151,34 @@ export default function GoodsIssuePage() {
     },
   });
 
+  const unlockOperatorMutation = useMutation({
+    mutationFn: unlockOperator,
+  });
+
+  const updateOperatorPinMutation = useMutation({
+    mutationFn: ({
+      operatorId,
+      pin,
+      pinEnabledOnly = false,
+    }: {
+      operatorId: number;
+      pin?: string;
+      pinEnabledOnly?: boolean;
+    }) =>
+      updateOperator(operatorId, pinEnabledOnly ? { pin_enabled: true } : { pin, pin_enabled: true }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["operators"] });
+    },
+  });
+
   const completeMutation = useMutation({
-    mutationFn: completeGoodsIssue,
+    mutationFn: ({
+      issueId,
+      payload,
+    }: {
+      issueId: number;
+      payload?: CompletionSignoffPayload;
+    }) => completeGoodsIssue(issueId, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["goods-issues"] });
       await queryClient.invalidateQueries({ queryKey: ["goods-issue-items", selectedIssueId] });
@@ -294,56 +344,90 @@ export default function GoodsIssuePage() {
     resetFlow();
   };
 
+  const onCompleteIssue = async () => {
+    if (!selectedIssueId) {
+      return;
+    }
+    if (!requiresSignoffCompletion) {
+      await completeMutation.mutateAsync({ issueId: selectedIssueId });
+      return;
+    }
+    setIsSignoffModalOpen(true);
+  };
+
+  const onConfirmSignoff = async (payload: CompletionSignoffPayload) => {
+    if (!selectedIssueId) {
+      return;
+    }
+    await completeMutation.mutateAsync({ issueId: selectedIssueId, payload });
+    setIsSignoffModalOpen(false);
+  };
+
   return (
-    <GoodsIssueView
-      customerId={customerId}
-      setCustomerId={setCustomerId}
-      customerLocationId={customerLocationId}
-      setCustomerLocationId={setCustomerLocationId}
-      customerReference={customerReference}
-      setCustomerReference={setCustomerReference}
-      customers={customersQuery.data?.items ?? []}
-      customerLocations={customerLocationsQuery.data ?? []}
-      onCreateIssue={(event) => void onCreateIssue(event)}
-      createIssuePending={createIssueMutation.isPending}
-      issues={issuesQuery.data ?? []}
-      selectedIssueId={selectedIssueId}
-      onSelectIssue={(id) => setSelectedIssueId(id)}
-      selectedIssue={selectedIssue}
-      flowStep={flowStep}
-      setFlowStep={setFlowStep}
-      flowProgress={flowProgress}
-      flowLoading={flowLoading}
-      onFlowSourceBinScan={onFlowSourceBinScan}
-      onFlowProductScan={onFlowProductScan}
-      flowQuantity={flowQuantity}
-      setFlowQuantity={setFlowQuantity}
-      availableStock={availableStock}
-      remainingAfterIssue={remainingAfterIssue}
-      onConfirmFlowItem={() => void onConfirmFlowItem()}
-      createItemPending={createItemMutation.isPending}
-      flowSourceBin={flowSourceBin}
-      flowProduct={flowProduct}
-      flowFeedbackStatus={flowFeedbackStatus}
-      flowFeedbackMessage={flowFeedbackMessage}
-      onCompleteIssue={() => selectedIssueId && void completeMutation.mutateAsync(selectedIssueId)}
-      completePending={completeMutation.isPending}
-      onCancelIssue={() => selectedIssueId && void cancelMutation.mutateAsync(selectedIssueId)}
-      cancelPending={cancelMutation.isPending}
-      issueItems={issueItemsQuery.data ?? []}
-      onAddItem={(event) => void onAddItem(event)}
-      selectedProductId={selectedProductId}
-      setSelectedProductId={setSelectedProductId}
-      products={productsQuery.data?.items ?? []}
-      selectedWarehouseId={selectedWarehouseId}
-      setSelectedWarehouseId={setSelectedWarehouseId}
-      setSelectedZoneId={setSelectedZoneId}
-      setSelectedBinId={setSelectedBinId}
-      warehouses={warehousesQuery.data ?? []}
-      selectedBinId={selectedBinId}
-      bins={binsQuery.data ?? []}
-      requestedQuantity={requestedQuantity}
-      setRequestedQuantity={setRequestedQuantity}
-    />
+    <>
+      <GoodsIssueView
+        customerId={customerId}
+        setCustomerId={setCustomerId}
+        customerLocationId={customerLocationId}
+        setCustomerLocationId={setCustomerLocationId}
+        customerReference={customerReference}
+        setCustomerReference={setCustomerReference}
+        customers={customersQuery.data?.items ?? []}
+        customerLocations={customerLocationsQuery.data ?? []}
+        onCreateIssue={(event) => void onCreateIssue(event)}
+        createIssuePending={createIssueMutation.isPending}
+        issues={issuesQuery.data ?? []}
+        selectedIssueId={selectedIssueId}
+        onSelectIssue={(id) => setSelectedIssueId(id)}
+        selectedIssue={selectedIssue}
+        flowStep={flowStep}
+        setFlowStep={setFlowStep}
+        flowProgress={flowProgress}
+        flowLoading={flowLoading}
+        onFlowSourceBinScan={onFlowSourceBinScan}
+        onFlowProductScan={onFlowProductScan}
+        flowQuantity={flowQuantity}
+        setFlowQuantity={setFlowQuantity}
+        availableStock={availableStock}
+        remainingAfterIssue={remainingAfterIssue}
+        onConfirmFlowItem={() => void onConfirmFlowItem()}
+        createItemPending={createItemMutation.isPending}
+        flowSourceBin={flowSourceBin}
+        flowProduct={flowProduct}
+        flowFeedbackStatus={flowFeedbackStatus}
+        flowFeedbackMessage={flowFeedbackMessage}
+        onCompleteIssue={() => void onCompleteIssue()}
+        completePending={completeMutation.isPending}
+        onCancelIssue={() => selectedIssueId && void cancelMutation.mutateAsync(selectedIssueId)}
+        cancelPending={cancelMutation.isPending}
+        issueItems={issueItemsQuery.data ?? []}
+        onAddItem={(event) => void onAddItem(event)}
+        selectedProductId={selectedProductId}
+        setSelectedProductId={setSelectedProductId}
+        products={productsQuery.data?.items ?? []}
+        selectedWarehouseId={selectedWarehouseId}
+        setSelectedWarehouseId={setSelectedWarehouseId}
+        setSelectedZoneId={setSelectedZoneId}
+        setSelectedBinId={setSelectedBinId}
+        warehouses={warehousesQuery.data ?? []}
+        selectedBinId={selectedBinId}
+        bins={binsQuery.data ?? []}
+        requestedQuantity={requestedQuantity}
+        setRequestedQuantity={setRequestedQuantity}
+      />
+      <OperationSignoffModal
+        isOpen={isSignoffModalOpen}
+        title="Warenausgang abschließen"
+        operators={operatorsQuery.data ?? []}
+        settings={signoffSettingsQuery.data ?? null}
+        loading={operatorsQuery.isLoading || signoffSettingsQuery.isLoading}
+        submitting={completeMutation.isPending || updateOperatorPinMutation.isPending}
+        onClose={() => setIsSignoffModalOpen(false)}
+        onUnlock={(pin) => unlockOperatorMutation.mutateAsync(pin)}
+        onSetOperatorPin={(operatorId, pin) => updateOperatorPinMutation.mutateAsync({ operatorId, pin })}
+        onEnableOperatorPin={(operatorId) => updateOperatorPinMutation.mutateAsync({ operatorId, pinEnabledOnly: true })}
+        onConfirm={(payload) => onConfirmSignoff(payload)}
+      />
+    </>
   );
 }

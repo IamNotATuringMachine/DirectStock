@@ -98,7 +98,7 @@ export async function createCustomerLocation(
   return response.data;
 }
 
-async function updateCustomerLocation(
+export async function updateCustomerLocation(
   customerId: number,
   locationId: number,
   payload: {

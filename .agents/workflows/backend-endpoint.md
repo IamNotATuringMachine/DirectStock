@@ -42,7 +42,7 @@ description: Backend endpoint creation — schema, router, service, test, contra
 
 6. **Run tests**:
    ```bash
-   cd backend && python -m pytest -q
+   ./scripts/run_backend_pytest.sh -q
    ```
 
 7. **Sync frontend types** — Update TypeScript types:

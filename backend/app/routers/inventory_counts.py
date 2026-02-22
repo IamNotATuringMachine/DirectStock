@@ -19,7 +19,13 @@ from app.schemas.inventory_counts import (
     InventoryCountSessionCreate,
     InventoryCountSessionResponse,
 )
+from app.schemas.operators import CompletionSignoffPayload
 from app.schemas.user import MessageResponse
+from app.services.operation_signoff_service import (
+    build_operation_signoff,
+    fetch_operation_signoff_map,
+    fetch_operation_signoff_summary,
+)
 from app.utils.http_status import HTTP_422_UNPROCESSABLE
 from .inventory_counts_workflow import (
     complete_inventory_count_session_flow,
@@ -106,7 +112,11 @@ async def _to_item_response(db: AsyncSession, item: InventoryCountItem) -> Inven
     )
 
 
-def _to_session_response(item: InventoryCountSession) -> InventoryCountSessionResponse:
+def _to_session_response(
+    item: InventoryCountSession,
+    *,
+    operation_signoff=None,
+) -> InventoryCountSessionResponse:
     return InventoryCountSessionResponse(
         id=item.id,
         session_number=item.session_number,
@@ -117,6 +127,7 @@ def _to_session_response(item: InventoryCountSession) -> InventoryCountSessionRe
         generated_at=item.generated_at,
         completed_at=item.completed_at,
         created_by=item.created_by,
+        operation_signoff=operation_signoff,
         notes=item.notes,
         created_at=item.created_at,
         updated_at=item.updated_at,
@@ -133,7 +144,12 @@ async def list_inventory_count_sessions(
     if status_filter:
         stmt = stmt.where(InventoryCountSession.status == status_filter)
     rows = list((await db.execute(stmt)).scalars())
-    return [_to_session_response(row) for row in rows]
+    signoff_map = await fetch_operation_signoff_map(
+        db=db,
+        operation_type="inventory_count",
+        operation_ids=[row.id for row in rows],
+    )
+    return [_to_session_response(row, operation_signoff=signoff_map.get(row.id)) for row in rows]
 
 
 @router.post("", response_model=InventoryCountSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -167,7 +183,12 @@ async def get_inventory_count_session(
     _=Depends(require_permissions(INVENTORY_COUNT_READ_PERMISSION)),
 ) -> InventoryCountSessionResponse:
     session = await _get_session_or_404(db, session_id)
-    return _to_session_response(session)
+    operation_signoff = await fetch_operation_signoff_summary(
+        db=db,
+        operation_type="inventory_count",
+        operation_id=session.id,
+    )
+    return _to_session_response(session, operation_signoff=operation_signoff)
 
 
 @router.post("/{session_id}/generate-items", response_model=MessageResponse)
@@ -270,14 +291,23 @@ async def count_inventory_item(
 @router.post("/{session_id}/complete", response_model=MessageResponse)
 async def complete_inventory_count_session(
     session_id: int,
+    payload: CompletionSignoffPayload | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permissions(INVENTORY_COUNT_WRITE_PERMISSION)),
 ) -> MessageResponse:
     session = await _get_session_or_404(db, session_id)
+    operation_signoff = await build_operation_signoff(
+        db=db,
+        payload=payload,
+        current_user=current_user,
+        operation_type="inventory_count",
+        operation_id=session.id,
+    )
     await complete_inventory_count_session_flow(
         db=db,
         session=session,
         current_user_id=current_user.id,
+        operation_signoff=operation_signoff,
     )
 
     return MessageResponse(message="inventory count session completed")

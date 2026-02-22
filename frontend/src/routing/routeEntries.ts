@@ -14,6 +14,7 @@ import {
   History,
   LayoutDashboard,
   Package,
+  TabletSmartphone,
   Receipt,
   RotateCcw,
   ScanBarcode,
@@ -36,6 +37,7 @@ import {
   InventoryCountPage,
   InventoryPage,
   InvoicesPage,
+  OperatorsPage,
   PickingPage,
   ProductDetailPage,
   ProductFormPage,
@@ -47,12 +49,25 @@ import {
   ScannerPage,
   ShippingPage,
   StockTransferPage,
+  SuppliersPage,
+  TabletOperationsHubPage,
   UsersPage,
   WarehousePage,
 } from "../pages";
 import type { AppRouteDefinition } from "./routeTypes";
 
 export const routeCatalogEntries: AppRouteDefinition[] = [
+  {
+    path: "/tablet-ops",
+    pageSlug: "tablet-ops",
+    requiredPermission: "page.tablet-ops.view",
+    navLabel: "Tablet Operations",
+    shortLabel: "TB",
+    icon: TabletSmartphone,
+    showInNav: false,
+    priority: 5,
+    component: TabletOperationsHubPage,
+  },
   {
     path: "/dashboard",
     pageSlug: "dashboard",
@@ -255,6 +270,17 @@ export const routeCatalogEntries: AppRouteDefinition[] = [
     component: GoodsIssuePage,
   },
   {
+    path: "/operators",
+    pageSlug: "operators",
+    requiredPermission: "page.operators.view",
+    navLabel: "Mitarbeiter",
+    shortLabel: "MP",
+    icon: Users,
+    showInNav: true,
+    priority: 152,
+    component: OperatorsPage,
+  },
+  {
     path: "/stock-transfer",
     pageSlug: "stock-transfer",
     requiredPermission: "page.stock-transfer.view",
@@ -297,6 +323,17 @@ export const routeCatalogEntries: AppRouteDefinition[] = [
     showInNav: true,
     priority: 190,
     component: CustomersPage,
+  },
+  {
+    path: "/suppliers",
+    pageSlug: "suppliers",
+    requiredPermission: "page.suppliers.view",
+    navLabel: "Lieferanten",
+    shortLabel: "LF",
+    icon: Building2,
+    showInNav: true,
+    priority: 195,
+    component: SuppliersPage,
   },
   {
     path: "/scanner",

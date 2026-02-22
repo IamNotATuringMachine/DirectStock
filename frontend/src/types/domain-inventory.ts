@@ -1,3 +1,5 @@
+import type { OperationSignoffSummary } from "./domain-ops";
+
 export type LowStockItem = {
   product_id: number;
   product_number: string;
@@ -33,6 +35,7 @@ export type GoodsReceipt = {
   received_at: string | null;
   completed_at: string | null;
   created_by: number | null;
+  operation_signoff?: OperationSignoffSummary | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -83,6 +86,7 @@ export type GoodsIssue = {
   issued_at: string | null;
   completed_at: string | null;
   created_by: number | null;
+  operation_signoff?: OperationSignoffSummary | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

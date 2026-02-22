@@ -1,4 +1,5 @@
 import { AdHocProductModal } from "./components/AdHocProductModal";
+import { OperationSignoffModal } from "../../components/operations/OperationSignoffModal";
 import { GoodsReceiptHeaderSection } from "./components/GoodsReceiptHeaderSection";
 import { GoodsReceiptItemEntrySection } from "./components/GoodsReceiptItemEntrySection";
 import { GoodsReceiptItemsListSection } from "./components/GoodsReceiptItemsListSection";
@@ -102,6 +103,22 @@ export function GoodsReceiptWorkspaceView({ vm }: { vm: any }) {
           </div>
         </AdHocProductModal>
       ) : null}
+
+      <OperationSignoffModal
+        isOpen={vm.isSignoffModalOpen}
+        title="Wareneingang abschließen"
+        operators={vm.operatorsQuery.data ?? []}
+        settings={vm.signoffSettingsQuery.data ?? null}
+        loading={vm.operatorsQuery.isLoading || vm.signoffSettingsQuery.isLoading}
+        submitting={vm.completeMutation.isPending || vm.updateOperatorPinMutation.isPending}
+        onClose={() => vm.setIsSignoffModalOpen(false)}
+        onUnlock={(pin) => vm.unlockOperatorMutation.mutateAsync(pin)}
+        onSetOperatorPin={(operatorId, pin) => vm.updateOperatorPinMutation.mutateAsync({ operatorId, pin })}
+        onEnableOperatorPin={(operatorId) =>
+          vm.updateOperatorPinMutation.mutateAsync({ operatorId, pinEnabledOnly: true })
+        }
+        onConfirm={(payload) => vm.onConfirmSignoff(payload)}
+      />
     </section>
   );
 }
